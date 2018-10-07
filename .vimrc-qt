@@ -1,0 +1,50 @@
+
+" Using [w] as entire word [iw]
+nnoremap cw ciw
+nnoremap cW ciW
+nnoremap yw yiw
+nnoremap yW yiW
+nnoremap dw diw
+nnoremap dW diW
+nnoremap vw viw
+nnoremap vW viW
+
+" Y yanks til the end
+nnoremap Y v$y
+" Duplicate line
+nnoremap yp m`Yp``j
+
+" Goto beginning of the line
+nnoremap 0 _
+nnoremap _ 0
+
+" Safe undos in insert mode (Ctrl+u e Ctrl+w)
+"   note: <C-g>u inserts a new undo point
+inoremap <C-u> <C-g>u<C-u>
+inoremap <C-w> <C-g>u<C-w>
+
+" c* Change word under cursor (n will go to next occurence)
+nnoremap c* *Nciw
+nnoremap <esc> :noh<cr><esc>
+
+" Search
+set ignorecase
+" Search selected text (not working..)
+vnoremap // y/<C-r>"<CR>
+
+" Tabs and identation
+set expandtab      " spaces instead of tabs
+set tabstop=2      " insert mode
+set shiftwidth=2   " normal mode
+
+" Ctrl shortcuts
+noremap <C-S> :w<Enter>
+noremap <C-W> :q<Enter>
+nnoremap <C-;> m`A;<C-c>``:clangformatline<cr>
+inoremap <C-;> <C-c>m`A;<C-c>``:clangformatline<cr>
+
+" QtCreator commands
+noremap <leader-r> :qtrun
+noremap <leader-b> :qtbuild
+noremap <C-f> :qtfind<enter>
+noremap <C-i> :clangformatline<cr>
