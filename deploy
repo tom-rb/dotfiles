@@ -1,0 +1,147 @@
+#!/bin/bash
+#
+# Installs programs (zsh, tmux, vim) and configure them to use the respective dotfiles.
+#
+# Many configurations come from several repos out there.
+# For this script, initial inspiration came from: https://github.com/Parth/dotfiles
+#
+
+# Ask for user confirmation with a keystroke
+#  $1 Confirmation message (optional)
+#  Returns 0 on confirmation, 1 on deny
+function confirm() {
+  local message choice
+  message="${1%%' ':-'Continue?'}"
+  # remove trailing whitespace characters
+  message="${message%"${message##*[![:space:]]}"}"
+  while true; do
+    read -r -n 1 -p "$message (y/n)" choice
+    case "$choice" in
+      y|Y ) echo; return 0;;
+      n|N ) echo; return 1;;
+      * )
+        echo ' Invalid answer.'
+        ;;
+    esac
+  done
+}
+
+prompt_install_if_needed() {
+  echo -n "Checking to see if $1 is installed... "
+  if ! command -v "$1" >/dev/null; then
+    echo
+    if confirm "$1 is not installed. Would you like to install it?"; then
+      sudo apt-get install $1 -y
+    else
+      echo -e "skipping\n"
+    fi
+  else
+    echo "OK"
+  fi
+}
+
+check_default_shell() {
+  if [ -z "${SHELL##*zsh*}" ]; then
+    echo "Default shell is zsh."
+  elif confirm "Default shell is not zsh. Do you want to chsh -s \$(which zsh)?"; then
+    chsh -s $(which zsh)
+  else
+    echo "Warning: Your configuration won't work properly. If you exec zsh, it'll exec tmux which will exec your default shell which isn't zsh."
+  fi
+}
+
+echo "We're going to do the following:"
+echo "1. Check to make sure you have zsh, vim, and tmux installed"
+echo "2. We'll help you install them if you don't"
+echo "3. We're going to check to see if your default shell is zsh"
+echo "4. We'll try to change it if it's not" 
+
+echo "Let's get started? (y/n)"
+old_stty_cfg=$(stty -g)
+stty raw -echo
+answer=$( while ! head -c 1 | grep -i '[ny]' ;do true ;done )
+stty $old_stty_cfg
+if echo "$answer" | grep -iq "^y" ;then
+  echo 
+else
+  echo "Quitting, nothing was changed."
+  exit 0
+fi
+
+echo "First, let's update your package manager"
+sudo apt-get update
+
+echo
+check_for_software build-essential
+echo
+check_for_software zsh
+echo 
+check_for_software vim
+echo
+#check_for_software tmux
+#echo
+#check_for_software xclip
+#echo
+
+# check version for tmux and if < latest from github
+#$ curl -fsSLI -o /dev/null -w %{url_effective} https://github.com/hadolint/hadolint/releases/latest && echo
+
+#VERSION=2.5
+sudo apt-get -y remove tmux
+sudo apt-get -y install wget tar libevent-dev libncurses-dev
+wget https://github.com/tmux/tmux/releases/download/${VERSION}/tmux-${VERSION}.tar.gz
+tar xf tmux-${VERSION}.tar.gz
+rm -f tmux-${VERSION}.tar.gz
+cd tmux-${VERSION}
+./configure
+make
+sudo make install
+cd -
+#sudo rm -rf /usr/local/src/tmux-*
+#sudo mv tmux-${VERSION} /usr/local/src
+
+mkdir -p $HOME/.config
+mkdir -p $HOME/.local/share/zsh
+mkdir -p $HOME/.local/share/tmux
+mkdir -p $HOME/.cache/zsh
+
+# Install ZIM - Zsh IMproved FrameWork 
+git clone --recursive https://github.com/zimfw/zimfw.git ${ZDOTDIR:-${HOME}/.config}/zim
+
+git clone git@github.com:tom-rb/dotfiles.git
+
+ln -s ~/dotfiles/zsh/my-custom .config/zim/modules/my-custom
+#ln -s ~/dotfiles/tmux/tmux.conf .tmux.conf
+
+# Install tmux plugin manager
+git clone https://github.com/tmux-plugins/tpm ~/.local/share/tmux/plugins/tpm
+
+#echo -n "Would you like to backup your current dotfiles? (y/n) "
+#echo
+#old_stty_cfg=$(stty -g)
+#stty raw -echo
+#answer=$( while ! head -c 1 | grep -i '[ny]' ;do true ;done )
+#stty $old_stty_cfg
+#if echo "$answer" | grep -iq "^y" ;then
+  #mv ~/.zshrc ~/.zshrc.old
+  #mv ~/.tmux.conf ~/.tmux.conf.old
+  #mv ~/.vimrc ~/.vimrc.old
+#else
+  #echo -e "\nNot backing up old dotfiles."
+#fi
+
+
+cp $HOME/dotfiles/zsh/zshenv-template ~/.zshenv
+printf "so $HOME/dotfiles/vim/vimrc.vim" > ~/.vimrc
+# tmux doesn't automatically load from .config, but it will be lauched with -f option pointing to this file
+
+# define some message if $DOTFILES not defined
+
+printf "source-file $DOTFILES/tmux/tmux.conf" > ~/.tmux.conf
+# Configure git
+git config --global init.templatedir "$DOTFILES/git/templates"
+
+check_default_shell
+
+echo
+echo "Please log out and log back in for default shell to be initialized."

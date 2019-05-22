@@ -1,0 +1,7 @@
+# Use dotfiles as prefix to run commands in $DOTFILES directory.
+# If no argument is provided 'cd $DOTFILES' is executed.
+if [[ -n $1 ]]; then
+  (cd $DOTFILES; eval "$@")
+else 
+  cd $DOTFILES
+fi

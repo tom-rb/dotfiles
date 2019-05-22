@@ -1,1 +1,6 @@
-.cfg
+.zcompcache
+.DS_Store
+.zcompdump
+*.zwc
+*.zwc.old
+*.swp

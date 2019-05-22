@@ -1,3 +1,5 @@
+" Command with ;
+nnoremap ; :
 
 " Using [w] as entire word [iw]
 nnoremap cw ciw
@@ -47,4 +49,4 @@ inoremap <C-;> <C-c>m`A;<C-c>``:clangformatline<cr>
 noremap <leader-r> :qtrun
 noremap <leader-b> :qtbuild
 noremap <C-f> :qtfind<enter>
-noremap <C-i> :clangformatline<cr>
+noremap <C-i> :clangformatfile<cr>
