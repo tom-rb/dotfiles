@@ -3,4 +3,4 @@
 #
 
 # Initialize zim (Zsh IMproved framework) login routine
-[[ -s ${ZIM_HOME}/login_init.zsh ]] && source ${ZIM_HOME}/login_init.zsh
+[[ -s ${ZIM_HOME}/login_init.zsh ]] && source ${ZIM_HOME}/login_init.zsh -q &!

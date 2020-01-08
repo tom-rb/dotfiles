@@ -1,0 +1,1 @@
+CreateObject("Wscript.Shell").Run "idea.bat", 0, True

@@ -5,20 +5,20 @@
 # Read config sequence (except /etc/*)
 #
 #  login shell
-#    $ZDOTDIR/.zshenv
+#    $HOME/.zshenv
 #    $ZDOTDIR/.zprofile
 #    $ZDOTDIR/.zshrc
 #    $ZDOTDIR/.zlogin
 #
 #  interactive zsh
-#    $ZDOTDIR/.zshenv
+#    $HOME/.zshenv
 #    $ZDOTDIR/.zshrc
 #
 #  shell scripts
-#    $ZDOTDIR/.zshenv
+#    $HOME/.zshenv
 #
 #  remote noninteractive zsh (e.x ssh hostname command)
-#    $ZDOTDIR/.zshenv
+#    $HOME/.zshenv
 #
 #  logout:
 #    $ZDOTDIR/.zlogout
@@ -38,3 +38,19 @@ export DOTFILES=${HOME}/dotfiles
 # Setup ZDOTDIR, the directory to search the other startup files (.zshrc, etc).
 # Note: this .zshenv should be located in $HOME, the default search dir.
 export ZDOTDIR=${DOTFILES}/zsh
+
+# Define ZIM (Zsh IMproved framework) location
+export ZIM_HOME=${XDG_CONFIG_HOME}/zim
+
+# Define data path for asdf version manager
+export ASDF_DATA_DIR=${XDG_DATA_HOME}/asdf
+
+# Set correct umask (Microsoft/BashOnWindows#352)
+if [[ -f /proc/version ]] && grep --quiet Microsoft /proc/version; then
+	[[ "$(umask)" == '000' ]] && umask 022
+fi
+
+# Clean WSL PATH from Windows PATH
+# $ cat /etc/wsl.conf
+# [interop]
+# appendWindowsPath = false

@@ -1,100 +1,41 @@
-##################
-#### Terminal ####
-##################
+# -------
+# Modules
+# -------
 
-# Disable Ctrl-s to pause/freeze terminal (where Ctrl-q would unfreeze it)
-stty -ixon
-
-# Turn off all beeps
-unsetopt BEEP
-
-# Default editors
-export VISUAL=vim
-export EDITOR=vim
-
-# Output of time command
-TIMEFMT=$'\nreal\t%*E\nuser\t%*U\nsys\t%*S\ncpu\t%P'
-
-# Use pretty colors for ls
-#eval `dircolors $DOTFILES/zsh/dircolors.256dark`
-
-# source ~/dotfiles/zsh/plugins/fixls.zsh
-# source ~/dotfiles/zsh/plugins/oh-my-zsh/lib/history.zsh
-# source ~/dotfiles/zsh/plugins/oh-my-zsh/lib/key-bindings.zsh
-# source ~/dotfiles/zsh/plugins/oh-my-zsh/lib/completion.zsh
-# source ~/dotfiles/zsh/plugins/vi-mode.plugin.zsh
-# source ~/dotfiles/zsh/keybindings.sh
-
-
-################
-# ZIM SETTINGS #
-################
-
-# Select what modules you would like enabled.
-# The second line of modules may depend on options set by modules in the first
-# line. These dependencies are noted on the respective module's README.md.
-# Module my-custom is the last so it can overwrite other module's configuration.
-zmodules=(archive directory environment git git-info history input utility prompt \
-          completion autosuggestions syntax-highlighting history-substring-search \
-          my-custom )
-
-
-###################
-# MODULE SETTINGS #
-###################
+# Sets sane Zsh built-in environment options.
+zmodule environment
+# Provides handy git aliases and functions.
+zmodule git
+# Applies correct bindkeys for input events.
+zmodule input
+# Sets a custom terminal title.
+zmodule termtitle
+# Utility aliases and functions. Adds colour to ls, grep and less.
+zmodule utility
+# Enables one-time login and caching of ssh credentials per session with ssh-agent.
+zmodule ssh
+# Provides archive and unarchive functions for easy archive manipulation.
+zmodule archive
 
 #
 # Prompt
 #
 
-# Set your desired prompt here
-zprompt_theme='steeef'
+# Exposes git repository status information to prompts.
+zmodule git-info
+# A customizable version of steeef's prompt theme.
+zmodule steeef
 
-#
-# Utility
-#
-
-# Uncomment to enable spelling correction prompt for commands. See:
-# http://zsh.sourceforge.net/Doc/Release/Options.html#Input_002fOutput
-#setopt CORRECT
-
-# Set custom spelling correction prompt
-#SPROMPT='zsh: correct %F{red}%R%f to %F{green}%r%f [nyae]? '
-
-#
-# Environment
-#
-
-# Set the string below to the desired terminal title format string.
-# The terminal title is redrawn upon directory change, however, variables like 
-# ${PWD} are only evaluated once. Use prompt expansion strings for dynamic data:
-#   http://zsh.sourceforge.net/Doc/Release/Prompt-Expansion.html#Simple-Prompt-Escapes
-# The example below uses the following format: 'username@host:/current/directory'
-ztermtitle='%n@%m:%~'
-
-#
-# Input
-#
-
-# Set to vi or emacs
-zinput_mode='emacs'
-
-# Uncomment to enable double-dot expansion. This appends '../' to your input for
-# each '.' you type after an initial '..'
-#zdouble_dot_expand='true'
-
-#
-# Syntax-Highlighting
-#
-
-# This determines what highlighters will be used with the syntax-highlighting module.
-# Documentation of the highlighters can be found here:
-#   https://github.com/zsh-users/zsh-syntax-highlighting/blob/master/docs/highlighters.md
-zhighlighters=(main brackets)
-
-#
-# SSH
-#
-
-# Load these ssh identities with the ssh module
-zssh_ids=(id_rsa)
+# Additional completion definitions for Zsh.
+zmodule zsh-users/zsh-completions
+# Enables and configures smart and extensive tab completion.
+# completion must be sourced after zsh-users/zsh-completions
+zmodule completion
+# Fish-like autosuggestions for Zsh.
+zmodule zsh-users/zsh-autosuggestions
+# Fish-like syntax highlighting for Zsh.
+# zsh-users/zsh-syntax-highlighting must be sourced after completion
+zmodule zsh-users/zsh-syntax-highlighting
+# Fish-like history search (up/down arrow after some text) for Zsh.
+# zsh-users/zsh-history-substring-search must be sourced after zsh-users/zsh-syntax-highlighting
+zmodule zsh-users/zsh-history-substring-search
