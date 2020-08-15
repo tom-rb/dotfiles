@@ -68,8 +68,6 @@ else
   exit 0
 fi
 
-echo "First, let's update your package manager"
-sudo apt-get update
 
 echo
 sudo apt install build-essential

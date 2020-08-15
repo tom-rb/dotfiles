@@ -152,8 +152,9 @@ unsetopt BEEP
 export VISUAL=vim
 export EDITOR=vim
 
-# Output of time command
-TIMEFMT=$'\nreal\t%*E\nuser\t%*U\nsys\t%*S\ncpu\t%P'
+# Output of time command and /usr/bin/time
+export TIMEFMT=$'\nreal\t%*E\nuser\t%*U\nsys\t%*S\ncpu\t%P'
+export TIME=$'\nreal\t%E\nuser\t%U\nsys\t%S\ncpu\t%P'
 
 # Remove path separator from WORDCHARS.
 WORDCHARS=${WORDCHARS//[\/]}
@@ -409,6 +410,16 @@ RPS1='%F{243}%*$f'
     local win_user=$(/mnt/c/Windows/System32/cmd.exe /D /C echo %username% 2>/dev/null | tr -d '\r')
     alias code="/mnt/c/Users/${win_user}/AppData/Local/Programs/Microsoft\\ VS\\ Code/bin/code"
   fi
+}
+
+# Run a script whenever it changes (e.g. for watch unit tests) with time stats
+watch-test() {
+  local script="$1"
+  [ ! -x "$script" ] && echo "Must provide an executable file."
+  # Executes the script a first time
+  time $script
+  # Internal watch executes script whenever modified time of sibling files has changed
+  watch -t -n0.2 "watch -t -n0.2 -g ls -l --full-time ${script%/*} > /dev/null && time $script"
 }
 
 # Kubernetes
