@@ -115,7 +115,12 @@ cp $HOME/dotfiles/zsh/zshenv-template ~/.zshenv
 
 zsh
 
+# Remove group write permission (should read what compaudit says first...
+# if it's all inside ZIM_HOME it's fine to call chmod)
+compaudit | xargs chmod g-w
+
 # Update ZIM modules (must be in zsh first)
+zimfw install
 zimfw update
 
 #ln -s ~/dotfiles/zsh/my-custom .config/zim/modules/my-custom
