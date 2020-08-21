@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Installs programs (zsh, tmux, vim) and configure them to use the respective dotfiles.
 #

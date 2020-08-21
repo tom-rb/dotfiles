@@ -1,5 +1,5 @@
-#!/bin/bash
-# Start commit message with issue id from current branch name 
+#!/usr/bin/env bash
+# Start commit message with issue id from current branch name
 
 # Issue number regex
 issue_regex='[A-Z]+(-[0-9]+)?'
