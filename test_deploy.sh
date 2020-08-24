@@ -8,20 +8,30 @@ mock_read_char() {
   head -c 1 # just forward given char
 }
 
+# Extract list of mock functions and generate the declarations.
+# Each mock_*() function is returned as *() { mock_*; };
+# Args:
+#   $0: this test script name
+# Returns:
+#   string: of mock function declarations
+extract_mock_functions() {
+  grep -E "^[ 	]*mock_[A-Za-z0-9_]* *\(\)" "$0" \
+  | sed 's/mock_\([A-Za-z0-9_]*\).*/\1(){ mock_\1; };/g' \
+  | xargs # to join lines into one
+}
+
+# Source and mock deploy.sh script
 deploy() {
   . ./deploy.sh
-  # Install mocks (TODO: automatize)
-  read_char(){ mock_read_char; }
+
+  if ! eval "$(extract_mock_functions)"; then
+    echo "Error while installing mocks, aborting" && exit 2
+  fi
 }
 
 #
 # Tests
 #
-
-test_supported_os() {
-  (deploy ; check_supported_os)
-  assertTrue "OS should be supported" $?
-}
 
 test_confirm_has_default_message() {
   message=$(deploy ; echo 'y' | confirm)
@@ -50,10 +60,11 @@ test_confirm_returns_error_on_n() {
 }
 
 test_confirm_asks_for_correct_input() {
-  message=$(deploy ; echo 'xy' | confirm)
+  output=$(deploy ; echo 'xy' | confirm)
   assertTrue "y should return ok" $?
-  assertTrue "Confirmation message expected" \
-             "echo \"$message\" | grep 'Choose yes or no'"
+
+  echo "$output" | grep -q 'Choose y or n'
+  assertTrue "Confirmation output expected" $?
 }
 
 test_confirm_returns_yes_on_enter() {
@@ -76,5 +87,28 @@ test_confirm_write_y_for_enter() {
   assertEquals "y" "${message##*[!y]}"
 }
 
+test_supported_pm() {
+  (deploy ; check_supported_pm)
+  assertTrue "PM should be supported" $?
+}
+
+test_package_manager_wizard() {
+  mock_update_package_manager() {
+    echo 'update called'
+  }
+  mock_upgrade_packages() {
+    echo 'upgrade called'
+  }
+  # [N]o for update, [y]es for upgrade
+  output=$(deploy ; echo 'Ny' | package_manager_wizard)
+
+  echo "$output" | grep -q 'update called'
+  assertFalse "Update shouldn't be called" $?
+
+  echo "$output" | grep -q 'upgrade called'
+  assertTrue "Upgrade should've been called" $?
+}
+
 # Run tests
+# shellcheck source=/usr/bin/shunit2
 . shunit2
