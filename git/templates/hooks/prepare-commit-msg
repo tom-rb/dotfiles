@@ -1,18 +1,29 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # Start commit message with issue id from current branch name
 
+# Message file from $msgfile var or arg $1
+file=${msgfile:-$1}
+
 # Issue number regex
-issue_regex='[A-Z]+(-[0-9]+)?'
+issue_regex='[A-Z]+-[0-9]+'
 
 # First capture group matches branch prefixes like 'feature/' 'bugfix/' etc.
 # Second group matches the desired ABCD-1234 issue id.
-issue=$(git rev-parse --abbrev-ref HEAD | sed -En "s%([[:alpha:]]+/|)($issue_regex).*%\2%p")
+issue=$(git rev-parse --abbrev-ref HEAD | sed -En "s%([[:alpha:]]+/)*($issue_regex).*%\2%p")
 
-# Arg $1 is the commit message file
-if [[ -n $issue ]]; then
-  # Check if any issue tag is already present at the first line
-  # Or if it's an automatic message like "Merge pull request..."
-  if [[ -z $(sed -En "/(^\\[$issue_regex\\]|^Merge (pull|branch|remote)|^fixup!)/=;1q" $1) ]]; then
-    sed -i.bak -e "1s/^/[$issue] /" $1
+# If branch name has an issue tag
+if [ -n "$issue" ]; then
+  # Check if current message already has a tag (or is some git message)
+  # -En         Uses extended regex and don't print lines by default
+  # /^[ ]*#)/d  Skip (delete in memory) lines starting with #comment
+  # /(...)/!=   Print line number (=) if tag or git message was not (!) found
+  # q           Quit as soon as firt non-commented line is processed
+  insert_line=$(sed -En \
+    "/^[[:space:]]*#/d; \
+     /(^\\[($issue_regex|[[:alpha:]]+)\\]|^Merge (pull|branch|remote)|^fixup)/!=; \
+     q" "$file")
+  if [ -n "$insert_line" ]; then
+    # Insert issue number in first non-commented line (also make .bak backup)
+    sed -i.bak -e "${insert_line} s/^/[$issue] /" "$file"
   fi
 fi

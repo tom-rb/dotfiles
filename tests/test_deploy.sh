@@ -1,28 +1,20 @@
 #!/usr/bin/env sh
 
-#
-# Mocks
-#
+THISDIR=$(a="/$0"; a=${a%/*}; a=${a#/}; a=${a:-.}; command cd "$a" && pwd)
+
+oneTimeSetUp() {
+  # shellcheck source=utils.sh
+  . "$THISDIR/utils.sh"
+}
 
 mock_read_char() {
   head -c 1 # just forward given char
 }
 
-# Extract list of mock functions and generate the declarations.
-# Each mock_*() function is returned as *() { mock_*; };
-# Args:
-#   $0: this test script name
-# Returns:
-#   string: of mock function declarations
-extract_mock_functions() {
-  grep -E "^[ 	]*mock_[A-Za-z0-9_]* *\(\)" "$0" \
-  | sed 's/mock_\([A-Za-z0-9_]*\).*/\1(){ mock_\1; };/g' \
-  | xargs # to join lines into one
-}
-
 # Source and mock deploy.sh script
 deploy() {
-  . ./deploy.sh
+  # shellcheck source=../deploy.sh
+  . "$THISDIR/../deploy.sh"
 
   if ! eval "$(extract_mock_functions)"; then
     echo "Error while installing mocks, aborting" && exit 2
