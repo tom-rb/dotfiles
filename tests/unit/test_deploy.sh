@@ -3,8 +3,8 @@
 THISDIR=$(a="/$0"; a=${a%/*}; a=${a#/}; a=${a:-.}; command cd "$a" && pwd)
 
 oneTimeSetUp() {
-  # shellcheck source=utils.sh
-  . "$THISDIR/utils.sh"
+  # shellcheck source=../utils.sh
+  . "$THISDIR/../utils.sh"
 }
 
 mock_read_char() {
@@ -13,8 +13,8 @@ mock_read_char() {
 
 # Source and mock deploy.sh script
 deploy() {
-  # shellcheck source=../deploy.sh
-  . "$THISDIR/../deploy.sh"
+  # shellcheck source=../../deploy.sh
+  . "$THISDIR/../../deploy.sh"
 
   if ! eval "$(extract_mock_functions)"; then
     echo "Error while installing mocks, aborting" && exit 2

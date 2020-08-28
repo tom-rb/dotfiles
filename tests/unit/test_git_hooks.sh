@@ -3,8 +3,8 @@
 THISDIR=$(a="/$0"; a=${a%/*}; a=${a#/}; a=${a:-.}; command cd "$a" && pwd)
 
 oneTimeSetUp() {
-  # shellcheck source=utils.sh
-  . "$THISDIR/utils.sh"
+  # shellcheck source=../utils.sh
+  . "$THISDIR/../utils.sh"
 
   # Temporary file where hook script will write to
   OUTFILE="${SHUNIT_TMPDIR:?}/prepare_msg"
@@ -21,8 +21,8 @@ prepare_msg() {
   [ -f "$OUTFILE" ] && rm "$OUTFILE"
   echo "$1" > "$OUTFILE"
 
-  # shellcheck source=../git/templates/hooks/prepare-commit-msg
-  (msgfile="$OUTFILE" . "$THISDIR/../git/templates/hooks/prepare-commit-msg")
+  # shellcheck source=../../git/templates/hooks/prepare-commit-msg
+  (msgfile="$OUTFILE" . "$THISDIR/../../git/templates/hooks/prepare-commit-msg")
 }
 
 #
