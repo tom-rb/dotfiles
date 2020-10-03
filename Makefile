@@ -1,5 +1,5 @@
 # Available enviroments
-DOCKERFILES = ubuntu-bionic ubuntu-focal
+BASE_IMAGES = ubuntu-bionic ubuntu-focal
 
 # Default target for make
 all: unit-tests system-tests
@@ -8,47 +8,58 @@ all: unit-tests system-tests
 ## UNIT TESTS
 ##
 
-files_unit_test := $(wildcard tests/unit/*.sh tests/unit/*/*.sh)
-runs_unit_test := $(files_unit_test:=-run)
+_unit_test_files := $(wildcard tests/unit/*.sh tests/unit/*/*.sh)
+_unit_test_runs := $(_unit_test_files:=-run)
 
-unit-tests: $(runs_unit_test)
-	@echo "Run $(words $(runs_unit_test)) test files."
+# Run all unit tests and print summary
+unit-tests: $(_unit_test_runs)
+	@echo "Ran $(words $(_unit_test_runs)) test files."
 
-$(runs_unit_test):
-  # Removes the -run suffix and execute the file
+# Removes the -run suffix and execute the file
+$(_unit_test_runs):
 	$(@:-run=)
 
 ##
 ## SYSTEM TESTS
 ##
 
+_system_test_files := $(wildcard tests/system/*.sh tests/system/*/*.sh)
+_system_test_runs := $(BASE_IMAGES:=-run)
+
+# Run all system tests and print summary
+system-tests: images $(_system_test_runs)
+	@echo "Ran tests over $(words $(_system_test_runs)) systems."
+
+# Run each system test
+$(_system_test_runs):
+	@echo "\n>>>>>>>>>>>>>>>>>>    $@    <<<<<<<<<<<<<<<<<<"
+	@tests/system/run_system_test.sh ${@:-run=} tests/system/test_*
+
+##
+## DOCKER IMAGES
+##
+
 # Dockerfile location
 vpath %.dockerfile ./tests/systems
 
-files_system_test := $(wildcard tests/system/*.sh tests/system/*/*.sh)
+_system_images := $(basename $(notdir $(wildcard tests/systems/*.dockerfile)))
+_system_image_builds := $(_system_images:=-build)
 
-dockerfile_builds := $(DOCKERFILES:=-build)
-dockerfile_runs := $(DOCKERFILES:=-run)
+# Alias to build all images
+images: $(_system_image_builds)
 
-system-tests: $(dockerfile_runs)
-	@echo "All system tests run."
-
-$(dockerfile_runs): %-run: %-build
-	@echo "\n>>>>>>>>>>>>>>>>>>    $@    <<<<<<<<<<<<<<<<<<"
-	@for file in $(files_system_test); do \
-		docker run --rm -v "${PWD}:/app" ${@:-run=-test} "app/$$file"; \
-	done
-
-$(dockerfile_builds): %-build: %.dockerfile
+# Build each docker image
+$(_system_image_builds): %-build: %.dockerfile
 	@echo "\n>>>>>>>>>>>>>>>>>>    $@    <<<<<<<<<<<<<<<<<<"
 	docker build -t ${@:-build=-test} -f $< .
 
+# Clean all cached system docker images
 clean-images:
-	@for name in $(DOCKERFILES); do \
+	@for name in $(_system_images); do \
 		docker rmi $${name}-test:latest || true; \
 	done
 
 # Declare targets that don't produce files as phony, for safety and performance
-.PHONY: all unit-tests $(runs_unit_test)
-.PHONY: $(dockerfile_builds) $(dockerfile_runs) system-tests
-.PHONY: clean-images
+.PHONY: all unit-tests $(_unit_test_runs)
+.PHONY: system-tests $(_dockerfile_builds) $(_system_test_runs)
+.PHONY: images clean-images

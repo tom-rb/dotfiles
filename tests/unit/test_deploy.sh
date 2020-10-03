@@ -1,14 +1,10 @@
 #!/usr/bin/env sh
 
-THISDIR=$(a="/$0"; a=${a%/*}; a=${a#/}; a=${a:-.}; command cd "$a" && pwd)
+readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
   # shellcheck source=../utils.sh
   . "$THISDIR/../utils.sh"
-}
-
-mock_read_char() {
-  head -c 1 # just forward given char
 }
 
 # Source and mock deploy.sh script
@@ -16,9 +12,7 @@ deploy() {
   # shellcheck source=../../deploy.sh
   . "$THISDIR/../../deploy.sh"
 
-  if ! eval "$(extract_mock_functions)"; then
-    echo "Error while installing mocks, aborting" && exit 2
-  fi
+  eval "$(extract_mock_functions)" || exit 2
 }
 
 #
@@ -31,7 +25,7 @@ test_confirm_has_default_message() {
 }
 
 test_confirm_trims_given_message() {
-  message=$(deploy ; echo 'y' | confirm 'Sure?  ')
+  message=$(deploy ; echo 'y' | confirm 'Sure?   ')
   assertEquals "Sure? (Y/n) y" "${message}"
 }
 
@@ -85,22 +79,22 @@ test_supported_pm() {
 }
 
 test_package_manager_wizard() {
-  mock_update_package_manager() {
-    echo 'update called'
+  mock_install_basic_packages() {
+    echo 'installed basic'
   }
   mock_upgrade_packages() {
     echo 'upgrade called'
   }
-  # [N]o for update, [y]es for upgrade
-  output=$(deploy ; echo 'Ny' | package_manager_wizard)
+  # [Y]es for basic, [n]o for upgrades
+  output=$(deploy ; echo 'Yn' | package_manager_wizard)
 
-  echo "$output" | grep -q 'update called'
-  assertFalse "Update shouldn't be called" $?
+  assertContains "Install basic should've been called" \
+    "$output" "installed basic"
 
-  echo "$output" | grep -q 'upgrade called'
-  assertTrue "Upgrade should've been called" $?
+  assertNotContains "Upgrade shouldn't be called" \
+    "$output" "upgrade called"
 }
 
 # Run tests
-# shellcheck source=/usr/bin/shunit2
-. shunit2
+# shellcheck source=../shunit2
+. "$THISDIR/../shunit2"

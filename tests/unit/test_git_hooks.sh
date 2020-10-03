@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-THISDIR=$(a="/$0"; a=${a%/*}; a=${a#/}; a=${a:-.}; command cd "$a" && pwd)
+readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
   # shellcheck source=../utils.sh
@@ -14,13 +14,12 @@ oneTimeSetUp() {
 # Args:
 #   $1: initial contents of commit msg
 prepare_msg() {
-  if ! eval "$(extract_mock_functions)"; then
-    echo "Error while installing mocks, aborting" && exit 2
-  fi
+  eval "$(extract_mock_functions)" || exit 2
 
-  [ -f "$OUTFILE" ] && rm "$OUTFILE"
+  rm -f "$OUTFILE"
   echo "$1" > "$OUTFILE"
 
+  # Sourcing, instead of calling, to use mocked git functions in tests.
   # shellcheck source=../../git/templates/hooks/prepare-commit-msg
   (msgfile="$OUTFILE" . "$THISDIR/../../git/templates/hooks/prepare-commit-msg")
 }
@@ -72,5 +71,5 @@ test_tag_is_not_re_inserted_if_message_already_has_tag() {
 }
 
 # Run tests
-# shellcheck source=/usr/bin/shunit2
-. shunit2
+# shellcheck source=../shunit2
+. "$THISDIR/../shunit2"

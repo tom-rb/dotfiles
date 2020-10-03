@@ -6,21 +6,18 @@
 # For this script, initial inspiration came from: https://github.com/Parth/dotfiles
 #
 
-# Read one char from terminal input
+# Read one char from terminal input (or piped stdin)
 # https://stackoverflow.com/a/30022297/4783169
-# Returns:
-#   string: 1 char or empty if ENTER was pressed
 read_char() {
-  stty -icanon -echo
-  dd bs=1 count=1 2> /dev/null
-  stty icanon echo
+  # TODO: block -isig chars too; restore only what was enabled before
+  # Only apply stty changes if FD 0 is open (stdin is from tty)
+  [ -t 0 ] && stty -icanon -echo
+  dd bs=1 count=1 2>/dev/null
+  [ -t 0 ] && stty icanon echo
 }
 
 # Ask for user confirmation with a keystroke
-# Args:
-#   $1 Confirmation message (optional)
-# Returns:
-#   int: 0 on confirmation, 1 on deny
+# $1 Confirmation message (optional)
 confirm() {
   # Remove trailing whitespace characters
   message="${1%"${1##*[![:space:]]}"}"
@@ -38,17 +35,15 @@ confirm() {
 }
 
 # Check if system package manager is supported
-# Returns:
-#   void, or exit if pm not supported
 check_supported_pm() {
   # Only supporting apt for now
-  if ! command -v apt-get > /dev/null; then
-    echo "Sorry, this OS is not supported." && exit 1
-  fi
+  command -v apt-get > /dev/null
 }
 
-update_package_manager() {
+# Install packages required for basic operations
+install_basic_packages() {
   sudo apt-get update
+  sudo apt-get install wget tar
 }
 
 upgrade_packages() {
@@ -56,15 +51,19 @@ upgrade_packages() {
 }
 
 package_manager_wizard() {
-  check_supported_pm
+  if ! check_supported_pm; then
+    echo "Sorry, this OS is not supported."
+    return 1
+  fi
 
-  confirm "Update the package manager?"
-  doUpdate=$?
-  confirm "Also upgrade outdated packages?"
-  doUpgrade=$?
+  if confirm "Install basic packages (otherwise exit)?"; then
+    install_basic_packages
+  else
+    echo "Bye"
+    return 0
+  fi
 
-  [ $doUpdate -eq 0 ] && update_package_manager
-  [ $doUpgrade -eq 0 ] && upgrade_packages
-
-  unset doUpdate doUpgrade
+  if confirm "Upgrade existing packages?"; then
+    upgrade_packages
+  fi
 }
