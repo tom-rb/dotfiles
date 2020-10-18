@@ -1,3 +1,19 @@
 {
-  "shellcheck.exclude": ["SC2039"]
+  "shellcheck.exclude": ["SC2039"],
+  "shellcheck.customArgs": ["-x"],
+  "cSpell.words": [
+    "amazonlinux",
+    "devel",
+    "dont",
+    "dotfiles",
+    "eval",
+    "htop",
+    "icanon",
+    "isig",
+    "libevent",
+    "libncurses",
+    "shpy",
+    "shunit",
+    "thisdir"
+  ]
 }

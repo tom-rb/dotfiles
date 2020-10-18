@@ -1,0 +1,460 @@
+#!/usr/bin/env sh
+
+# Export the shpy version in the environment
+SHPY_VERSION=1.0.0
+export SHPY_VERSION
+
+# Ensure SHPY_PATH is set
+if [ -z "${SHPY_PATH:+is_set_and_not_null}" ]; then
+  echo 'Error: SHPY_PATH is not set as the path to shpy' >&2
+  return 1
+fi
+
+# PUBLIC API   .-.     .-.     .-.     .-.     .-.     .-.     .-.     .-.
+# `._.'   `._.'   `._.'   `._.'   `._.'   `._.'   `._.'   `._.'   `._.'   `
+
+createSpy() {
+    # shellcheck disable=SC2039
+    local usage status_codes outputs_count outputs_dir errors_count errors_dir spy_name
+
+    usage="Usage: createSpy [[-r status] [-o output] [-e output] [-u] ...] name
+
+Creates new spies and resets existing spies
+
+Options can be passed multiple times to create a sequence
+Once the sequence finishes, the last value is always used
+
+Options:
+  -r    Sets the status code returned by the spy when invoked
+  -o    Sets the output sent to stdout when the spy is invoked
+        When used with -e, stdout is written to first
+  -e    Sets the output sent to stderr when the spy is invoked
+        When used with -o, stdout is written to first
+  -u    Flag to unset (remove) declared function named as spy. It will not be restored."
+
+    if [ $# -eq 0 ]; then
+        printf '%s\n' "$usage"
+        return 1
+    fi
+
+    # Loop over all arguments and set `spy_name` to the last one
+    for spy_name in "$@"; do :; done
+
+    # Ensure shpy is initialized
+    _shpyInit
+
+    # Create empty directories for stdout and stderr outputs
+    outputs_dir="$_shpy_spies_dir/outputs/$spy_name"
+    errors_dir="$_shpy_spies_dir/errors/$spy_name"
+
+    (_shpy_rmdir "$outputs_dir" && _shpy_mkdir "$outputs_dir") \
+      || _shpy_die "Error: Failed to create empty spy stdout directory"
+    (_shpy_rmdir "$errors_dir" && _shpy_mkdir "$errors_dir") \
+      || _shpy_die "Error: Failed to create empty spy stderr directory"
+
+    outputs_count=0
+    errors_count=0
+
+    # Parse command line arguments
+    OPTIND=1
+    while getopts :o:r:e:u opt; do
+        case "$opt" in
+            o)
+              # Write the contents to the stdout directory
+              echo "$OPTARG" > "$outputs_dir/$outputs_count"
+              outputs_count=$((outputs_count + 1))
+              ;;
+            e)
+              # Write the contents to the stderr directory
+              echo "$OPTARG" > "$errors_dir/$errors_count"
+              errors_count=$((errors_count + 1))
+              ;;
+            r)
+              # Append the status code to a space-delimited sequence
+              # Add a space when `status_code` isn't null to avoid leading space
+              status_codes="${status_codes-}${status_codes:+ }$OPTARG"
+              ;;
+            u)
+              # Unset function
+              unset -f "$spy_name" 2> /dev/null || true
+              ;;
+            *) _shpy_die "Error: Unknown option -$OPTARG" ;;
+        esac
+    done
+
+    # If there is not one remaining argument for the spy name, display usage
+    if [ $# -ne $OPTIND ]; then
+      _shpy_rmdir "$outputs_dir" \
+        || _shpy_die "Error: Failed to remove stdout directory for spy"
+      _shpy_rmdir "$errors_dir" \
+        || _shpy_die "Error: Failed to remove stderr directory for spy"
+
+      printf '%s\n' "$usage"
+      return 1
+    fi
+
+    _shpyResetSpy "$spy_name"
+    _shpySetSpyStatusCodeSequence "$spy_name" "${status_codes:-0}"
+    _shpyCreateSpyExecutable "$spy_name"
+}
+
+# Alias for `createSpy`
+createStub() {
+    createSpy "$@"
+}
+
+getSpyCallCount() {
+    if [ $# -ne 1 ]; then
+        echo 'Usage: getSpyCallCount name'
+        echo
+        echo 'Outputs the number of calls made to the spy'
+        return 1
+    fi
+
+    _shpyGetDirectoryContentsCount "${_shpy_spies_dir:-shpy_dir_not_set}/$1"
+}
+
+wasSpyCalledWith() {
+    if [ $# -eq 0 ]; then
+        echo 'Usage: wasSpyCalledWith name [arg ...]'
+        echo
+        echo 'Returns 0 if the current spy call under examination has the given args'
+        return 1
+    fi
+
+    # shellcheck disable=SC2039
+    local arg_index arg_count current_spy_call_index spy_name spy_path
+
+    spy_name=$1
+    shift
+
+    current_spy_call_index=$(_shpyGetCurrentSpyCallIndex "$spy_name")
+    if [ "$current_spy_call_index" -ge "$(getSpyCallCount "$spy_name")" ]; then
+        printf 'Error: Spy %s has not been called %s time(s)\n' \
+          "$spy_name" "$current_spy_call_index" >&2
+        return 1
+    fi
+
+    # Get the path to the current call index being examined and its arg count
+    spy_path="$_shpy_spies_dir/$spy_name/$current_spy_call_index"
+    arg_count=$(_shpyGetDirectoryContentsCount "$spy_path")
+
+    # Check if the number of arguments to this call match
+    [ "$arg_count" -ne "$#" ] && return 1
+
+    # Check if the first args match, second arg, and so on
+    arg_index=0
+    while [ "$arg_index" -lt "$arg_count" ]; do
+        [ "$(cat "$spy_path/$arg_index")" != "$1" ] && return 1
+
+        shift
+        arg_index=$(( arg_index + 1 ))
+    done
+
+    return 0
+}
+
+getArgsForCall() {
+    if [ $# -ne 2 ]; then
+        echo 'Usage: getArgsForCall name call' >&2
+        echo
+        echo 'Prints the arguments from a call to a spy (first call is 1)'
+        echo
+        echo 'Single-word arguments are always listed without quotes'
+        echo 'Multi-word arguments are always listed with double-quotes'
+        return 1
+    fi
+
+    # shellcheck disable=SC2039
+    local spy_name spy_path call_index arg_index arg all_args
+
+    spy_name=$1
+    call_index=$2
+
+    # Check if any spies currently exist
+    if [ -z "${_shpy_spies_dir:+is_set_and_not_null}" ]; then
+      echo "Error: No spies have been created" >&2
+      return 1
+    fi
+
+    # Set the path to this spy's metadata and check if the call index exists
+    spy_path="$_shpy_spies_dir/$spy_name/$(( call_index - 1 ))"
+    if [ ! -d "$spy_path" ]; then
+        printf 'Error: Spy "%s" has not been called %s time(s)' \
+          "$spy_name" "$call_index" >&2
+        return 1
+    fi
+
+    # Iterate over all arguments to this call to build a space-delimited list
+    arg_index=0
+    while [ "$arg_index" -le "$(_shpyGetDirectoryContentsCount "$spy_path")" ]; do
+        if [ -f "$spy_path/$arg_index" ]; then
+            arg=$(cat "$spy_path/$arg_index")
+
+            # If the argument contains spaces, wrap it in double quotes
+            printf "%s" "$arg" | grep -qe '\s' && arg="\"$arg\""
+
+            # Add a space when `arguments` isn't null to avoid leading space
+            all_args="${all_args-}${all_args:+ }$arg"
+        fi
+
+        arg_index=$(( arg_index + 1 ))
+    done
+
+    echo "${all_args-}"
+}
+
+examineNextSpyCall() {
+    if [ $# -ne 1 ]; then
+        echo 'Usage: examineNextSpyCall name'
+        echo
+        echo 'Examine the next spy invocation when calling wasSpyCalledWith'
+        echo ''
+        echo 'This causes wasSpyCalledWith to verify the second invocation, etc'
+        return 1
+    fi
+
+    _shpySetCurrentSpyCallIndex "$1" $(( $(_shpyGetCurrentSpyCallIndex "$1") + 1 ))
+}
+
+# Removes spies and their metadata from disk and the environment
+# _shpy_inited and the temporary shpy working dir are unset and removed
+cleanupSpies() {
+    # Unset `_shpy_inited` if set
+    [ -n "${_shpy_inited+is_set}" ] && unset -v _shpy_inited
+
+    # Remove the temporary shpy working directory and restore the path
+    if [ -n "${_shpy_spies_dir+is_set}" ]; then
+      # Remove the shpy bin directory from the path using parameter expansion
+      PATH="${PATH%$_shpy_spies_dir/bin:*}${PATH#*$_shpy_spies_dir/bin:}"
+      export PATH
+
+      # Reset each individual spy
+      find "$_shpy_spies_dir" \
+        -maxdepth 1 -type f -exec sh -c '_shpyResetSpy "$1"' _ {} \;
+
+      _shpy_rmdir "$_shpy_spies_dir" \
+        || _shpy_die "Error: Failed to clean up temporary shpy working dir"
+
+      unset -v _shpy_spies_dir
+    fi
+}
+
+# PRIVATE API  .-.     .-.     .-.     .-.     .-.     .-.     .-.     .-.
+# `._.'   `._.'   `._.'   `._.'   `._.'   `._.'   `._.'   `._.'   `._.'   `
+
+# Creates a temporary shpy directory and adds the bin directory to the path
+# This function does not run again until `cleanupSpies` is called
+_shpyInit() {
+    # Do nothing if shpy is initialized
+    if [ -n "${_shpy_inited+is_set}" ]; then
+        return
+    fi
+
+    # Mark shpy as initialized and create a temp directory to work from
+    _shpy_inited=1
+    _shpy_spies_dir=$(_shpy_create_working_dir) \
+      || _shpy_die "Error: Failed to create shpy working directory"
+
+    # Ensure child shell processes have access to these variables
+    export _shpy_inited
+    export _shpy_spies_dir
+
+    # Create the shpy bin directory and prepend it to the path
+    _shpy_mkdir "$_shpy_spies_dir/bin/"
+    PATH="$_shpy_spies_dir/bin:$PATH"
+    export PATH
+}
+
+# Removes the spy directory and resets all environment variables for the spy
+# $1 - Name of the spy to reset
+_shpyResetSpy() {
+    _shpy_rmdir "$_shpy_spies_dir/$1" \
+      || _shpy_die "Error: Failed to remove spy directory"
+
+    unset "_shpy_$1_status_codes" "_shpy_$1_current"
+}
+
+# Creates an executable shell script for a spy in `$_shpy_spies_dir/bin/`
+# $1 - Name of the spy to create an executable for
+_shpyCreateSpyExecutable() {
+    # shellcheck disable=SC2039
+    local spy_file
+
+    spy_file="$_shpy_spies_dir/bin/$1"
+
+    printf '#!/usr/bin/env sh\n' > "$spy_file"
+    printf '. %s\n' "$SHPY_PATH" >> "$spy_file"
+    printf '_shpyRunSpy "%s" "$@"\n' "$1" >> "$spy_file"
+    chmod +x "$spy_file"
+
+    # Check if function exists with spy name
+    if [ "$(command -v "$1")" = "$1" ]; then
+       echo "Function $1 is declared and will be called instead of spy. Add -u to createSpy to unset it." >&2
+    fi
+}
+
+# Outputs the index of the current spy call under examination
+# $1 - Name of the spy
+_shpyGetCurrentSpyCallIndex() {
+    eval printf '%s\\n' "\${_shpy_$1_current-0}"
+}
+
+# Sets and exports the index of the current spy call under examination
+# $1 - Name of the spy
+# $2 - Call index to examine
+_shpySetCurrentSpyCallIndex() {
+    eval "_shpy_$1_current=$2"
+    export "_shpy_$1_current"
+}
+
+# Outputs the number of files in the given directory
+# $1 - Path to the directory
+# xargs to remove leading spaces
+_shpyGetDirectoryContentsCount() {
+    if [ -d "$1" ]; then
+      find "$1" -maxdepth 1 ! -path "$1" | wc -l | xargs
+    else
+      echo 0
+    fi
+}
+
+# Runs the spy with given arguments
+# $1 - Name of the spy to run
+# $... - Arguments to the spy
+_shpyRunSpy() {
+    _shpySaveSpyCallArgs "$@"
+    _shpyPrintSpyOutput "$1"
+    _shpyPrintSpyErrorOutput "$1"
+    _shpyGetSpyReturnStatus "$1"
+}
+
+# Saves the arguments for the latest invocation of a spy
+# $1 - Name of the spy
+# $... - Arguments passed to the spy
+_shpySaveSpyCallArgs() {
+    # shellcheck disable=SC2039
+    local arg arg_index current_call_index spy_call_path
+
+    # The current call index is the total number of calls before this one
+    current_call_index=$(getSpyCallCount "$1")
+
+    # Create a directory for the arguments to the call
+    spy_call_path="$_shpy_spies_dir/$1/$current_call_index"
+    _shpy_mkdir "$spy_call_path" \
+      || _shpy_die "Error: Failed to create directory for spy arguments"
+
+    # Remove the spy name from the front of the arguments list
+    shift
+
+    # Create a numbered file for each argument to the call
+    arg_index=0
+    for arg in "$@"; do
+        printf '%s' "$arg" > "$spy_call_path/$arg_index"
+        arg_index=$(( arg_index + 1 ))
+    done
+}
+
+# Sends output to stdout for the latest call of a spy
+# $1 - Name of the spy to print output
+_shpyPrintSpyOutput() {
+    # shellcheck disable=SC2039
+    local current_call_index outputs_dir output_fixture
+
+    # Specify the outputs directory and current call index
+    outputs_dir="$_shpy_spies_dir/outputs/$1"
+    current_call_index=$(( $(getSpyCallCount "$1") - 1 ))
+
+    # Start from the current call index and decrease until output is found
+    while [ $current_call_index -ge 0 ]; do
+        output_fixture="$outputs_dir/$current_call_index"
+        current_call_index=$(( current_call_index - 1 ))
+
+        if [ -f "$output_fixture" ]; then
+          cat "$output_fixture"
+          break
+        fi
+    done
+}
+
+# Sends output to stderr for the latest call of a spy
+# $1 - Name of the spy to print output
+_shpyPrintSpyErrorOutput() {
+    # shellcheck disable=SC2039
+    local current_call_index errors_dir error_fixture
+
+    # Specify the errors directory and current call index
+    errors_dir="$_shpy_spies_dir/errors/$1"
+    current_call_index=$(( $(getSpyCallCount "$1") - 1 ))
+
+    # Start from the current call index and decrease until output is found
+    while [ $current_call_index -ge 0 ]; do
+        error_fixture="$errors_dir/$current_call_index"
+        current_call_index=$(( current_call_index - 1 ))
+
+        if [ -f "$error_fixture" ]; then
+          cat "$error_fixture" >&2
+          break
+        fi
+    done
+}
+
+# Returns the status code for the latest call of a spy
+# $1 - Name of the spy to return the status code for
+_shpyGetSpyReturnStatus() {
+    # shellcheck disable=SC2039
+    local status_codes status_code
+
+    eval status_codes="\$_shpy_$1_status_codes"
+
+    # Status codes are a space-delimited list of integers
+    # Get the list item at the current call count index
+    status_code="$(echo "$status_codes" | cut -d' ' -f"$(getSpyCallCount "$1")")"
+
+    # If no status was returned for the current call, use the final status
+    [ -z "${status_code:+is_not_null}" ] && status_code=${status_codes##* }
+
+    return "$status_code"
+}
+
+# Sets and exports the status codes returned by a spy in the environment
+# $1 - Name of the spy
+# $2 - Space-delimited list of integer status codes
+_shpySetSpyStatusCodeSequence() {
+    eval "_shpy_$1_status_codes=\$2"
+    export "_shpy_$1_status_codes"
+}
+
+# Break path caching to ensure spies come first in the path
+_shpy_break_path_cache() {
+    PATH="$PATH"
+    export PATH
+}
+
+# Runs the system `mktemp` binary to create the shpy working directory
+_shpy_create_working_dir() {
+    command -p mktemp -dt shpy.XXXXXX
+    _shpy_break_path_cache
+}
+
+# Runs the system `mkdir -p` binary to create a directory and its parents
+# $1 - Path of the directory to create
+_shpy_mkdir() {
+    command -p mkdir -p "$1"
+    _shpy_break_path_cache
+}
+
+# Runs the system `rm -rf` binary to remove a directory and its contents
+# $1 - Path to the directory to remove
+_shpy_rmdir() {
+    command -p rm -rf "$1"
+    _shpy_break_path_cache
+}
+
+# Displays an error message and exits with an error status code
+# $1 (optional) - Error message to display, default "Error: Aborting"
+# $2 (optional) - Status code to exit with, default 1
+_shpy_die() {
+    echo "${1:-"Error: Aborting"}" >&2
+    exit "${2:-1}"
+}

@@ -3,8 +3,8 @@
 readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
-  # shellcheck source=../utils.sh
-  . "$THISDIR/../utils.sh"
+  # shellcheck source=../utils_for_test.sh
+  . "$THISDIR/../utils_for_test.sh"
 
   # Temporary file where hook script will write to
   OUTFILE="${SHUNIT_TMPDIR:?}/prepare_msg"
