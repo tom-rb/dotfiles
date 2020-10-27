@@ -7,14 +7,14 @@ set -o nounset
 readonly system_dir=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 #
-# Testcase discovery function
+# Test case discovery function
 #
 
-readonly testcase_regex="^\s*(it_[A-Za-z0-9_-]*)\s*\(\)"
+readonly test_case_regex="^\s*(it_[A-Za-z0-9_-]*)\s*\(\)"
 
-# Outputs a list of all testcases found in $1 to stdout
+# Outputs a list of all test cases found in $1 to stdout
 get_test_cases_from_file() {
-  sed -nE "s/${testcase_regex}.*/\1/p" "$1"
+  sed -nE "s/${test_case_regex}.*/\1/p" "$1"
 }
 
 # Outputs annotated image name for the given test (or empty)

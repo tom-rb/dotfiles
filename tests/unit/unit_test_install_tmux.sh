@@ -71,7 +71,7 @@ test_wizard_installs_tmux_from_source_in_custom_location() {
   createSpy mkdir
   createSpy -u install_tmux_from_source
 
-  output=$(echo 'y''custom_location''y' | install_tmux_wizard)
+  output=$(echo 'y''custom_location' | install_tmux_wizard)
 
   assertTrue "Tmux installed from source should not be an error" $?
   assertCalledOnceWith mkdir -p "custom_location"
