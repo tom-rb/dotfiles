@@ -2,14 +2,18 @@
 
 # Echo $1 and exit 1, or optionally with specified $2 code
 die() {
-  echo "$1"
+  echo "${1:-Aborted.}"
   exit "${2:-1}"
 }
 
 # Check if command $1 exists
 command_exists() {
-  command -v "$1" >/dev/null
+  command -v "${1:?}" >/dev/null
 }
+
+#
+# CLI utils
+#
 
 # Read one char from terminal input (or piped stdin)
 # If $1 is not empty, echoing the char is turned off
@@ -29,8 +33,8 @@ read_char() {
 }
 
 # Ask for user confirmation with a keystroke
-# -n Make default answer be NO
-# $1 (optional) - Confirmation message
+# -n: Make default answer be NO
+# $1: (optional) Confirmation message
 confirm() {
   local c message out_code
   if [ "$1" != '-n' ]
@@ -45,7 +49,7 @@ confirm() {
     else message="$message (y/N) "
   fi
   printf "%s" "$message"
-  while true; do
+  while : ; do
     c=$(read_char)
     case "$c" in
       [nN]) echo "$c"; return 1;;
@@ -55,6 +59,46 @@ confirm() {
       *)    echo ' Choose y or n.';;
     esac
   done
+}
+
+# Show options to the user and return a choice
+# $1-9: messages to choose from
+# Returns 0 on cancel or >=1 for the choice
+choose() {
+  local opt_i c
+  # While a valid option isn't chosen
+  while : ; do
+    opt_i=0
+    # Print options
+    for opt in "$@"; do
+      opt_i=$((opt_i + 1))
+      printf '%d) %s\n' $opt_i "$opt"
+    done
+    echo "q) Quit"
+    # Get answer TODO: ctrl+c should cancel, not return 2
+    while : ; do
+      c=$(read_char)
+      case "$c" in
+        [1-$opt_i]) echo "$c"; return "$c" ;;
+        q)   echo 'Cancelled'; return 0 ;;
+      esac
+    done
+  done
+}
+
+#
+# File utils
+#
+
+# Copy $1 file in the same location adding .bkp
+# Use bkp1, bkp2, etc if backup exists.
+backup_file() {
+  local file n
+  file=${1:?} n=
+  while [ -e "$file.bkp$n" ]; do
+    n=$((n + 1))
+  done
+  cp "$file" "${file}.bkp$n"
 }
 
 #
@@ -76,7 +120,7 @@ check_supported_pm() {
   test -n "$(get_supported_pm)"
 }
 
-# Return version of $1 package available in package manager
+# Return version of package $1 available in package manager
 get_version_in_pm() {
   case $(get_supported_pm) in
     apt-get)

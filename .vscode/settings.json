@@ -15,6 +15,7 @@
     "libncurses",
     "shpy",
     "shunit",
-    "thisdir"
+    "thisdir",
+    "tmpdir"
   ]
 }
