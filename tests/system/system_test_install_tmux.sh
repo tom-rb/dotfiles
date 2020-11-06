@@ -37,5 +37,17 @@ it_installs_tmux_from_source_to_specified_location() {
   assertTrue "Expected tmux to be installed" $?
 }
 
+# @image: basics
+it_installs_tmux_and_its_dotfiles() {
+  install_tmux_wizard -y > /dev/null 2>&1
+
+  assertTrue "Expect tmux to be installed" "is_tmux_installed"
+
+  # Check config was set
+  output=$(tmux start \; show -g @conf_dir)
+  assertContains "$output" "@conf_dir"
+  assertContains "$output" "/tmux"
+}
+
 # shellcheck source=../shunit2
 . shunit2

@@ -90,10 +90,10 @@ install_tmux_program() {
 
     # TODO: extract "custom path selection" to utils and test separately
     if confirm -n "Do you want to install it in a custom location?"; then
-      while true; do
+      while : ; do
         read -p "Give absolute path: " -r location
         # Expand given variables, like $HOME or ~, and remove trailing '/'
-        eval location="${location%%/*}"
+        eval location="${location%/}"
 
         [ -z "$location" ] && continue
         if [ -e "$location" ]; then
@@ -123,15 +123,23 @@ install_tmux_dotfiles() {
   # Sub-shell for scoping set -e
   (
     set -e
-    config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/tmux"     # tmux.conf and scripts
+    config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/tmux"     # tmux.conf
     mkdir -v -p "${XDG_DATA_HOME:-$HOME/.local/share}/tmux" # tmux plugins
     mkdir -v -p "$config_dir"
     tmux_conf="$config_dir/tmux.conf"
 
-    # Use tmux source-file command to include versioned tmux.conf
-    contents="source-file ${DOTFILES:?}/tmux/tmux.conf"
+    # Use tmux source-file command to include dotfiles repo tmux.conf
+    # With this, user can still use machine's options in its tmux.conf
+    contents=$(cat <<-EOF
+		# Set user option @conf_dir to use it later
+		set -g @conf_dir ${DOTFILES:?}/tmux
+		# Source tmux.conf from dotfiles repo
+		source-file ${DOTFILES:?}/tmux/tmux.conf
+		# Add machine custom config here
+EOF
+    )
 
-    # Ask user what to do if file already exist
+    # Ask user what to do if tmux.conf already exist
     if [ -e "$tmux_conf" ]; then
       echo "Found existing $tmux_conf file: (tail of it)"
       echo ">>>"
@@ -146,30 +154,38 @@ install_tmux_dotfiles() {
       else # this is choice handling
         case "$?" in
           1) backup_file "$tmux_conf" &&
-              echo "$contents" > "$tmux_conf" ;;
-          2) echo "$contents" >> "$tmux_conf" ;;
+              printf "%s" "$contents" > "$tmux_conf" ;;
+          2) printf "%s" "$contents" >> "$tmux_conf" ;;
           3) rm -v -f "$tmux_conf" &&
-              echo "$contents" > "$tmux_conf" ;;
+              printf "%s" "$contents" > "$tmux_conf" ;;
         esac
       fi
     else
-      echo "$contents" > "$tmux_conf"
+      printf "%s" "$contents" > "$tmux_conf"
     fi
 
     echo "****************************"
     echo "$tmux_conf configured."
     echo "****************************"
   )
-  # TODO: copy theme.conf
   # TODO: install tmux-cmds.sh somehow (bash and zsh only?)
+  # TODO: install tmux plugin manager
 }
 
+# Installs tmux and its dotfiles with an expected version
+# -y: accepts default answer for all questions
 install_tmux_wizard() {
-  # Install specific version that dotfile configs are expecting
-  install_tmux_program 3.1b && install_tmux_dotfiles
+  local desired_version=3.1b
+  if [ x"$1" = x-y ]; then
+  # Sends "enter" continuously
+  yes "
+" | install_tmux_program "$desired_version" && install_tmux_dotfiles
+  else
+    install_tmux_program "$desired_version" && install_tmux_dotfiles
+  fi
 }
 
 # Run installation if called with --wizard
 if [ "$1" = --wizard ]; then
-  install_tmux_wizard
+  install_tmux_wizard interactive
 fi

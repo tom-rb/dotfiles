@@ -127,7 +127,7 @@ get_version_in_pm() {
       apt-cache policy "$1" \
       | sed -nE '/.*Candidate: (.*)/ { s//\1/p; q }';;
     yum)
-      yum info "$1" \
+      sudo yum makecache fast && sudo yum info "$1" \
       | sed -nE '/^Version\s*: (.*)/ { s//\1/p; q }';;
     *)
       >&2 echo "Couldn't find package manager";;

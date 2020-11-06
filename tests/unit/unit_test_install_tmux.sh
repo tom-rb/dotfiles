@@ -33,6 +33,61 @@ test_get_tmux_package_version_extracts_tmux_version() {
     "$(get_tmux_package_version)" "3.1b"
 }
 
+test_install_returns_true_if_tmux_is_installed_with_desired_version() {
+  createSpy -u -r "$SHUNIT_TRUE" is_tmux_installed
+  createSpy -o 'tmux 3.1b' tmux
+
+  output=$(install_tmux_program 3.1b)
+
+  assertTrue "Tmux already installed should not be an error" $?
+  assertContains "Should return immediately with msg" \
+    "$output" "3.1b already installed"
+}
+
+test_install_returns_error_if_tmux_is_installed_with_another_version() {
+  createSpy -u -r "$SHUNIT_TRUE" is_tmux_installed
+  createSpy -o 'tmux 3.1a' tmux
+  createSpy -u read_char
+
+  output=$(install_tmux_program 3.1b)
+
+  assertFalse "Tmux installed with different version should be an error" $?
+  assertContains "Should return after key press with msg" \
+    "$output" "installed version: 3.1a"
+  assertCalledOnceWith read_char silent
+}
+
+test_install_tmux_from_package_manager_when_version_matches() {
+  createSpy -u -r "$SHUNIT_FALSE" is_tmux_installed
+  createSpy -u -o '3.1b' get_tmux_package_version
+  createSpy -u read_char
+  createSpy -u install_from_pm
+
+  output=$(install_tmux_program 3.1b)
+
+  assertTrue "Tmux installed from package manager should not be an error" $?
+  assertContains "Should return after key press with msg" \
+    "$output" "3.1b installed"
+  assertCallCount read_char 1
+}
+
+test_install_tmux_from_source_in_custom_location() {
+  createSpy -u -r "$SHUNIT_FALSE" is_tmux_installed
+  createSpy -u -o '3.1b' get_tmux_package_version
+  createSpy mkdir
+  createSpy -u install_tmux_from_source
+
+  # [n]ot install from package manager, [y]es in a custom location
+  output=$(echo 'n''y''custom/location/' | install_tmux_program 3.1b)
+
+  assertTrue "Tmux installed from source should not be an error" $?
+  # It should trim trailing /
+  assertCalledOnceWith mkdir -p "custom/location"
+  assertCalledOnceWith install_tmux_from_source 3.1b "custom/location"
+  assertContains "Should return after key press with msg" \
+    "$output" "3.1b installed"
+}
+
 test_tmux_dotfiles_are_installed() {
   XDG_CONFIG_HOME=${SHUNIT_TMPDIR:?}/.config
   XDG_DATA_HOME=${SHUNIT_TMPDIR:?}/.local/share
@@ -122,60 +177,6 @@ test_with_existing_tmux_dotfiles_user_can_cancel() {
 
   assertEquals "Should include only original contents of conf file" \
     "# Some existing config" "$(cat "$XDG_CONFIG_HOME"/tmux/tmux.conf)"
-}
-
-test_install_returns_true_if_tmux_is_installed_with_desired_version() {
-  createSpy -u -r "$SHUNIT_TRUE" is_tmux_installed
-  createSpy -o 'tmux 3.1b' tmux
-
-  output=$(install_tmux_program 3.1b)
-
-  assertTrue "Tmux already installed should not be an error" $?
-  assertContains "Should return immediately with msg" \
-    "$output" "3.1b already installed"
-}
-
-test_install_returns_error_if_tmux_is_installed_with_another_version() {
-  createSpy -u -r "$SHUNIT_TRUE" is_tmux_installed
-  createSpy -o 'tmux 3.1a' tmux
-  createSpy -u read_char
-
-  output=$(install_tmux_program 3.1b)
-
-  assertFalse "Tmux installed with different version should be an error" $?
-  assertContains "Should return after key press with msg" \
-    "$output" "installed version: 3.1a"
-  assertCalledOnceWith read_char silent
-}
-
-test_install_tmux_from_package_manager_when_version_matches() {
-  createSpy -u -r "$SHUNIT_FALSE" is_tmux_installed
-  createSpy -u -o '3.1b' get_tmux_package_version
-  createSpy -u read_char
-  createSpy -u install_from_pm
-
-  output=$(install_tmux_program 3.1b)
-
-  assertTrue "Tmux installed from package manager should not be an error" $?
-  assertContains "Should return after key press with msg" \
-    "$output" "3.1b installed"
-  assertCallCount read_char 1
-}
-
-test_install_tmux_from_source_in_custom_location() {
-  createSpy -u -r "$SHUNIT_FALSE" is_tmux_installed
-  createSpy -u -o '3.1b' get_tmux_package_version
-  createSpy mkdir
-  createSpy -u install_tmux_from_source
-
-  # [n]ot install from package manager, [y]es in a custom location
-  output=$(echo 'n''y''custom_location' | install_tmux_program 3.1b)
-
-  assertTrue "Tmux installed from source should not be an error" $?
-  assertCalledOnceWith mkdir -p "custom_location"
-  assertCalledOnceWith install_tmux_from_source 3.1b "custom_location"
-  assertContains "Should return after key press with msg" \
-    "$output" "3.1b installed"
 }
 
 test_wizard_installs_dotfiles_when_tmux_is_installed() {

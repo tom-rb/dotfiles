@@ -49,7 +49,7 @@ deploy_wizard() {
   fi
 
   if ! check_basic_packages; then
-    echo "Lets install basic packages first: $basic_packages (press any key)"
+    printf "Lets install basic packages first: %s (press any key)" "$basic_packages"
     read_char silent
     install_basic_packages || die "Couldn't install basic packages"
   fi
