@@ -38,6 +38,14 @@ test_die_with_custom_message_and_code() {
   assertEquals "Custom code" "$message"
 }
 
+test_check_a_command_exists() {
+  command_exists cat
+  assertTrue "Command cat should be found" $?
+
+  command_exists no_such_command
+  assertFalse "Command no_such_command should not be found" $?
+}
+
 #
 # CLI utils
 #
@@ -51,14 +59,6 @@ test_read_char_silent_from_pipe() {
   char=$(echo 'a' | read_char silent)
   # Used for "waiting for input" case
   assertEquals "" "$char"
-}
-
-test_check_a_command_exists() {
-  command_exists cat
-  assertTrue "Command cat should be found" $?
-
-  command_exists no_such_command
-  assertFalse "Command no_such_command should not be found" $?
 }
 
 test_confirm_has_default_message() {
