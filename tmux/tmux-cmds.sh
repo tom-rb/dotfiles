@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 tmux-prepare-env () {
   local session_name=${1}
   # Find different variables between the current env and tmux global
@@ -15,7 +17,7 @@ tmux-prepare-env () {
 }
 
 
-# Enter a shared main session creating a new client (groupped) session.
+# Enter a shared main session creating a new client (grouped) session.
 # Useful for having several GUI windows sharing the "same" TMUX session.
 # arg 1: group session name (default: client)
 tmux-enter () {
@@ -30,7 +32,7 @@ tmux-enter () {
   tmux new-session -d -s "${client_name}" -t "${group_name}"
   # Create a new window if this is not the first client
   (( client_count > 0 )) && tmux new-window
-  # Automatically pass enviroment variables forward
+  # Automatically pass environment variables forward
   tmux-prepare-env "${client_name}"
   # TODO: command above only updates tmux session env; zsh should read and apply those e.g.
   #       for var in $(tmux show-environment | grep -v "^-"); do eval "export $var"; done;

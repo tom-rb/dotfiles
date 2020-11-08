@@ -8,16 +8,13 @@
 
 () {
   # Load tmux helpers (if present) and initialize session
-  if [[ -f "$DOTFILES/tmux/tmux-cmds.sh" ]]; then
+  if [ -f "$DOTFILES/tmux/tmux-cmds.sh" ]; then
     source $DOTFILES/tmux/tmux-cmds.sh
     # If tmux exists and isn't running
     if [ -z "${TMUX}" ] && command -v tmux >/dev/null; then
-      # Open tmux in vscode integrated terminal
-      if [[ "$TERM_PROGRAM" = 'vscode' ]]; then
-        tmux-enter vscode
       # Open tmux when initiating a new terminal window (check some emulators)
-	  elif [[ -n WT_SESSION ]]; then # Windows Terminal defines this
-	    tmux-enter
+      if [ -n "$WT_SESSION" ]; then # Windows Terminal defines this
+        tmux-enter
       elif pstree -s $$ | grep -Eq "(gnome-terminal|wslbridge2?-back)"; then
         tmux-enter
       fi
@@ -318,7 +315,7 @@ function exec-nohup() {
   zle accept-line
 }
 zle -N exec-nohup
-bindkey "^g" exec-nohup
+# bindkey "^g" exec-nohup
 
 # The buffer stack (http://zsh.sourceforge.net/Guide/zshguide04.html#l102)
 #  $ if [[ no = yes ]]; then
@@ -344,9 +341,9 @@ bindkey '\eq' push-line-or-edit
   alias ${gprefix}ba="git branch -a"
   # Git Commit with Message
   alias ${gprefix}cm='git commit --verbose -m'
-  # Git Commit ammend (or "force")
+  # Git Commit amend (or "force")
   alias ${gprefix}cf='git commit --verbose --amend'
-  # Git Commit ammend (or "force") reusing message
+  # Git Commit amend (or "force") reusing message
   alias ${gprefix}cF='git commit --amend --reuse-message HEAD'
   # Git Fetch All
   alias ${gprefix}fa='git fetch --all --prune'
