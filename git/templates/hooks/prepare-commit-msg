@@ -1,23 +1,23 @@
 #!/usr/bin/env sh
 # Start commit message with issue id from current branch name
 
-# Message file from $msgfile var or arg $1
-file=${msgfile:-$1}
+# Git calls hook with message file in arg $1
+file=$1
 
 # Issue number regex
 issue_regex='[A-Z]+-[0-9]+'
 
 # First capture group matches branch prefixes like 'feature/' 'bugfix/' etc.
 # Second group matches the desired ABCD-1234 issue id.
-issue=$(git rev-parse --abbrev-ref HEAD | sed -En "s%([[:alpha:]]+/)*($issue_regex).*%\2%p")
+issue=$(git symbolic-ref -q --short HEAD | sed -En "s%([[:alpha:]]+/)*($issue_regex).*%\2%p")
 
 # If branch name has an issue tag
 if [ -n "$issue" ]; then
   # Check if current message already has a tag (or is some git message)
   # -En         Uses extended regex and don't print lines by default
-  # /^[ ]*#)/d  Skip (delete in memory) lines starting with #comment
+  # /^[ ]*#)/d  Skip ([d]elete in memory) lines starting with #comment
   # /(...)/!=   Print line number (=) if tag or git message was not (!) found
-  # q           Quit as soon as firt non-commented line is processed
+  # q           Quit as soon as first non-commented line is processed
   insert_line=$(sed -En \
     "/^[[:space:]]*#/d; \
      /(^\\[($issue_regex|[[:alpha:]]+)\\]|^Merge (pull|branch|remote)|^fixup)/!=; \
