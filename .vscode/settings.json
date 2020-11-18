@@ -8,6 +8,7 @@
     "dotfiles",
     "eval",
     "firstword",
+    "gprefix",
     "htop",
     "icanon",
     "isig",
@@ -16,6 +17,8 @@
     "shpy",
     "shunit",
     "thisdir",
-    "tmpdir"
+    "tmpdir",
+    "zimfw",
+    "zstyle"
   ]
 }
