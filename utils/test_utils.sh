@@ -3,13 +3,13 @@
 readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
-  # shellcheck source=../utils_for_test.sh
-  . "$THISDIR/../utils_for_test.sh"
+  # shellcheck source=../tests/utils_for_test.sh
+  . "$THISDIR/../tests/utils_for_test.sh"
 }
 
 setUp() {
-  # shellcheck source=../../utils/utils.sh
-  . "$THISDIR/../../utils/utils.sh"
+  # shellcheck source=utils.sh
+  . "$THISDIR/utils.sh"
 }
 
 tearDown() {
@@ -222,11 +222,11 @@ test_install_from_package_manager_fails_for_unsupported_pm() {
 
 
 # Run tests
-SHPY_PATH="$THISDIR/../shpy"
+SHPY_PATH="$THISDIR/../tests/shpy"
 export SHPY_PATH
-# shellcheck source=../shpy
-. "$THISDIR/../shpy"
-# shellcheck source=../shpy-shunit2
-. "$THISDIR/../shpy-shunit2"
-# shellcheck source=../shunit2
-. "$THISDIR/../shunit2"
+# shellcheck source=../tests/shpy
+. "$THISDIR/../tests/shpy"
+# shellcheck source=../tests/shpy-shunit2
+. "$THISDIR/../tests/shpy-shunit2"
+# shellcheck source=../tests/shunit2
+. "$THISDIR/../tests/shunit2"

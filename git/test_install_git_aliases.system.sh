@@ -3,8 +3,8 @@
 readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
-  # shellcheck source=../../git/install_git_aliases.sh
-  . "$THISDIR/../../git/install_git_aliases.sh"
+  # shellcheck source=install_git_aliases.sh
+  . "$THISDIR/install_git_aliases.sh"
 }
 
 # @image: basics
@@ -21,5 +21,5 @@ it_installs_patched_git_aliases_in_bash() {
     "$(alias gb)" "git branch"
 }
 
-# shellcheck source=../shunit2
+# shellcheck source=../tests/shunit2
 . shunit2

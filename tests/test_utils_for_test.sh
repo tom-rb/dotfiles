@@ -4,8 +4,8 @@ readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p"
 
 # Source utils_for_test.sh script
 utils() {
-  # shellcheck source=../utils_for_test.sh
-  . "$THISDIR/../utils_for_test.sh"
+  # shellcheck source=utils_for_test.sh
+  . "$THISDIR/utils_for_test.sh"
 }
 
 # Dummy function to test mock functionality
@@ -51,5 +51,5 @@ test_overwritting_a_test_level_mock_calls_the_new_mock() {
 }
 
 # Run tests
-# shellcheck source=../shunit2
-. "$THISDIR/../shunit2"
+# shellcheck source=shunit2
+. "$THISDIR/shunit2"

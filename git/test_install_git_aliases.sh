@@ -3,13 +3,13 @@
 readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
-  # shellcheck source=../utils_for_test.sh
-  . "$THISDIR/../utils_for_test.sh"
+  # shellcheck source=../tests/utils_for_test.sh
+  . "$THISDIR/../tests/utils_for_test.sh"
 }
 
 setUp() {
-  # shellcheck source=../../git/install_git_aliases.sh
-  . "$THISDIR/../../git/install_git_aliases.sh"
+  # shellcheck source=../git/install_git_aliases.sh
+  . "$THISDIR/../git/install_git_aliases.sh"
 }
 
 #
@@ -36,5 +36,5 @@ test_patch_zimfw_git_init() {
 }
 
 # Run tests
-# shellcheck source=../shunit2
-. "$THISDIR/../shunit2"
+# shellcheck source=../tests/shunit2
+. "$THISDIR/../tests/shunit2"

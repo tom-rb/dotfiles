@@ -3,8 +3,8 @@
 # Disallow unset variables in tests
 set -o nounset
 
-# Determine the location of this script, and subsequently the system test directory
-readonly system_dir=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
+# Determine the location of this script, and subsequently the test directory
+readonly tests_dir=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 #
 # Test case discovery function
@@ -41,14 +41,14 @@ run_test_in_docker() {
   local image=${1:?} file=${2:?} case=${3:?}
   # Run test case (negation used in last pipeline command),
   ! (
-    docker run --rm -v "${system_dir}/../..:/app:ro" -w /app -e DOTFILES=/app \
+    docker run --rm -v "${tests_dir}/..:/app:ro" -w /app -e DOTFILES=/app \
     "${image}" sh -c "${file} -- ${case}"
   ) |
-  # filter verbose lines and echo output,
-  sed "/^$\|^Ran .* test.$/ d" |
-  tee /dev/tty |
-  # and return 1 if test failed (by negating successful grep search)
-  grep -q FAILED
+    # filter verbose lines and echo output,
+    sed "/^$\|^Ran .* test.$/ d" |
+    tee /dev/tty |
+    # and return 1 if test failed (by negating successful grep search)
+    grep -q FAILED
 }
 
 # Print usage information if the wrong number of arguments are passed

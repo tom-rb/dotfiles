@@ -3,13 +3,13 @@
 readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
-  # shellcheck source=../utils_for_test.sh
-  . "$THISDIR/../utils_for_test.sh"
+  # shellcheck source=../tests/utils_for_test.sh
+  . "$THISDIR/../tests/utils_for_test.sh"
 }
 
 setUp() {
-  # shellcheck source=../../tmux/install_tmux.sh
-  . "$THISDIR/../../tmux/install_tmux.sh"
+  # shellcheck source=install_tmux.sh
+  . "$THISDIR/install_tmux.sh"
 }
 
 tearDown() {
@@ -200,11 +200,11 @@ test_wizard_does_not_install_dotfiles_when_tmux_installation_fails() {
 }
 
 # Run tests
-SHPY_PATH="$THISDIR/../shpy"
+SHPY_PATH="$THISDIR/../tests/shpy"
 export SHPY_PATH
-# shellcheck source=../shpy
-. "$THISDIR/../shpy"
-# shellcheck source=../shpy-shunit2
-. "$THISDIR/../shpy-shunit2"
-# shellcheck source=../shunit2
-. "$THISDIR/../shunit2"
+# shellcheck source=../tests/shpy
+. "$THISDIR/../tests/shpy"
+# shellcheck source=../tests/shpy-shunit2
+. "$THISDIR/../tests/shpy-shunit2"
+# shellcheck source=../tests/shunit2
+. "$THISDIR/../tests/shunit2"

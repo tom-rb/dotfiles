@@ -3,8 +3,8 @@
 readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
-  # shellcheck source=../../tmux/install_tmux.sh
-  . "$THISDIR/../../tmux/install_tmux.sh"
+  # shellcheck source=install_tmux.sh
+  . "$THISDIR/install_tmux.sh"
 }
 
 it_checks_tmux_is_not_installed() {
@@ -49,5 +49,5 @@ it_installs_tmux_and_its_dotfiles() {
   assertContains "$output" "/tmux"
 }
 
-# shellcheck source=../shunit2
+# shellcheck source=../tests/shunit2
 . shunit2

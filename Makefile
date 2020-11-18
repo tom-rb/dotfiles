@@ -6,7 +6,7 @@ help:
 	@echo "Usage:"
 	@sed -nE '/^# (.+)/{ s//   \1/;h;n; /^([a-z-]+):.*/ { s// make \1/;p;g;p } }' Makefile
 
-# Run all tests (aka. system-tests)
+# Run all tests (alias to system-tests)
 all: system-tests
 
 # Declare non-file targets as phony, for safety and performance
@@ -16,7 +16,7 @@ all: system-tests
 ## UNIT TESTS
 ##
 
-_unit_tests := $(wildcard tests/unit/*.sh tests/unit/*/*.sh)
+_unit_tests := $(shell find . -name 'test_*.sh' -a \! -name '*system.sh')
 
 # Run all unit tests locally
 unit-test: $(_unit_tests:=-run)
@@ -41,6 +41,8 @@ $(BASE_IMAGES:=-unit): %-unit: %
 ## SYSTEM TESTS
 ##
 
+_systems_tests := $(shell find . -name 'test_*.system.sh')
+
 # Run system tests on one image
 system-test: $(firstword $(BASE_IMAGES))-system
 
@@ -51,7 +53,7 @@ system-tests: $(BASE_IMAGES:=-system)
 # Run each image system test, depends on image build and unit run
 $(BASE_IMAGES:=-system):: %-system: % images %-unit
 	@echo ">>>>>>>>  SYSTEM TESTS $<"
-	@tests/system/run_system_test.sh $< tests/system/system_test_*
+	@tests/run_system_test.sh $< $(_systems_tests)
 
 .PHONY: system-tests $(BASE_IMAGES:=-system)
 

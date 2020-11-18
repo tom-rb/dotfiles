@@ -14,6 +14,7 @@
     "isig",
     "libevent",
     "libncurses",
+    "outfile",
     "shpy",
     "shunit",
     "thisdir",

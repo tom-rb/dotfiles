@@ -3,8 +3,8 @@
 readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
-  # shellcheck source=../../utils/utils.sh
-  . "$THISDIR/../../utils/utils.sh"
+  # shellcheck source=utils.sh
+  . "$THISDIR/utils.sh"
 }
 
 it_checks_the_package_manager_is_supported() {
@@ -28,5 +28,5 @@ it_installs_a_package_using_package_manager() {
   assertTrue "Htop should be installed" $?
 }
 
-# shellcheck source=../shunit2
+# shellcheck source=../tests/shunit2
 . shunit2

@@ -3,8 +3,8 @@
 readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
-  # shellcheck source=../utils_for_test.sh
-  . "$THISDIR/../utils_for_test.sh"
+  # shellcheck source=../tests/utils_for_test.sh
+  . "$THISDIR/../tests/utils_for_test.sh"
 
   # Temporary file where hook script will write to
   OUTFILE="${SHUNIT_TMPDIR:?}/prepare_msg"
@@ -20,8 +20,8 @@ prepare_msg() {
   echo "$1" > "$OUTFILE"
 
   # Sourcing, instead of calling, to use mocked git functions in tests.
-  # shellcheck source=../../git/templates/hooks/prepare-commit-msg
-  (msgfile="$OUTFILE" . "$THISDIR/../../git/templates/hooks/prepare-commit-msg")
+  # shellcheck source=templates/hooks/prepare-commit-msg
+  (msgfile="$OUTFILE" . "$THISDIR/templates/hooks/prepare-commit-msg")
 }
 
 #
@@ -71,5 +71,5 @@ test_tag_is_not_re_inserted_if_message_already_has_tag() {
 }
 
 # Run tests
-# shellcheck source=../shunit2
-. "$THISDIR/../shunit2"
+# shellcheck source=../tests/shunit2
+. "$THISDIR/../tests/shunit2"
