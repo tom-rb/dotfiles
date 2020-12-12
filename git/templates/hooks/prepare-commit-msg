@@ -1,29 +1,34 @@
 #!/usr/bin/env sh
 # Start commit message with issue id from current branch name
 
-# Git calls hook with message file in arg $1
+# Git calls hook with message file in arg $1 and sometimes a context in $2
 file=$1
+context=$2
+
+# Don't even try with merge commits
+[ "$context" = merge ] && return 0
 
 # Issue number regex
 issue_regex='[A-Z]+-[0-9]+'
 
 # First capture group matches branch prefixes like 'feature/' 'bugfix/' etc.
 # Second group matches the desired ABCD-1234 issue id.
-issue=$(git symbolic-ref -q --short HEAD | sed -En "s%([[:alpha:]]+/)*($issue_regex).*%\2%p")
+issue=$(git symbolic-ref -q --short HEAD | sed -nE "s%([[:alpha:]]+/)*($issue_regex).*%\2%p")
 
 # If branch name has an issue tag
 if [ -n "$issue" ]; then
-  # Check if current message already has a tag (or is some git message)
-  # -En         Uses extended regex and don't print lines by default
-  # /^[ ]*#)/d  Skip ([d]elete in memory) lines starting with #comment
-  # /(...)/!=   Print line number (=) if tag or git message was not (!) found
-  # q           Quit as soon as first non-commented line is processed
-  insert_line=$(sed -En \
-    "/^[[:space:]]*#/d; \
-     /(^\\[($issue_regex|[[:alpha:]]+)\\]|^Merge (pull|branch|remote)|^fixup)/!=; \
-     q" "$file")
-  if [ -n "$insert_line" ]; then
-    # Insert issue number in first non-commented line (also make .bak backup)
+  # Find candidate lines to have an issue tag inserted
+  insert_line=$(sed -nE "# [-n]ot print lines by default; use [E]xtended regex
+    /-- >8 --/ q;        # [q]uit when scissors are found (search no more lines)
+    /^[[:space:]]*#/ d;  # Skip ([d]elete) lines starting with # comment
+    # When a tag or git message is found, print[c\] 'issue_found' and quit
+    /^\\[($issue_regex|[[:alpha:]]+)\\]|^Merge (pull|branch|remote)|^fixup/ {c\
+    issue_found
+    ;q};
+    # After all these checks, print line number (=) of a candidate for insertion
+    =" "$file" | tail -n 1)
+  if [ -n "$insert_line" ] && [ "$insert_line" != issue_found ]; then
+    # Insert issue number in selected line (also make .bak backup)
     sed -i.bak -e "${insert_line} s/^/[$issue] /" "$file"
   fi
 fi
