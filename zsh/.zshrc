@@ -174,7 +174,7 @@ SAVEHIST=50000
 # Ignore certain commands from history (use zshaddhistory zsh hook)
 function _ignore_cmds_in_history() {
   emulate -L zsh
-  # Ignore VSCode enviroment setup when calling zsh
+  # Ignore VSCode environment setup when calling zsh
   if [[ "$1" =~ "(env )?sh /tmp/Microsoft"* ]]; then
     return 1
   fi
@@ -298,13 +298,13 @@ bindkey "^[k" cd-up
 bindkey "^o" autosuggest-execute
 
 # Alt+o accept suggestion without moving the cursor
-function autosuggest-accept-inplace() {
+function autosuggest-accept-in-place() {
   local cursor_pos=$CURSOR
   zle autosuggest-accept
   CURSOR=cursor_pos
 }
-zle -N autosuggest-accept-inplace
-bindkey "^[o" autosuggest-accept-inplace
+zle -N autosuggest-accept-in-place
+bindkey "^[o" autosuggest-accept-in-place
 
 # Alt+Enter to insert linebreaks in multiline command
 bindkey '^[^M' self-insert-unmeta
@@ -396,9 +396,12 @@ fi
 RPS1='%F{243}%*$f'
 
 
-##
-## Other aliases
-##
+#######################
+# Application aliases #
+#######################
+
+# Load machine-specific .zshrc (since ZDOTDIR points to here)
+[ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"
 
 # A $PATH without Windows directories is expected, so extract current user name to
 # create an alias for launching VS Code
