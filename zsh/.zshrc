@@ -412,6 +412,12 @@ RPS1='%F{243}%*$f'
   fi
 }
 
+# tree with hidden files and color enabled, ignoring the `.git` directory, listing directories
+# first. Output piped into less preserving color and line numbers
+function tre() {
+  tree -aC -I '.git|node_modules|bower_components' --dirsfirst "$@" | less -FRNX;
+}
+
 # Run a script whenever it changes (e.g. for watch unit tests) with time stats
 watch-test() {
   local script="$1"
