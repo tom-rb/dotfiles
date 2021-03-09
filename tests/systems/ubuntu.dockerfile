@@ -1,4 +1,4 @@
-FROM ubuntu:bionic
+FROM ubuntu AS base
 
 RUN apt update && apt install sudo
 COPY tests/shunit2 /usr/bin/shunit2
@@ -12,3 +12,7 @@ RUN useradd -u 1234 amy \
 
 WORKDIR /home/amy
 USER amy
+
+# Install basic packages
+FROM base AS with-basics
+RUN sudo apt-get install -y wget tar gzip

@@ -6,7 +6,7 @@ file=$1
 context=$2
 
 # Don't even try with merge commits
-[ "$context" = merge ] && return 0
+[ "$context" = merge ] && exit 0
 
 # Issue number regex
 issue_regex='[A-Z]+-[0-9]+'

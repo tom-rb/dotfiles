@@ -7,7 +7,7 @@ oneTimeSetUp() {
   . "$THISDIR/install_git_aliases.sh"
 }
 
-# @image: basics
+# @image: with-basics
 it_installs_patched_git_aliases_in_bash() {
   install_git_aliases_bash >/dev/null 2>&1
 

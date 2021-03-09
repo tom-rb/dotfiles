@@ -1,4 +1,4 @@
-FROM amazonlinux:2
+FROM amazonlinux:2 AS base
 
 # Install shadow-utils to have useradd
 RUN yum -y install sudo shadow-utils
@@ -13,3 +13,7 @@ RUN useradd -u 1234 amy \
 
 WORKDIR /home/amy
 USER amy
+
+# Install basic packages
+FROM base AS with-basics
+RUN sudo yum -y install wget tar gzip

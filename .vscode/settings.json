@@ -33,6 +33,7 @@
     "timefmt",
     "tmpdir",
     "unsetopt",
+    "vpath",
     "wordchars",
     "zcompdump",
     "zdotdir",

@@ -1,5 +1,5 @@
-# Available images
-BASE_IMAGES = ubuntu-bionic ubuntu-focal amazonlinux-2
+# Available images for testing
+_image_names := $(basename $(notdir $(wildcard tests/systems/*.dockerfile)))
 
 # Print this help
 help:
@@ -27,15 +27,15 @@ $(_unit_tests:=-run):
 	$(@:-run=)
 
 # Run all unit tests on all base images
-unit-tests: $(BASE_IMAGES:=-unit)
+unit-tests: $(_image_names:=-unit)
 	@echo ">>>>>>  COMPLETED $(words $^) UNITS"
 
 # Run each image unit test, depends on image build
-$(BASE_IMAGES:=-unit): %-unit: %
+$(_image_names:=-unit): %-unit: %
 	@echo ">>>>>>  UNIT TEST $<"
-	@docker run --rm -v "$$PWD:/app:ro" -w /app -e DOTFILES=/app ${<:=-test} sh -c "$(_unit_tests:.sh=.sh &&) true"
+	@docker run --rm -v "$$PWD:/app:ro" -w /app -e DOTFILES=/app ${<:=-test}:base sh -c "$(_unit_tests:.sh=.sh &&) true"
 
-.PHONY: unit-test unit-tests $(_unit_tests:=-run) $(BASE_IMAGES:=-unit)
+.PHONY: unit-test unit-tests $(_unit_tests:=-run) $(_image_names:=-unit)
 
 ##
 ## SYSTEM TESTS
@@ -44,18 +44,18 @@ $(BASE_IMAGES:=-unit): %-unit: %
 _systems_tests := $(shell find . -name 'test_*.system.sh')
 
 # Run system tests on one image
-system-test: $(firstword $(BASE_IMAGES))-system
+system-test: $(firstword $(_image_names))-system
 
 # Run all unit and system tests on all images
-system-tests: $(BASE_IMAGES:=-system)
+system-tests: $(_image_names:=-system)
 	@echo ">>>>>>>>  COMPLETED $(words $^) SYSTEMS"
 
 # Run each image system test, depends on image build and unit run
-$(BASE_IMAGES:=-system):: %-system: % images %-unit
+$(_image_names:=-system): %-system: % %-unit
 	@echo ">>>>>>>>  SYSTEM TESTS $<"
 	@tests/run_system_test.sh $< $(_systems_tests)
 
-.PHONY: system-tests $(BASE_IMAGES:=-system)
+.PHONY: system-test system-tests $(_image_names:=-system)
 
 ##
 ## DOCKER IMAGES
@@ -64,25 +64,16 @@ $(BASE_IMAGES:=-system):: %-system: % images %-unit
 # Dockerfile location
 vpath %.dockerfile ./tests/systems
 
-_image_names := $(basename $(notdir $(wildcard tests/systems/*.dockerfile)))
-
-# Just build all images
-images: $(_image_names)
-
-# Build main docker images
-$(BASE_IMAGES): %: %.dockerfile
-	@echo ">>  BUILD $@"
-	@docker build -q -t ${@:=-test} -f $< .
-
-# Build auxiliary docker images
-$(filter-out $(BASE_IMAGES),$(_image_names)): %: %.dockerfile
-	@echo ">>> BUILD $@"
-	@docker build -q -t ${@:=-test} -f $< .
+# Build each stage in the dockerfile and tag as {image_name}-test:{stage}
+$(_image_names): %: %.dockerfile
+	@echo ">>  BUILD $@ targets"
+	@sed -nE '/^FROM.* AS (.+)/I s//\1/p' $< |\
+		xargs -I {} docker build -q --target "{}" -t $@-test:"{}" -f $< .
 
 # Clean all cached images
 clean-images:
 	@for name in $(_image_names); do \
-		docker rmi $${name}-test:latest || true; \
+		docker rmi $${name}-test || true; \
 	done
 
-.PHONY: images $(_image_names) clean-images
+.PHONY: $(_image_names) clean-images

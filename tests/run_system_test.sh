@@ -12,13 +12,13 @@ readonly tests_dir=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$
 
 readonly test_case_regex="^\s*(it_[A-Za-z0-9_-]*)\s*\(\)"
 
-# Outputs a list of all test cases found in $1 to stdout
+# Print a list of all test cases found in $1
 get_test_cases_from_file() {
   sed -nE "s/${test_case_regex}.*/\1/p" "$1"
 }
 
-# Outputs annotated image name for the given test (or empty)
-# Tests can choose an image suffix with @image: name
+# Print annotated image name for the given test, if it exists
+# Note: tests can choose an image tag (i.e. stage) with # @image: name
 get_test_image_annotation() {
   local file=${1:?} case=${2:?}
   # /^# @image: (.+)$/  When the image name annotation is found,
@@ -71,8 +71,8 @@ while [ $# -gt 0 ]; do
   printf '\n> %s\n' "${test_file}"
   # Iterate through all test cases
   for test_case in $(get_test_cases_from_file "$test_file"); do
-    suffix=$(get_test_image_annotation "$test_file" "$test_case")
-    image="$docker_image${suffix:+"-"}$suffix-test"
+    tag=$(get_test_image_annotation "$test_file" "$test_case")
+    image="${docker_image}-test:${tag:-base}"
     run_test_in_docker "$image" "$test_file" "$test_case" || status=$?
   done
 done
