@@ -13,20 +13,25 @@ issue_regex='[A-Z]+-[0-9]+'
 
 # First capture group matches branch prefixes like 'feature/' 'bugfix/' etc.
 # Second group matches the desired ABCD-1234 issue id.
-issue=$(git symbolic-ref -q --short HEAD | sed -nE "s%([[:alpha:]]+/)*($issue_regex).*%\2%p")
+issue=$(git symbolic-ref -q --short HEAD | sed -nE "s,([[:alpha:]]+/)*($issue_regex).*,\2,p")
 
 # If branch name has an issue tag
 if [ -n "$issue" ]; then
-  # Find candidate lines to have an issue tag inserted
+  # Find candidate lines to have the issue tag inserted
   insert_line=$(sed -nE "# [-n]ot print lines by default; use [E]xtended regex
-    /-- >8 --/ q;        # [q]uit when scissors are found (search no more lines)
-    /^[[:space:]]*#/ d;  # Skip ([d]elete) lines starting with # comment
+    # [q]uit when scissors are found (search no more lines)
+    /-- >8 --/ q;
+    # Skip ([d]elete) lines starting with # comment
+    /^[[:space:]]*#/ d;
     # When a tag or git message is found, print[c\] 'issue_found' and quit
     /^\\[($issue_regex|[[:alpha:]]+)\\]|^Merge (pull|branch|remote)|^fixup/ {c\
     issue_found
     ;q};
-    # After all these checks, print line number (=) of a candidate for insertion
-    =" "$file" | tail -n 1)
+    # Passed the checks above, print line number (=) of a candidate for insertion
+    =;
+    # If the line is not empty, [q]uit and search no further
+    /^[[:space:]]*$/! q
+    " "$file" | tail -n 1)
   if [ -n "$insert_line" ] && [ "$insert_line" != issue_found ]; then
     # Insert issue number in selected line (also make .bak backup)
     sed -i.bak -e "${insert_line} s/^/[$issue] /" "$file"

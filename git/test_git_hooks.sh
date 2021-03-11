@@ -66,6 +66,17 @@ test_tag_is_not_re_inserted_if_message_already_has_tag() {
   assertEquals "[FIX] msg" "$(cat "$OUTFILE")"
 }
 
+test_tag_is_inserted_in_multiline_message() {
+  mock_branch "ABC-123"
+  prepare_msg "$(cat <<-EOF
+	existing msg
+
+	# Please enter the commit message for your changes.
+	EOF
+  )"
+  assertContains "$(cat "$OUTFILE")" "[ABC-123] existing msg"
+}
+
 test_tag_is_not_inserted_if_message_is_some_automatic_git_message() {
   mock_branch "ABC-123"
   prepare_msg "Merge branch ..."
@@ -105,7 +116,7 @@ test_it_searches_first_non_comment_line_for_inserting_tag() {
   prepare_msg "$(cat <<-EOF
 	# This is the 1st commit message:
 
-	msg on 2nd
+	msg on 2nd line
 	EOF
   )"
   assertContains "$(cat "$OUTFILE")" "[ABC-123] msg on 2nd"
