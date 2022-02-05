@@ -30,11 +30,15 @@ CapsLock::ESC
 ; [Win] [Shift] [T] opens To-Do
 #+t::Run ms-to-do:
 
-; [Win] [O] opens OneNote
-#o::Run onenote:
-
 ; [Win] [T] toggles Windows Terminal
 #t::LaunchOrToggleWindow("ahk_exe WindowsTerminal.exe", "wt")
+
+; [Win] [Shift] [D] toggles Windows Dark/Light mode
+#+d::
+  RegRead,isLightTheme,HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize, AppsUseLightTheme
+  RegWrite, REG_DWORD, HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize, AppsUseLightTheme, % 1 - isLightTheme
+  RegWrite, REG_DWORD, HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize, SystemUsesLightTheme, % 1 - isLightTheme
+Return
 
 ; Launch or focus an application; or send to bottom if already on focus.
 LaunchOrToggleWindow(ahkWinTitle, launchCmd)
