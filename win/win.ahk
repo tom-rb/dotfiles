@@ -16,6 +16,9 @@ CapsLock::ESC
 ; [Win] [-] writes – (large dash)
 #-::Send –
 
+; [Win] [8] writes • (bullet point)
+#8::Send •
+
 ; [Win] [Shift] [Tab] writes \t
 #+Tab::
 	Clipboard := A_Tab
