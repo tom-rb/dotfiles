@@ -28,6 +28,9 @@ Return
 ; [Ctrl] [Win] [space] writes non-breaking space
 ^#space::Send % Chr(160)
 
+; [Win] [Alt] [v] paste clipboard as typing
+#!v::SendEvent {Text}%A_Clipboard%
+
 ; Useful list of Windows executables:
 ; https://4sysops.com/wiki/list-of-ms-settings-uri-commands-to-open-specific-settings-in-windows-10/
 ; https://stackoverflow.com/questions/64078529/how-can-i-get-an-overview-of-uwp-registered-uris-and-aliases
