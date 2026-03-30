@@ -102,7 +102,7 @@ ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets)
 ##
 
 # Load these ssh identities with the ssh module
-zstyle ':zim:ssh' ids 'id_rsa' # 'id_rsa2' 'id_rsa3'
+zstyle ':zim:ssh' ids 'id_rsa' 'id_ed25519' # 'id_rsa2' 'id_rsa3'
 
 ##
 ## Git
@@ -129,7 +129,7 @@ fi
 source ${ZIM_HOME}/init.zsh
 
 # Load autocomplete again (it was having problems with asdf autocomplete)
-autoload -Uz compinit && compinit -d "${ZDOTDIR:-${HOME}}/.zcompdump"
+#autoload -Uz compinit && compinit -d "${ZDOTDIR:-${HOME}}/.zcompdump"
 
 ##################################
 # Post-init module configuration #
@@ -435,9 +435,6 @@ alias kube=kubectl
 # Scala
 # Fix [ERROR] Failed to construct terminal; falling back to unsupported https://stackoverflow.com/a/44361749
 alias sbt='TERM=xterm sbt'
-
-# Databricks CLI
-alias databricks='python ~/.local/lib/python3.6/site-packages/databricks_cli/cli.py'
 
 # Set JAVA_HOME if asdf plugin is available
 [ -f "$XDG_DATA_HOME/asdf/plugins/java/set-java-home.zsh" ] && source $XDG_DATA_HOME/asdf/plugins/java/set-java-home.zsh
