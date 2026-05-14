@@ -4,13 +4,11 @@ THISDIR="$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/n
 readonly THISDIR
 
 oneTimeSetUp() {
-  # shellcheck source=../tests/utils_for_test.sh
   . "$THISDIR/../tests/utils_for_test.sh"
   DOTFILES="$(get_abs_path "$THISDIR/..")"
 }
 
 setUp() {
-  # shellcheck source=install_zsh.sh
   . "$THISDIR/install_zsh.sh"
   # Isolate $HOME for tests
   HOME=${SHUNIT_TMPDIR:?}/home
@@ -235,9 +233,6 @@ test_wizard_does_not_install_dotfiles_when_zsh_installation_fails() {
 # Run tests
 SHPY_PATH="$THISDIR/../tests/shpy"
 export SHPY_PATH
-# shellcheck source=../tests/shpy
 . "$THISDIR/../tests/shpy"
-# shellcheck source=../tests/shpy-shunit2
 . "$THISDIR/../tests/shpy-shunit2"
-# shellcheck source=../tests/shunit2
 . "$THISDIR/../tests/shunit2"

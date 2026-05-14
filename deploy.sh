@@ -21,7 +21,6 @@ fi
 
 export DOTFILES
 
-# shellcheck source=utils/utils.sh
 . "$DOTFILES/utils/utils.sh"
 
 # Packages required for basic operations

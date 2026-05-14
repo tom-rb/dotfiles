@@ -4,7 +4,6 @@ THISDIR="$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/n
 readonly THISDIR
 
 oneTimeSetUp() {
-  # shellcheck source=../tests/utils_for_test.sh
   . "$THISDIR/../tests/utils_for_test.sh"
 
   # Temporary file where hook script will write to
@@ -148,9 +147,6 @@ test_it_stops_the_search_to_insert_tag_before_the_scissors_mark() {
 # Run tests
 SHPY_PATH="$THISDIR/../tests/shpy"
 export SHPY_PATH
-# shellcheck source=../tests/shpy
 . "$THISDIR/../tests/shpy"
-# shellcheck source=../tests/shpy-shunit2
 . "$THISDIR/../tests/shpy-shunit2"
-# shellcheck source=../tests/shunit2
 . "$THISDIR/../tests/shunit2"

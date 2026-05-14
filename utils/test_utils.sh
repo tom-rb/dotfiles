@@ -4,12 +4,10 @@ THISDIR="$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/n
 readonly THISDIR
 
 oneTimeSetUp() {
-  # shellcheck source=../tests/utils_for_test.sh
   . "$THISDIR/../tests/utils_for_test.sh"
 }
 
 setUp() {
-  # shellcheck source=utils.sh
   . "$THISDIR/utils.sh"
 }
 
@@ -225,9 +223,6 @@ test_install_from_package_manager_fails_for_unsupported_pm() {
 # Run tests
 SHPY_PATH="$THISDIR/../tests/shpy"
 export SHPY_PATH
-# shellcheck source=../tests/shpy
 . "$THISDIR/../tests/shpy"
-# shellcheck source=../tests/shpy-shunit2
 . "$THISDIR/../tests/shpy-shunit2"
-# shellcheck source=../tests/shunit2
 . "$THISDIR/../tests/shunit2"

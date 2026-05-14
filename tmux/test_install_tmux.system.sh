@@ -4,9 +4,7 @@ THISDIR="$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/n
 readonly THISDIR
 
 oneTimeSetUp() {
-  # shellcheck source=../tests/utils_for_test.sh
   . "$THISDIR/../tests/utils_for_test.sh"
-  # shellcheck source=install_tmux.sh
   . "$THISDIR/install_tmux.sh"
 }
 

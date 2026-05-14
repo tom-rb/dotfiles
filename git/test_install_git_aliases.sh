@@ -4,13 +4,11 @@ THISDIR="$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/n
 readonly THISDIR
 
 oneTimeSetUp() {
-  # shellcheck source=../tests/utils_for_test.sh
   . "$THISDIR/../tests/utils_for_test.sh"
   DOTFILES="$(get_abs_path "$THISDIR/..")"
 }
 
 setUp() {
-  # shellcheck source=install_git_aliases.sh
   . "$THISDIR/install_git_aliases.sh"
 }
 
@@ -38,5 +36,4 @@ test_patch_zimfw_git_init() {
 }
 
 # Run tests
-# shellcheck source=../tests/shunit2
 . "$THISDIR/../tests/shunit2"

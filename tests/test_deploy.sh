@@ -4,13 +4,11 @@ THISDIR="$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/n
 readonly THISDIR
 
 oneTimeSetUp() {
-  # shellcheck source=../tests/utils_for_test.sh
   . "$THISDIR/../tests/utils_for_test.sh"
 }
 
 setUp() {
   # Source deploy.sh with a defined DOTFILES path
-  # shellcheck source=../deploy.sh
   DOTFILES="$(CDPATH='' cd -- "$THISDIR/.." >/dev/null && pwd -P)" \
     dotfiles_dont_run=1 . "$THISDIR/../deploy.sh"
 }
@@ -74,9 +72,6 @@ test_deploy_wizard_dies_if_basic_packages_fail() {
 # Run tests
 SHPY_PATH="$THISDIR/shpy"
 export SHPY_PATH
-# shellcheck source=shpy
 . "$THISDIR/shpy"
-# shellcheck source=shpy-shunit2
 . "$THISDIR/shpy-shunit2"
-# shellcheck source=shunit2
 . "$THISDIR/shunit2"
