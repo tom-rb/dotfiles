@@ -48,7 +48,7 @@ run_test_in_docker() {
   ) |
     # filter verbose lines unless DEBUG is set, then echo output,
     if [ "${DEBUG:-}" != "1" ]; then sed "/^$\|^Ran .* test.$/ d"; else cat; fi |
-    tee /dev/tty |
+    tee /dev/stderr |
     # and return 1 if test failed (by negating successful grep search)
     grep -q FAILED
 }

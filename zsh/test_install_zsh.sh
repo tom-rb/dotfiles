@@ -121,19 +121,106 @@ test_with_existing_zshenv_user_can_cancel() {
     "# Some existing config" "$(cat "$HOME/.zshenv")"
 }
 
+test_ensure_chsh_skips_when_already_installed() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+
+  ensure_chsh_available
+
+  assertTrue "Should succeed when chsh is present" $?
+  assertCalledOnceWith command_exists chsh
+  assertNeverCalled install_from_pm
+}
+
+test_ensure_chsh_installs_util_linux_user_on_yum() {
+  createSpy -u -r "$SHUNIT_FALSE" command_exists
+  createSpy -u -o 'yum' get_supported_pm
+  createSpy -u install_from_pm
+
+  ensure_chsh_available
+
+  assertTrue "Should succeed after install" $?
+  assertCalledOnceWith install_from_pm util-linux-user
+}
+
+test_ensure_chsh_warns_and_returns_zero_when_install_fails() {
+  createSpy -u -r "$SHUNIT_FALSE" command_exists
+  createSpy -u -o 'yum' get_supported_pm
+  createSpy -u -r "$SHUNIT_FALSE" install_from_pm
+
+  output=$(ensure_chsh_available)
+
+  assertTrue "Should still return success on install failure" $?
+  assertContains "Should print recovery hint" "$output" "Couldn't install chsh"
+}
+
+test_set_default_shell_skips_when_zsh_is_already_default() {
+  createSpy -u -o "/usr/bin/zsh" get_zsh_path
+  createSpy -u -o '/usr/bin/zsh' get_current_default_shell
+  createSpy -u confirm
+  createSpy -u sudo
+
+  output=$(set_zsh_as_default_shell)
+
+  assertTrue "Should succeed when already default" $?
+  assertContains "$output" "already the default shell"
+  assertNeverCalled confirm
+  assertNeverCalled sudo
+}
+
+test_set_default_shell_skips_when_user_declines() {
+  createSpy -u -o "/usr/bin/zsh" get_zsh_path
+  createSpy -u -o '/bin/bash' get_current_default_shell
+  createSpy -u -r "$SHUNIT_FALSE" confirm
+  createSpy -u sudo
+
+  set_zsh_as_default_shell
+
+  assertTrue "Should succeed when user declines" $?
+  assertCallCount confirm 1
+  assertNeverCalled sudo
+}
+
+test_set_default_shell_calls_chsh_when_accepted() {
+  createSpy -u -o "/usr/bin/zsh" get_zsh_path
+  createSpy -u -o '/bin/bash' get_current_default_shell
+  createSpy -u -r "$SHUNIT_TRUE" confirm
+  createSpy -u sudo
+
+  quietly set_zsh_as_default_shell
+
+  assertTrue "Should succeed on chsh success" $?
+  assertCalledOnceWith sudo chsh -s /usr/bin/zsh "$(id -un)"
+}
+
+test_set_default_shell_returns_success_with_hint_when_chsh_fails() {
+  createSpy -u -o "/usr/bin/zsh" get_zsh_path
+  createSpy -u -o '/bin/bash' get_current_default_shell
+  createSpy -u -r "$SHUNIT_TRUE" confirm
+  createSpy -u -r "$SHUNIT_FALSE" sudo
+
+  output=$(set_zsh_as_default_shell)
+
+  assertTrue "Should still return success on chsh failure" $?
+  assertContains "Should print recovery hint" "$output" "chsh -s /usr/bin/zsh"
+}
+
 test_wizard_installs_dotfiles_when_zsh_is_installed() {
   createSpy -u install_zsh_program
   createSpy -u install_zsh_dotfiles
+  createSpy -u set_zsh_as_default_shell
 
   install_zsh_wizard
 
   assertCallCount install_zsh_program 1
   assertCallCount install_zsh_dotfiles 1
+  assertCallCount set_zsh_as_default_shell 1
 }
 
 test_wizard_does_not_install_dotfiles_when_zsh_installation_fails() {
   createSpy -u -r "$SHUNIT_FALSE" install_zsh_program
   createSpy -u install_zsh_dotfiles
+  createSpy -u set_zsh_as_default_shell
 
   install_zsh_wizard
 

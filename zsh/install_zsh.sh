@@ -75,15 +75,67 @@ EOF
   )
 }
 
-# Installs zsh and its dotfiles
+# Absolute path of the zsh binary
+get_zsh_path() {
+  command -v zsh
+}
+
+# Ensure chsh is available; install it from the PM if not.
+# Warns and returns 0 on install failure (caller handles missing chsh).
+ensure_chsh_available() {
+  if command_exists chsh; then
+    return 0
+  fi
+  case $(get_supported_pm) in
+    apt-get) install_from_pm passwd;;
+    yum)     install_from_pm util-linux-user;;
+  esac || {
+    echo "Couldn't install chsh from package manager."
+    return 0
+  }
+}
+
+# Current login shell for the running user, from /etc/passwd
+get_current_default_shell() {
+  getent passwd "$(id -un)" | cut -d: -f7
+}
+
+# Set zsh as the user's default login shell (via chsh).
+# A failure here is non-fatal: prints a hint and still returns 0
+set_zsh_as_default_shell() {
+  local zsh_path current
+  ensure_chsh_available
+  zsh_path=$(get_zsh_path)
+  current=$(get_current_default_shell)
+
+  if [ "$current" = "$zsh_path" ]; then
+    echo "zsh is already the default shell."
+    return 0
+  fi
+
+  if ! confirm "Set zsh as your default shell?"; then
+    return 0
+  fi
+
+  if ! sudo chsh -s "$zsh_path" "$(id -un)"; then
+    echo "Couldn't change default shell. Run manually: chsh -s $zsh_path"
+    return 0
+  fi
+
+  echo "****************************"
+  echo "Default shell set to zsh."
+  echo "****************************"
+}
+
+# Installs zsh and its dotfiles, then offers to set it as default shell
 # -y: accepts default answer for all questions
 install_zsh_wizard() {
   if [ "$1" = -y ]; then
   # Sends "enter" continuously
   yes "
-" | install_zsh_program && install_zsh_dotfiles
+" | { install_zsh_program && install_zsh_dotfiles && set_zsh_as_default_shell; }
   else
-    install_zsh_program && install_zsh_dotfiles
+    install_zsh_program && install_zsh_dotfiles && set_zsh_as_default_shell
   fi
 }
 

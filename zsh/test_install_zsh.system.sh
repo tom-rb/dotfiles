@@ -34,6 +34,10 @@ it_installs_zsh_and_its_dotfiles() {
   output=$(zsh -c 'echo "ZDOTDIR=$ZDOTDIR DOTFILES=$DOTFILES"')
   assertContains "$output" "DOTFILES=$DOTFILES"
   assertContains "$output" "ZDOTDIR=$DOTFILES/zsh"
+
+  # Verify zsh was set as the default login shell for the user
+  current_shell=$(get_current_default_shell)
+  assertContains "Default shell should be zsh" "$current_shell" "zsh"
 }
 
 # shellcheck source=../tests/shunit2

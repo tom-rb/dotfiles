@@ -1,5 +1,8 @@
-# Available images for testing
-_image_names := $(basename $(notdir $(wildcard tests/systems/*.dockerfile)))
+# Pure make util function to reverse a list of words
+reverse = $(if $1,$(call reverse,$(wordlist 2,$(words $1),$1)) $(firstword $1))
+
+# Available images for testing (reverse to select alphabetically last first)
+_image_names := $(call reverse,$(basename $(notdir $(wildcard tests/systems/*.dockerfile))))
 
 # Print this help
 help:
