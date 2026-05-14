@@ -5,6 +5,7 @@ readonly THISDIR
 
 oneTimeSetUp() {
   . "$THISDIR/../tests/utils_for_test.sh"
+  DOTFILES="$(get_abs_path "$THISDIR/..")"
 }
 
 setUp() {

@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 # shellcheck source=../utils/utils.sh
-. "$DOTFILES/utils/utils.sh"
+. "${DOTFILES:?}/utils/utils.sh"
 
 # Check if zsh is installed
 is_zsh_installed() {
@@ -86,10 +86,8 @@ ensure_chsh_available() {
   if command_exists chsh; then
     return 0
   fi
-  case $(get_supported_pm) in
-    apt-get) install_from_pm passwd;;
-    yum)     install_from_pm util-linux-user;;
-  esac || {
+  # shellcheck disable=SC2046  # intentional word-splitting of resolved names
+  install_from_pm $(pm_packages_for chsh) || {
     echo "Couldn't install chsh from package manager."
     return 0
   }

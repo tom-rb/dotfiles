@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 # shellcheck source=../utils/utils.sh
-. "$DOTFILES/utils/utils.sh"
+. "${DOTFILES:?}/utils/utils.sh"
 
 # Patch the init.zsh of zimfw git module to work on sh
 # $1: path to init.zsh

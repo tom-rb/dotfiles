@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 # shellcheck source=../utils/utils.sh
-. "$DOTFILES/utils/utils.sh"
+. "${DOTFILES:?}/utils/utils.sh"
 
 is_tmux_installed() {
   command_exists tmux
@@ -26,11 +26,9 @@ get_tmux_release_version() {
 }
 
 install_tmux_build_dependencies() {
-  install_from_pm wget tar gzip gcc make
-  case $(get_supported_pm) in
-    apt-get) install_from_pm libevent-dev libncurses-dev bison;;
-    yum)     install_from_pm libevent-devel ncurses-devel bison;;
-  esac
+  # shellcheck disable=SC2046  # intentional word-splitting of resolved names
+  install_from_pm $(pm_packages_for \
+    wget tar gzip gcc make libevent-headers ncurses-headers bison)
 }
 
 # Install version $1 from source, (optional) install at $2 location

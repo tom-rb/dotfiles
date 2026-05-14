@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 
+# shellcheck source=pm_packages.sh
+. "${DOTFILES:?}/utils/pm_packages.sh"
+
 # Echo $1 and exit 1, or optionally with specified $2 code
 die() {
   echo "${1:-Aborted.}"
