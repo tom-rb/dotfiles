@@ -8,8 +8,8 @@ oneTimeSetUp() {
 }
 
 setUp() {
-  # shellcheck source=../git/install_git_aliases.sh
-  . "$THISDIR/../git/install_git_aliases.sh"
+  # shellcheck source=install_git_aliases.sh
+  . "$THISDIR/install_git_aliases.sh"
 }
 
 #

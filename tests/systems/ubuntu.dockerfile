@@ -1,6 +1,6 @@
 FROM ubuntu AS base
 
-RUN apt update && apt install sudo
+RUN apt update && apt install -y sudo
 COPY tests/shunit2 /usr/bin/shunit2
 
 # Create non-root user and allow sudo without passwords for certain commands

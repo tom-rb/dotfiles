@@ -3,6 +3,8 @@ _image_names := $(basename $(notdir $(wildcard tests/systems/*.dockerfile)))
 
 # Print this help
 help:
+	@echo "Options:"
+	@echo "   DEBUG=1   Show verbose outputs during builds and tests"
 	@echo "Usage:"
 	@sed -nE '/^# (.+)/{ s//   \1/;h;n; /^([a-z-]+):.*/ { s// make \1/;p;g;p } }' Makefile
 
@@ -24,7 +26,8 @@ unit-test: $(_unit_tests:=-run)
 
 # Removes the -run suffix and execute each file
 $(_unit_tests:=-run):
-	$(@:-run=)
+	@echo "> $(@:-run=)"
+	@$(@:-run=)
 
 # Run all unit tests on all base images
 unit-tests: $(_image_names:=-unit)
@@ -33,7 +36,8 @@ unit-tests: $(_image_names:=-unit)
 # Run each image unit test, depends on image build
 $(_image_names:=-unit): %-unit: %
 	@echo ">>>>>>  UNIT TEST $<"
-	@docker run --rm -v "$$PWD:/app:ro" -w /app -e DOTFILES=/app ${<:=-test}:base sh -c "$(_unit_tests:.sh=.sh &&) true"
+	@docker run --rm -v "$$PWD:/app:ro" -w /app -e DOTFILES=/app ${<:=-test}:base sh -c \
+		'for f in $(_unit_tests); do echo "> $$f"; $$f || exit 1; done'
 
 .PHONY: unit-test unit-tests $(_unit_tests:=-run) $(_image_names:=-unit)
 
@@ -68,7 +72,7 @@ vpath %.dockerfile ./tests/systems
 $(_image_names): %: %.dockerfile
 	@echo ">>  BUILD $@ targets"
 	@sed -nE '/^FROM.* AS (.+)/I s//\1/p' $< |\
-		xargs -I {} docker build -q --target "{}" -t $@-test:"{}" -f $< .
+		xargs -I {} docker build $(if $(DEBUG),,-q) --target "{}" -t $@-test:"{}" -f $< .
 
 # Clean all cached images
 clean-images:
