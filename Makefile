@@ -35,11 +35,8 @@ _system_files  := $(if $(FILE),$(FILE),$(_system_tests))
 ## UNIT TESTS
 ##
 
-# Shell snippet: iterate _unit_files, skip files without TEST=, exit on first failure
-_run_units = for f in $(_unit_files); do \
-		[ -z "$(TEST)" ] || grep -qE "^$(TEST)\(\)" "$$f" || continue; \
-		echo "> $$f"; $$f $(if $(TEST),-- $(TEST)) || exit 1; \
-	done
+# Shell snippet: invokes tests/run_unit_tests.sh with the resolved file list and filter
+_run_units = tests/run_unit_tests.sh $(if $(TEST),-t $(TEST)) $(_unit_files)
 
 # Run all unit tests locally
 unit:
