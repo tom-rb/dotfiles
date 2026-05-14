@@ -17,6 +17,16 @@ Tests use [shunit2](https://github.com/kward/shunit2) (vendored in `tests/`) wit
 
 System tests run per-function inside Docker containers (not per-file). A `# @image: <stage>` annotation on a test function selects which Dockerfile stage to use. The `Makefile` drives all test execution (`make unit-test`, `make system-tests`).
 
+**Running a single unit test case:**
+```sh
+./path/to/test_file.sh -- test_case_name
+```
+
+**Running a single system test case (within Docker) with full output:**
+```sh
+DEBUG=1 tests/run_system_test.sh -c it_tests_case_name ubuntu path/to/test_file.system.sh
+```
+
 **Test file conventions:**
 - Unit test functions are named `test_<description>()`
 - System test functions are named `it_<description>()`
@@ -28,16 +38,10 @@ System tests run per-function inside Docker containers (not per-file). A `# @ima
   quietly install_tmux_from_source "$version" "$prefix"
   ```
 
-**Running a single system test case with full output:**
-```sh
-DEBUG=1 tests/run_system_test.sh -c it_my_test ubuntu path/to/test.system.sh
-```
-
 ## Linting
 
 ```sh
-docker run --rm -v "$PWD:/app:ro" koalaman/shellcheck:stable \
-  $(find . -name '*.sh' -not -path '*/old/*' -not -path '*/tmux-cmds*' | sed 's|^.|/app|')
+docker run --rm -v "$PWD:/app:ro" koalaman/shellcheck:stable $(find . -name '*.sh' -not -path '*/old/*' -not -path '*/tmux-cmds*' | sed 's|^.|/app|')
 ```
 Config in `.shellcheckrc`. `old/` and `tmux/tmux-cmds.sh` (intentional bash) are excluded.
 

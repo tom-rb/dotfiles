@@ -38,6 +38,10 @@ install_basic_packages() {
   install_from_pm $basic_packages
 }
 
+start_zsh_wizard() {
+  sh -- "$DOTFILES/zsh/install_zsh.sh" --wizard
+}
+
 start_tmux_wizard() {
   sh -- "$DOTFILES/tmux/install_tmux.sh" --wizard
 }
@@ -52,6 +56,10 @@ deploy_wizard() {
     printf "Lets install basic packages first: %s (press any key)" "$basic_packages"
     read_char silent
     install_basic_packages || die "Couldn't install basic packages"
+  fi
+
+  if confirm "Install zsh?"; then
+    start_zsh_wizard
   fi
 
   if confirm "Install tmux?"; then

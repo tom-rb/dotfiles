@@ -111,7 +111,7 @@ rm .zshenv .zlogin .zshrc .zimrc
 
 # Install dotfiles TODO: check if not installed already
 #git clone git@github.com:tom-rb/dotfiles.git $HOME/dotfiles
-cp $HOME/dotfiles/zsh/zshenv-template ~/.zshenv
+cp $HOME/dotfiles/zsh/zshenv-base ~/.zshenv
 
 zsh
 

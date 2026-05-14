@@ -6,11 +6,15 @@ readonly THISDIR
 oneTimeSetUp() {
   # shellcheck source=../tests/utils_for_test.sh
   . "$THISDIR/../tests/utils_for_test.sh"
+  DOTFILES="$(get_abs_path "$THISDIR/..")"
 }
 
 setUp() {
   # shellcheck source=install_tmux.sh
   . "$THISDIR/install_tmux.sh"
+  # Isolate $HOME for tests
+  HOME=${SHUNIT_TMPDIR:?}/home
+  mkdir -p "$HOME"
 }
 
 tearDown() {
@@ -110,26 +114,36 @@ test_install_tmux_from_source_in_custom_location() {
 }
 
 test_tmux_dotfiles_are_installed() {
-  XDG_CONFIG_HOME=${SHUNIT_TMPDIR:?}/.config
-  XDG_DATA_HOME=${SHUNIT_TMPDIR:?}/.local/share
-
   output=$(install_tmux_dotfiles)
 
   assertTrue "Should have created .local/share/tmux dir" \
-    "test -d $XDG_CONFIG_HOME/tmux"
+    "test -d $HOME/.config/tmux"
   assertTrue "Should have created .config/tmux dir" \
-    "test -d $XDG_DATA_HOME/tmux"
+    "test -d $HOME/.local/share/tmux"
 
   assertContains "Should include tmux source command in conf file" \
-    "$(cat "$XDG_CONFIG_HOME"/tmux/tmux.conf)" "source-file"
+    "$(cat "$HOME"/.config/tmux/tmux.conf)" "source-file"
+}
+
+test_tmux_dotfiles_installation_respects_xdg_config_home() {
+  export XDG_CONFIG_HOME="$HOME/.myconfig"
+  export XDG_DATA_HOME="$HOME/.mydata"
+
+  output=$(install_tmux_dotfiles)
+
+  assertTrue "Should have created .myconfig/tmux dir" \
+    "test -d $HOME/.myconfig/tmux"
+  assertTrue "Should have created .mydata/tmux dir" \
+    "test -d $HOME/.mydata/tmux"
+
+  assertContains "Should include tmux source command in conf file" \
+    "$(cat "$HOME"/.myconfig/tmux/tmux.conf)" "source-file"
 }
 
 test_existing_tmux_dotfiles_is_echoed_for_user_inspection() {
-  XDG_CONFIG_HOME="${SHUNIT_TMPDIR:?}/user  name/.config"
-  XDG_DATA_HOME=${SHUNIT_TMPDIR:?}/.local/share
-  mkdir -p "$XDG_CONFIG_HOME/tmux"
+  mkdir -p "$HOME/.config/tmux"
 
-  echo "# Some existing config" > "$XDG_CONFIG_HOME/tmux/tmux.conf"
+  echo "# Some existing config" > "$HOME/.config/tmux/tmux.conf"
 
   output=$(echo 1 | install_tmux_dotfiles) # choose whatever option
 
@@ -138,58 +152,50 @@ test_existing_tmux_dotfiles_is_echoed_for_user_inspection() {
 }
 
 test_existing_tmux_dotfiles_are_backed_up() {
-  XDG_CONFIG_HOME="${SHUNIT_TMPDIR:?}/user  name/.config"
-  XDG_DATA_HOME=${SHUNIT_TMPDIR:?}/.local/share
-  mkdir -p "$XDG_CONFIG_HOME/tmux"
+  mkdir -p "$HOME/.config/tmux"
 
-  echo "# Some existing config" > "$XDG_CONFIG_HOME/tmux/tmux.conf"
+  echo "# Some existing config" > "$HOME/.config/tmux/tmux.conf"
 
   output=$(echo 1 | install_tmux_dotfiles) # choose backup
 
-  assertTrue "Expected bkp" "test -f \"$XDG_CONFIG_HOME/tmux/tmux.conf.bkp\""
+  assertTrue "Expected bkp" "test -f \"$HOME/.config/tmux/tmux.conf.bkp\""
 
   assertContains "Should include tmux source command in conf file" \
-    "$(cat "$XDG_CONFIG_HOME"/tmux/tmux.conf)" "source-file"
+    "$(cat "$HOME"/.config/tmux/tmux.conf)" "source-file"
 }
 
 test_existing_tmux_dotfiles_is_appended() {
-  XDG_CONFIG_HOME="${SHUNIT_TMPDIR:?}/user  name/.config"
-  XDG_DATA_HOME=${SHUNIT_TMPDIR:?}/.local/share
-  mkdir -p "$XDG_CONFIG_HOME/tmux"
+  mkdir -p "$HOME/.config/tmux"
 
-  echo "# Some existing config" > "$XDG_CONFIG_HOME/tmux/tmux.conf"
+  echo "# Some existing config" > "$HOME/.config/tmux/tmux.conf"
 
   output=$(echo 2 | install_tmux_dotfiles) # choose append
 
   assertContains "Should include original contents of conf file" \
-    "$(cat "$XDG_CONFIG_HOME"/tmux/tmux.conf)" "existing config"
+    "$(cat "$HOME"/.config/tmux/tmux.conf)" "existing config"
 
   assertContains "Should include tmux source command in conf file" \
-    "$(cat "$XDG_CONFIG_HOME"/tmux/tmux.conf)" "source-file"
+    "$(cat "$HOME"/.config/tmux/tmux.conf)" "source-file"
 }
 
 test_existing_tmux_dotfiles_is_overwritten() {
-  XDG_CONFIG_HOME="${SHUNIT_TMPDIR:?}/user  name/.config"
-  XDG_DATA_HOME=${SHUNIT_TMPDIR:?}/.local/share
-  mkdir -p "$XDG_CONFIG_HOME/tmux"
+  mkdir -p "$HOME/.config/tmux"
 
-  echo "# Some existing config" > "$XDG_CONFIG_HOME/tmux/tmux.conf"
+  echo "# Some existing config" > "$HOME/.config/tmux/tmux.conf"
 
   output=$(echo 3 | install_tmux_dotfiles) # choose overwrite
 
   assertNotContains "Should not include original contents of conf file" \
-    "$(cat "$XDG_CONFIG_HOME"/tmux/tmux.conf)" "existing config"
+    "$(cat "$HOME"/.config/tmux/tmux.conf)" "existing config"
 
   assertContains "Should include tmux source command in conf file" \
-    "$(cat "$XDG_CONFIG_HOME"/tmux/tmux.conf)" "source-file"
+    "$(cat "$HOME"/.config/tmux/tmux.conf)" "source-file"
 }
 
 test_with_existing_tmux_dotfiles_user_can_cancel() {
-  XDG_CONFIG_HOME="${SHUNIT_TMPDIR:?}/user  name/.config"
-  XDG_DATA_HOME=${SHUNIT_TMPDIR:?}/.local/share
-  mkdir -p "$XDG_CONFIG_HOME/tmux"
+  mkdir -p "$HOME/.config/tmux"
 
-  echo "# Some existing config" > "$XDG_CONFIG_HOME/tmux/tmux.conf"
+  echo "# Some existing config" > "$HOME/.config/tmux/tmux.conf"
 
   output=$(echo q | install_tmux_dotfiles) # choose quit
 
@@ -197,7 +203,7 @@ test_with_existing_tmux_dotfiles_user_can_cancel() {
     "$output" "tmux.conf not configured!"
 
   assertEquals "Should include only original contents of conf file" \
-    "# Some existing config" "$(cat "$XDG_CONFIG_HOME"/tmux/tmux.conf)"
+    "# Some existing config" "$(cat "$HOME"/.config/tmux/tmux.conf)"
 }
 
 test_wizard_installs_dotfiles_when_tmux_is_installed() {

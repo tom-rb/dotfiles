@@ -5,7 +5,7 @@
 # Read config sequence (except /etc/*)
 #
 #  login shell
-#    $HOME/.zshenv
+#    $HOME/.zshenv -> stub includes $DOTFILES/zsh/zshenv-base
 #    $ZDOTDIR/.zprofile
 #    $ZDOTDIR/.zshrc
 #    $ZDOTDIR/.zlogin
@@ -17,7 +17,7 @@
 #  shell scripts
 #    $HOME/.zshenv
 #
-#  remote noninteractive zsh (e.x ssh hostname command)
+#  remote noninteractive zsh (e.g. ssh hostname command)
 #    $HOME/.zshenv
 #
 #  logout:
@@ -32,11 +32,11 @@
 (( ! ${+XDG_CACHE_HOME} )) && export XDG_CACHE_HOME=${HOME}/.cache && mkdir -p $XDG_CACHE_HOME
 (( ! ${+XDG_DATA_HOME} )) && export XDG_DATA_HOME=${HOME}/.local/share && mkdir -p $XDG_DATA_HOME
 
-# Define DOTFILES repository path
-export DOTFILES=${HOME}/dotfiles
+# Define DOTFILES repository path (set by .zshenv stub; default if sourced standalone)
+: ${DOTFILES:=${HOME}/dotfiles}
+export DOTFILES
 
 # Setup ZDOTDIR, the directory to search the other startup files (.zshrc, etc).
-# Note: this .zshenv should be located in $HOME, the default search dir.
 export ZDOTDIR=${DOTFILES}/zsh
 
 # Define ZIM (Zsh IMproved framework) location
