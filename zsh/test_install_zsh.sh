@@ -155,6 +155,7 @@ test_ensure_chsh_warns_and_returns_zero_when_install_fails() {
 }
 
 test_set_default_shell_skips_when_zsh_is_already_default() {
+  createSpy -u ensure_chsh_available
   createSpy -u -o "/usr/bin/zsh" get_zsh_path
   createSpy -u -o '/usr/bin/zsh' get_current_default_shell
   createSpy -u confirm
@@ -169,6 +170,7 @@ test_set_default_shell_skips_when_zsh_is_already_default() {
 }
 
 test_set_default_shell_skips_when_user_declines() {
+  createSpy -u ensure_chsh_available
   createSpy -u -o "/usr/bin/zsh" get_zsh_path
   createSpy -u -o '/bin/bash' get_current_default_shell
   createSpy -u -r "$SHUNIT_FALSE" confirm
@@ -182,6 +184,7 @@ test_set_default_shell_skips_when_user_declines() {
 }
 
 test_set_default_shell_calls_chsh_when_accepted() {
+  createSpy -u ensure_chsh_available
   createSpy -u -o "/usr/bin/zsh" get_zsh_path
   createSpy -u -o '/bin/bash' get_current_default_shell
   createSpy -u -r "$SHUNIT_TRUE" confirm
@@ -194,6 +197,7 @@ test_set_default_shell_calls_chsh_when_accepted() {
 }
 
 test_set_default_shell_returns_success_with_hint_when_chsh_fails() {
+  createSpy -u ensure_chsh_available
   createSpy -u -o "/usr/bin/zsh" get_zsh_path
   createSpy -u -o '/bin/bash' get_current_default_shell
   createSpy -u -r "$SHUNIT_TRUE" confirm

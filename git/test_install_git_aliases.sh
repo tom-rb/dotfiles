@@ -6,6 +6,7 @@ readonly THISDIR
 oneTimeSetUp() {
   # shellcheck source=../tests/utils_for_test.sh
   . "$THISDIR/../tests/utils_for_test.sh"
+  DOTFILES="$(get_abs_path "$THISDIR/..")"
 }
 
 setUp() {

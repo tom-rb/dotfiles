@@ -57,11 +57,11 @@ run_test_in_docker() {
 # Parse arguments
 #
 
-# -c CASE: run only the named test case
+# -t TEST: run only the named test case
 filter_case=""
 while [ $# -gt 0 ]; do
   case $1 in
-    -c) filter_case="${2:?'-c requires a test case name'}"; shift 2 ;;
+    -t) filter_case="${2:?'-t requires a test case name'}"; shift 2 ;;
     --) shift; break ;;
     -*) printf 'Unknown flag: %s\n' "$1" >&2; exit 1 ;;
     *)  break ;;
@@ -69,8 +69,8 @@ while [ $# -gt 0 ]; do
 done
 
 if [ $# -lt 2 ]; then
-  echo "Usage: $0 [-c test_case] image_base_name test_file [test_file...]"
-  echo "  -c test_case     Run only the named test case"
+  echo "Usage: $0 [-t test_case] image_base_name test_file [test_file...]"
+  echo "  -t test_case     Run only the named test case"
   echo "  image_base_name  Docker base image to run tests against"
   echo "  test_file        Test script(s) to run"
   echo "Env:"

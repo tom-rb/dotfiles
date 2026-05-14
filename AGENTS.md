@@ -15,17 +15,25 @@ Tests use [shunit2](https://github.com/kward/shunit2) (vendored in `tests/`) wit
 - **Unit tests** (`test_*.sh`) — run locally or in Docker; test individual functions in isolation
 - **System tests** (`test_*.system.sh`) — run in Docker only; test full install flows against real environments
 
-System tests run per-function inside Docker containers (not per-file). A `# @image: <stage>` annotation on a test function selects which Dockerfile stage to use. The `Makefile` drives all test execution (`make unit-test`, `make system-tests`).
+System tests run per-function inside Docker containers (not per-file). A `# @image: <stage>` annotation on a test function selects which Dockerfile stage to use. The `Makefile` is the canonical entry point — it rebuilds images automatically when their Dockerfile changes, so prefer it over invoking `tests/run_system_test.sh` directly.
 
-**Running a single unit test case:**
+**Running tests via `make`:**
 ```sh
-./path/to/test_file.sh -- test_case_name
+make unit                                # all unit tests, locally
+make unit-ubuntu                         # all unit tests, inside ubuntu image
+make system-ubuntu                       # all system tests, inside ubuntu image
+make unit-tests                          # all unit tests, on every image
+make system-tests                        # all system tests, on every image
 ```
 
-**Running a single system test case (within Docker) with full output:**
+**Filters** (work with any target, combinable):
 ```sh
-DEBUG=1 tests/run_system_test.sh -c it_tests_case_name ubuntu path/to/test_file.system.sh
+make unit FILE=zsh/test_install_zsh.sh                       # one file only
+make system-ubuntu TEST=it_installs_zsh_and_its_dotfiles     # one case only
+make system-ubuntu FILE=zsh/test_install_zsh.system.sh TEST=it_checks_zsh_is_not_installed
 ```
+
+`DEBUG=1` enables verbose docker output. Run `make help` for the full target list.
 
 **Test file conventions:**
 - Unit test functions are named `test_<description>()`

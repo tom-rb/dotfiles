@@ -18,6 +18,7 @@ setUp() {
 }
 
 tearDown() {
+  unset XDG_CONFIG_HOME XDG_DATA_HOME
   cleanupSpies
   cleanupTestDir
 }
@@ -126,8 +127,8 @@ test_tmux_dotfiles_are_installed() {
 }
 
 test_tmux_dotfiles_installation_respects_xdg_config_home() {
-  export XDG_CONFIG_HOME="$HOME/.myconfig"
-  export XDG_DATA_HOME="$HOME/.mydata"
+  XDG_CONFIG_HOME="$HOME/.myconfig"
+  XDG_DATA_HOME="$HOME/.mydata"
 
   output=$(install_tmux_dotfiles)
 
