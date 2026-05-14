@@ -3,6 +3,8 @@
 readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
+  # shellcheck source=../tests/utils_for_test.sh
+  . "$THISDIR/../tests/utils_for_test.sh"
   # shellcheck source=utils.sh
   . "$THISDIR/utils.sh"
 }
@@ -22,7 +24,7 @@ it_installs_a_package_using_package_manager() {
   command_exists htop
   assertFalse "Htop was not expected to be already installed" $?
 
-  install_from_pm htop >/dev/null 2>&1
+  quietly install_from_pm htop
 
   command_exists htop
   assertTrue "Htop should be installed" $?

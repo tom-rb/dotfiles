@@ -13,19 +13,23 @@ get_tmux_package_version() {
     | sed -E 's/([0-9]\.[0-9][abc]?).*/\1/'
 }
 
+# Fetch server response headers for the tmux latest release redirect
+get_tmux_release_headers() {
+  wget --server-response --spider \
+    https://github.com/tmux/tmux/releases/latest 2>&1
+}
+
 # Get latest tmux version from github release
 get_tmux_release_version() {
-  # TODO: extract and test reading github release
-  wget --server-response --spider \
-    https://github.com/tmux/tmux/releases/latest 2>&1 \
-    | sed -nE '/^Location:/ s_.*tag/([0-9]\.[0-9][abc]?).*_\1_p'
+  get_tmux_release_headers \
+    | sed -nE '/^[[:space:]]*Location:/ { s_.*tag/([0-9]\.[0-9][abc]?).*_\1_p; q }'
 }
 
 install_tmux_build_dependencies() {
   install_from_pm wget tar gzip gcc make
   case $(get_supported_pm) in
-    apt-get) install_from_pm libevent-dev libncurses-dev;;
-    yum)     install_from_pm libevent-devel ncurses-devel;;
+    apt-get) install_from_pm libevent-dev libncurses-dev bison;;
+    yum)     install_from_pm libevent-devel ncurses-devel bison;;
   esac
 }
 

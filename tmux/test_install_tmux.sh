@@ -31,6 +31,26 @@ test_get_tmux_package_version_extracts_tmux_version() {
 
   assertContains "Should contain the version only" \
     "$(get_tmux_package_version)" "3.1b"
+
+  createSpy -u -o '3.4-1ubuntu0.1' get_version_in_pm
+
+  assertContains "Should contain the version only" \
+    "$(get_tmux_package_version)" "3.4"
+}
+
+test_get_tmux_release_version_extracts_version_from_redirect_header() {
+  createSpy -u -o '  Location: https://github.com/tmux/tmux/releases/tag/3.1' get_tmux_release_headers
+  assertEquals "3.1" "$(get_tmux_release_version)"
+
+  createSpy -u -o '  Location: https://github.com/tmux/tmux/releases/tag/3.1b' get_tmux_release_headers
+  assertEquals "3.1b" "$(get_tmux_release_version)"
+}
+
+test_get_tmux_release_version_returns_one_version_when_multiple_location_headers() {
+  createSpy -u -o "  Location: https://github.com/tmux/tmux/releases/tag/3.6a
+  Location: https://github.com/tmux/tmux/releases/tag/3.6a" get_tmux_release_headers
+
+  assertEquals "3.6a" "$(get_tmux_release_version)"
 }
 
 test_install_returns_true_if_tmux_is_installed_with_desired_version() {

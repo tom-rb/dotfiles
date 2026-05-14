@@ -41,21 +41,39 @@ run_test_in_docker() {
   local image=${1:?} file=${2:?} case=${3:?}
   # Run test case (negation used in last pipeline command),
   ! (
-    docker run --rm -v "${tests_dir}/..:/app:ro" -w /app -e DOTFILES=/app \
-    "${image}" sh -c "${file} -- ${case}"
+    docker run --rm -v "${tests_dir}/..:/app:ro" -w /app \
+      -e DOTFILES=/app ${DEBUG:+-e DEBUG=1} \
+      "${image}" sh -c "${file} -- ${case}"
   ) |
-    # filter verbose lines and echo output,
-    sed "/^$\|^Ran .* test.$/ d" |
+    # filter verbose lines unless DEBUG is set, then echo output,
+    if [ "${DEBUG:-}" != "1" ]; then sed "/^$\|^Ran .* test.$/ d"; else cat; fi |
     tee /dev/tty |
     # and return 1 if test failed (by negating successful grep search)
     grep -q FAILED
 }
 
-# Print usage information if the wrong number of arguments are passed
+#
+# Parse arguments
+#
+
+# -c CASE: run only the named test case
+filter_case=""
+while [ $# -gt 0 ]; do
+  case $1 in
+    -c) filter_case="${2:?'-c requires a test case name'}"; shift 2 ;;
+    --) shift; break ;;
+    -*) printf 'Unknown flag: %s\n' "$1" >&2; exit 1 ;;
+    *)  break ;;
+  esac
+done
+
 if [ $# -lt 2 ]; then
-  echo "Usage: $0 image_base_name test_file [test_file...]"
-  echo "  image_base_name Docker base image to run test into"
-  echo "  test_file  Test script(s) to run"
+  echo "Usage: $0 [-c test_case] image_base_name test_file [test_file...]"
+  echo "  -c test_case     Run only the named test case"
+  echo "  image_base_name  Docker base image to run tests against"
+  echo "  test_file        Test script(s) to run"
+  echo "Env:"
+  echo "  DEBUG=1          Show full docker output"
   exit 1
 fi
 
@@ -71,6 +89,7 @@ while [ $# -gt 0 ]; do
   printf '\n> %s\n' "${test_file}"
   # Iterate through all test cases
   for test_case in $(get_test_cases_from_file "$test_file"); do
+    [ -n "$filter_case" ] && [ "$test_case" != "$filter_case" ] && continue
     tag=$(get_test_image_annotation "$test_file" "$test_case")
     image="${docker_image}-test:${tag:-base}"
     run_test_in_docker "$image" "$test_file" "$test_case" || status=$?

@@ -3,6 +3,8 @@
 readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
 
 oneTimeSetUp() {
+  # shellcheck source=../tests/utils_for_test.sh
+  . "$THISDIR/../tests/utils_for_test.sh"
   # shellcheck source=install_tmux.sh
   . "$THISDIR/install_tmux.sh"
 }
@@ -30,7 +32,7 @@ it_installs_tmux_from_source_to_specified_location() {
   version=$(get_tmux_release_version)
   prefix="$HOME/apps/tmux"
 
-  install_tmux_from_source "$version" "$prefix" >/dev/null 2>&1
+  quietly install_tmux_from_source "$version" "$prefix"
   assertTrue "Expected no error on installing tmux" $?
 
   command -v "$prefix/bin/tmux" >/dev/null
@@ -39,7 +41,7 @@ it_installs_tmux_from_source_to_specified_location() {
 
 # @image: with-basics
 it_installs_tmux_and_its_dotfiles() {
-  install_tmux_wizard -y > /dev/null 2>&1
+  quietly install_tmux_wizard -y
 
   assertTrue "Expect tmux to be installed" "is_tmux_installed"
 
