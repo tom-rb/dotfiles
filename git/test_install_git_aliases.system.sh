@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 
-readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
+THISDIR="$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)"
+readonly THISDIR
 
 oneTimeSetUp() {
   # shellcheck source=../tests/utils_for_test.sh

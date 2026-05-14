@@ -1,4 +1,10 @@
+# Allow sourcing external files
+external-sources=true
+# Allow sourcing files from the script's directory
+source-path=SCRIPTDIR
 # Allow `local` variables in POSIX sh
 # (the 2039 rule is a broader one, should be removed on shellcheck >7.1)
 disable=SC3043
 disable=SC2039
+# Disable "This function is never invoked." because of many test functions
+disable=SC2329

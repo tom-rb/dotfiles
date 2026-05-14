@@ -4,7 +4,8 @@
 set -o nounset
 
 # Determine the location of this script, and subsequently the test directory
-readonly tests_dir=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
+THISDIR="$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)"
+readonly THISDIR
 
 #
 # Test case discovery function
@@ -20,7 +21,7 @@ get_test_cases_from_file() {
 # Print annotated image name for the given test, if it exists
 # Note: tests can choose an image tag (i.e. stage) with # @image: name
 get_test_image_annotation() {
-  local file=${1:?} case=${2:?}
+  local file="${1:?}" case="${2:?}"
   # /^# @image: (.+)$/  When the image name annotation is found,
   #   s//\1/;h;n;       get the name; send it to [h]old space; read [n]ext line;
   #   /^$case/{g;p;q}   if its the case, [g]et and [p]rint name then [q]uit.
@@ -38,10 +39,10 @@ get_test_image_annotation() {
 #
 
 run_test_in_docker() {
-  local image=${1:?} file=${2:?} case=${3:?}
+  local image="${1:?}" file="${2:?}" case="${3:?}"
   # Run test case (negation used in last pipeline command),
   ! (
-    docker run --rm -v "${tests_dir}/..:/app:ro" -w /app \
+    docker run --rm -v "${THISDIR}/..:/app:ro" -w /app \
       -e DOTFILES=/app ${DEBUG:+-e DEBUG=1} \
       "${image}" sh -c "${file} -- ${case}"
   ) |

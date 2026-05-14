@@ -22,6 +22,24 @@ System tests run per-function inside Docker containers (not per-file). A `# @ima
 - System test functions are named `it_<description>()`
 - Setup and teardown use `setUp()`, `tearDown()`, `oneTimeSetUp()` shunit2 hooks
 - Spies are cleaned up in `tearDown()` via `cleanupSpies`; temp files via `cleanupTestDir`
+- Wrap noisy commands with `quietly` instead of `>/dev/null 2>&1` — it respects `DEBUG=1`:
+  ```sh
+  # in oneTimeSetUp: . "$THISDIR/../tests/utils_for_test.sh"
+  quietly install_tmux_from_source "$version" "$prefix"
+  ```
+
+**Running a single system test case with full output:**
+```sh
+DEBUG=1 tests/run_system_test.sh -c it_my_test ubuntu path/to/test.system.sh
+```
+
+## Linting
+
+```sh
+docker run --rm -v "$PWD:/app:ro" koalaman/shellcheck:stable \
+  $(find . -name '*.sh' -not -path '*/old/*' -not -path '*/tmux-cmds*' | sed 's|^.|/app|')
+```
+Config in `.shellcheckrc`. `old/` and `tmux/tmux-cmds.sh` (intentional bash) are excluded.
 
 ## Code Style
 
@@ -44,7 +62,8 @@ System tests run per-function inside Docker containers (not per-file). A `# @ima
 
 **Self-location pattern** (used in every script to find its own directory):
 ```sh
-readonly THISDIR=$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)
+THISDIR="$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)"
+readonly THISDIR
 ```
 
 **Comments:** Each function gets a short comment directly above it describing what it does. If it takes arguments or flags, document them on subsequent lines: `-n: make default answer NO` / `$1: confirmation message`. If the return value is non-obvious, note it too: `Returns 0 on cancel or >=1 for the choice`. No block comments, no `@param`/`@returns` tags.

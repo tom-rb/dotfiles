@@ -95,7 +95,7 @@ install_tmux_program() {
     # TODO: extract "custom path selection" to utils and test separately
     if confirm -n "Do you want to install it in a custom location?"; then
       while : ; do
-        read -p "Give absolute path: " -r location
+        printf 'Give absolute path: '; read -r location
         # Expand given variables, like $HOME or ~, and remove trailing '/'
         eval location="${location%/}"
 
@@ -180,7 +180,7 @@ EOF
 # -y: accepts default answer for all questions
 install_tmux_wizard() {
   local desired_version=3.1b
-  if [ x"$1" = x-y ]; then
+  if [ "$1" = -y ]; then
   # Sends "enter" continuously
   yes "
 " | install_tmux_program "$desired_version" && install_tmux_dotfiles
