@@ -23,6 +23,11 @@ it_installs_git_configures_templates_and_hook_takes_effect() {
     "$DOTFILES/git/templates" \
     "$(git config --global --get init.templateDir)"
 
+  quietly install_git_excludesfile
+  assertEquals "core.excludesfile should point to dotfiles gitignore.global" \
+    "$DOTFILES/git/.gitignore.global" \
+    "$(git config --global --get core.excludesfile)"
+
   # Identity required for `git commit`; not exercising configure_git_user here
   # since its UX is covered by unit tests.
   git config --global user.name "Test User"
@@ -45,6 +50,18 @@ it_installs_git_configures_templates_and_hook_takes_effect() {
   assertContains "Hook should have prefixed commit with issue id" \
     "$(cd "$repo" && git log -1 --pretty=%B)" \
     "[ABC-123] my message"
+
+  # core.excludesfile should make patterns in .gitignore.global apply repo-wide
+  (
+    cd "$repo"
+    echo "ruby 3.3.0" > .tool-versions
+    echo tracked > tracked.txt
+  )
+  status_output=$(cd "$repo" && git status --porcelain)
+  assertContains "untracked non-ignored file should appear in status" \
+    "$status_output" "tracked.txt"
+  assertNotContains "globally-ignored .tool-versions should be hidden" \
+    "$status_output" ".tool-versions"
 }
 
 # shellcheck source=../tests/shunit2

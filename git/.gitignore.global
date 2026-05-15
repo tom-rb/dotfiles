@@ -1,3 +1,2 @@
-# TODO deploy: git config --global core.excludesfile '~/.config/git/.gitignore.global'
-# asdf version manager
+# asdf version manager (usually only me in the team with this)
 .tool-versions

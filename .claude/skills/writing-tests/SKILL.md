@@ -41,7 +41,13 @@ tearDown() {
   cleanupTestDir
 }
 
-# test_<description>() { ... }
+test_<description>() {
+  createSpy -u -o "" git
+  # Wrap with `quietly` (from utils_for_test.sh) instead of `>/dev/null`.
+  # It silences stdout+stderr by default and re-enables them under DEBUG=1.
+  printf 'input\n' | quietly some_function
+  assertCalledWith git config --global ...
+}
 
 SHPY_PATH="$THISDIR/../tests/shpy"
 export SHPY_PATH
@@ -75,7 +81,7 @@ it_installs_<thing>_end_to_end() {
 . shunit2
 ```
 
-Each `it_*` function runs in a fresh container. The `# @image: <stage>` annotation picks a Dockerfile stage (see [tests/systems/](../../../tests/systems/)); omitting it uses the default. Wrap setup commands with `quietly` (provided by `utils_for_test.sh`) — it respects `DEBUG=1`.
+Each `it_*` function runs in a fresh container. The `# @image: <stage>` annotation picks a Dockerfile stage (see [tests/systems/](../../../tests/systems/)); omitting it uses the default. Wrap setup commands with `quietly` — it respects `DEBUG=1`.
 
 ## Mocking with shpy
 

@@ -89,6 +89,50 @@ test_templates_kept_when_user_declines_overwrite() {
 }
 
 #
+# install_git_excludesfile
+#
+
+test_excludesfile_noop_when_already_pointing_to_dotfiles() {
+  createSpy -u -o "$DOTFILES/git/.gitignore.global" git
+
+  output=$(install_git_excludesfile)
+
+  assertCallCount git 1
+  assertContains "$output" "already configured"
+}
+
+test_excludesfile_set_when_unconfigured() {
+  createSpy -u -o "" git
+
+  output=$(install_git_excludesfile)
+
+  assertCallCount git 2
+  assertCalledWith git config --global --get core.excludesfile
+  assertCalledWith git config --global core.excludesfile "$DOTFILES/git/.gitignore.global"
+  assertContains "$output" "git excludesfile configured"
+}
+
+test_excludesfile_overwrite_when_user_confirms() {
+  createSpy -u -o "/some/other/file" git
+
+  output=$(echo y | install_git_excludesfile)
+
+  assertCallCount git 2
+  assertCalledWith git config --global --get core.excludesfile
+  assertCalledWith git config --global core.excludesfile "$DOTFILES/git/.gitignore.global"
+  assertContains "$output" "git excludesfile configured"
+}
+
+test_excludesfile_kept_when_user_declines_overwrite() {
+  createSpy -u -o "/some/other/file" git
+
+  output=$(echo n | install_git_excludesfile)
+
+  assertCallCount git 1
+  assertContains "$output" "not configured"
+}
+
+#
 # configure_git_user
 #
 
@@ -108,7 +152,7 @@ test_configure_user_sets_values_when_unset_and_user_accepts() {
   createSpy -u -o "" git
 
   # Per loop iter: confirm-y (newline → default Y), prompt_line answer
-  printf '\nMy Name\n\nme@example.com\n' | configure_git_user
+  printf '\nMy Name\n\nme@example.com\n' | quietly configure_git_user
 
   assertCallCount git 4
   assertCalledWith git config --global --get user.name
@@ -121,7 +165,7 @@ test_configure_user_skips_when_value_input_is_empty() {
   createSpy -u -o "" git
 
   # Confirm yes for both, but provide empty answers
-  printf '\n\n\n\n' | configure_git_user
+  printf '\n\n\n\n' | quietly configure_git_user
 
   # Only the two reads, no writes
   assertCallCount git 2
@@ -134,35 +178,53 @@ test_configure_user_skips_when_value_input_is_empty() {
 test_wizard_chains_calls() {
   createSpy -u install_git_program
   createSpy -u install_git_templates
+  createSpy -u install_git_excludesfile
   createSpy -u configure_git_user
 
   install_git_wizard
 
   assertCallCount install_git_program 1
   assertCallCount install_git_templates 1
+  assertCallCount install_git_excludesfile 1
   assertCallCount configure_git_user 1
 }
 
 test_wizard_stops_when_program_install_fails() {
   createSpy -u -r "$SHUNIT_FALSE" install_git_program
   createSpy -u install_git_templates
+  createSpy -u install_git_excludesfile
   createSpy -u configure_git_user
 
   install_git_wizard
 
   assertCallCount install_git_program 1
   assertNeverCalled install_git_templates
+  assertNeverCalled install_git_excludesfile
   assertNeverCalled configure_git_user
 }
 
 test_wizard_stops_when_templates_install_fails() {
   createSpy -u install_git_program
   createSpy -u -r "$SHUNIT_FALSE" install_git_templates
+  createSpy -u install_git_excludesfile
   createSpy -u configure_git_user
 
   install_git_wizard
 
   assertCallCount install_git_templates 1
+  assertNeverCalled install_git_excludesfile
+  assertNeverCalled configure_git_user
+}
+
+test_wizard_stops_when_excludesfile_install_fails() {
+  createSpy -u install_git_program
+  createSpy -u install_git_templates
+  createSpy -u -r "$SHUNIT_FALSE" install_git_excludesfile
+  createSpy -u configure_git_user
+
+  install_git_wizard
+
+  assertCallCount install_git_excludesfile 1
   assertNeverCalled configure_git_user
 }
 

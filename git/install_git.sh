@@ -53,6 +53,32 @@ install_git_templates() {
   echo "****************************"
 }
 
+# Point git's core.excludesfile at $DOTFILES/git/.gitignore.global so the
+# globally-ignored patterns shipped here apply to every repo.
+install_git_excludesfile() {
+  local current target
+  target="${DOTFILES:?}/git/.gitignore.global"
+  current=$(git config --global --get core.excludesfile || true)
+
+  if [ "$current" = "$target" ]; then
+    echo "git excludesfile already configured."
+    return 0
+  fi
+
+  if [ -n "$current" ]; then
+    echo "core.excludesfile is already set to: $current"
+    if ! confirm -n "Overwrite with $target?"; then
+      echo "git excludesfile not configured."
+      return 0
+    fi
+  fi
+
+  git config --global core.excludesfile "$target"
+  echo "****************************"
+  echo "git excludesfile configured."
+  echo "****************************"
+}
+
 # Offer to set git user.name and user.email globally.
 # Shows existing value in brackets; default answer is N when set, Y when empty.
 configure_git_user() {
@@ -71,9 +97,13 @@ configure_git_user() {
   done
 }
 
-# Installs git, configures templates, then offers to set user identity
+# Installs git, configures templates and global excludes, then offers to set
+# user identity
 install_git_wizard() {
-  install_git_program && install_git_templates && configure_git_user
+  install_git_program \
+    && install_git_templates \
+    && install_git_excludesfile \
+    && configure_git_user
 }
 
 # Run installation if called with --wizard
