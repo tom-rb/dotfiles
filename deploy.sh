@@ -45,6 +45,10 @@ start_tmux_wizard() {
   sh -- "$DOTFILES/tmux/install_tmux.sh" --wizard
 }
 
+start_git_wizard() {
+  sh -- "$DOTFILES/git/install_git.sh" --wizard
+}
+
 deploy_wizard() {
   if ! check_supported_pm; then
     echo "Sorry, this OS is not supported."
@@ -63,6 +67,10 @@ deploy_wizard() {
 
   if confirm "Install tmux?"; then
     start_tmux_wizard
+  fi
+
+  if confirm "Install git?"; then
+    start_git_wizard
   fi
 }
 

@@ -163,6 +163,28 @@ test_choose_dont_print_anything_on_invalid_answer() {
     "$(echo "$output" | tr '\n' '|')"
 }
 
+test_prompt_line_reads_input_into_named_var() {
+  answer=
+  answer=$(echo "Alice" | { prompt_line "Name: " answer > /dev/null; echo "$answer"; })
+  assertEquals "Alice" "$answer"
+}
+
+test_prompt_line_prints_the_prompt_message() {
+  message=$(echo "ignored" | prompt_line "Name: " answer)
+  assertEquals "Name: " "$message"
+}
+
+test_prompt_line_trims_leading_and_trailing_whitespace() {
+  answer=$(echo "  spaced value  " | { prompt_line "> " answer > /dev/null; echo "$answer"; })
+  assertEquals "spaced value" "$answer"
+}
+
+test_prompt_line_sets_empty_when_input_is_blank() {
+  answer=PRESET
+  answer=$(echo "" | { prompt_line "> " answer > /dev/null; echo "$answer"; })
+  assertEquals "" "$answer"
+}
+
 #
 # File utils
 #

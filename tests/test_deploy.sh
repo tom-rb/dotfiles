@@ -29,6 +29,7 @@ test_deploy_wizard_installs_basic_packages() {
   createSpy -u install_from_pm
   createSpy -u start_zsh_wizard
   createSpy -u start_tmux_wizard
+  createSpy -u start_git_wizard
 
   message="$(yes | deploy_wizard)"
 
@@ -37,6 +38,7 @@ test_deploy_wizard_installs_basic_packages() {
   assertCallCount install_from_pm 1
   assertCallCount start_zsh_wizard 1
   assertCallCount start_tmux_wizard 1
+  assertCallCount start_git_wizard 1
 }
 
 test_deploy_wizard_skips_basic_packages_if_installed() {
@@ -45,6 +47,7 @@ test_deploy_wizard_skips_basic_packages_if_installed() {
   createSpy -u install_from_pm
   createSpy -u start_zsh_wizard
   createSpy -u start_tmux_wizard
+  createSpy -u start_git_wizard
 
   message="$(yes | deploy_wizard)"
 
@@ -53,6 +56,7 @@ test_deploy_wizard_skips_basic_packages_if_installed() {
   assertCallCount install_from_pm 0
   assertCallCount start_zsh_wizard 1
   assertCallCount start_tmux_wizard 1
+  assertCallCount start_git_wizard 1
 }
 
 test_deploy_wizard_dies_if_basic_packages_fail() {

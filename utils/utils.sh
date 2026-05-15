@@ -89,6 +89,15 @@ choose() {
   done
 }
 
+# Prompt the user for a single line of input.
+# Leading and trailing whitespace are stripped (default IFS read behavior).
+# $1: prompt message
+# $2: name of variable to set with the response
+prompt_line() {
+  printf "%s" "${1:?}"
+  read -r "${2:?}"
+}
+
 #
 # File utils
 #
