@@ -7,10 +7,15 @@ help:
 	@echo "Targets:"
 	@sed -nE '/^# (.+)/{ s//   \1/;h;n; /^([a-z][a-z0-9-]*):.*/ { s//  make \1/;p;g;p } }' Makefile
 	@echo ""
-	@echo "Per-image targets (one per dockerfile in tests/systems/):"
-	@for n in $(_image_names); do echo "  make unit-$$n   make system-$$n"; done
+	@echo "Per-image targets (available images: $$(echo "$(_image_names)" | sed 's/ /, /g')):"
+	@echo "  make unit-<image>"
+	@echo "   Run all unit tests in the given image"
+	@echo "  make system-<image>"
+	@echo "   Run all system tests in the given image"
+	@echo "  make ui-<image>"
+	@echo "   Run deploy.sh in an interactive shell of the given image"
 	@echo ""
-	@echo "Filters (work with any target):"
+	@echo "Filters (work with any test target):"
 	@echo "   FILE=path/to/test.sh   Run only tests in this file"
 	@echo "   TEST=case_name         Run only the named test case"
 	@echo ""
@@ -67,6 +72,18 @@ $(addprefix system-,$(_image_names)): system-%: %
 	@tests/run_system_test.sh $(if $(TEST),-t $(TEST)) $* $(_system_files)
 
 .PHONY: system-tests $(addprefix system-,$(_image_names))
+
+##
+## UI SESSIONS (manual deploy-wizard tryout in a fresh container)
+##
+
+# Run deploy.sh in a fresh container then drop into an interactive shell (e.g. make ui-ubuntu)
+$(addprefix ui-,$(_image_names)): ui-%: %
+	@echo ">>  UI session in $* (deploy.sh then shell; Ctrl-D to exit)"
+	@docker run --rm -it -v "$$PWD:/app:ro" -w /app $*-test:base \
+		sh -c 'sh /app/deploy.sh; echo; echo "---- deploy.sh finished. dropping to shell ----"; exec sh -i'
+
+.PHONY: $(addprefix ui-,$(_image_names))
 
 ##
 ## DOCKER IMAGES
