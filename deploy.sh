@@ -41,6 +41,10 @@ start_zsh_wizard() {
   sh -- "$DOTFILES/zsh/install_zsh.sh" --wizard
 }
 
+start_zimfw_wizard() {
+  sh -- "$DOTFILES/zimfw/install_zimfw.sh" --wizard
+}
+
 start_tmux_wizard() {
   sh -- "$DOTFILES/tmux/install_tmux.sh" --wizard
 }
@@ -63,6 +67,9 @@ deploy_wizard() {
 
   if confirm "Install zsh?"; then
     start_zsh_wizard
+    if confirm "Install zimfw (zsh framework)?"; then
+      start_zimfw_wizard
+    fi
   fi
 
   if confirm "Install tmux?"; then

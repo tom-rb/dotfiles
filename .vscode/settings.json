@@ -1,6 +1,4 @@
 {
-  "shellcheck.exclude": ["SC2039"],
-  "shellcheck.customArgs": ["-x"],
   "cSpell.words": [
     "amazonlinux",
     "asdf",
@@ -41,5 +39,11 @@
     "zimrc",
     "zshaddhistory",
     "zstyle"
-  ]
+  ],
+  "files.associations": {
+    "zshenv-base": "shellscript",
+    "zshrc-base": "shellscript",
+    "zshrc-zim": "shellscript",
+    "zimrc-base": "shellscript",
+  }
 }

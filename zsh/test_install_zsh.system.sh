@@ -31,7 +31,19 @@ it_installs_zsh_and_its_dotfiles() {
   # Verify zsh can actually load the rendered env without errors
   output=$(zsh -c 'echo "ZDOTDIR=$ZDOTDIR DOTFILES=$DOTFILES"')
   assertContains "$output" "DOTFILES=$DOTFILES"
-  assertContains "$output" "ZDOTDIR=$DOTFILES/zsh"
+  assertContains "ZDOTDIR should resolve via XDG" \
+    "$output" "ZDOTDIR=$HOME/.config/zsh"
+
+  # The $ZDOTDIR/.zshrc stub should exist and source the repo base
+  zshrc="$HOME/.config/zsh/.zshrc"
+  assertTrue "Expect \$ZDOTDIR/.zshrc to exist" "test -f $zshrc"
+  # shellcheck disable=SC2016
+  assertContains "Stub should source repo .zshrc" \
+    "$(cat "$zshrc")" 'source "$DOTFILES/zsh/zshrc-base"'
+
+  # Verify zsh can load an interactive-ish shell without errors
+  quietly zsh -ic 'echo ok'
+  assertTrue "zsh -ic should succeed with base stub" $?
 
   # Verify zsh was set as the default login shell for the user
   current_shell=$(get_current_default_shell)

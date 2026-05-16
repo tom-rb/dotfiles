@@ -139,6 +139,14 @@ test_tmux_dotfiles_installation_respects_xdg_config_home() {
     "$(cat "$HOME"/.myconfig/tmux/tmux.conf)" "source-file"
 }
 
+test_tmux_conf_stub_ends_with_a_newline() {
+  quietly install_tmux_dotfiles
+
+  # $(...) strips trailing newlines, so an empty result means the last byte was \n
+  assertEquals "Stub file should end with a newline" \
+    "" "$(tail -c1 "$HOME/.config/tmux/tmux.conf")"
+}
+
 test_existing_tmux_dotfiles_is_echoed_for_user_inspection() {
   mkdir -p "$HOME/.config/tmux"
 

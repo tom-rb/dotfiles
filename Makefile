@@ -80,10 +80,18 @@ $(addprefix system-,$(_image_names)): system-%: %
 # Run deploy.sh in a fresh container then drop into an interactive shell (e.g. make ui-ubuntu)
 $(addprefix ui-,$(_image_names)): ui-%: %
 	@echo ">>  UI session in $* (deploy.sh then shell; Ctrl-D to exit)"
-	@docker run --rm -it -v "$$PWD:/app:ro" -w /app $*-test:base \
+	@docker run --rm -it -e TERM=xterm-256color -v "$$PWD:/app:ro" -w /app $*-test:base \
 		sh -c 'sh /app/deploy.sh; echo; echo "---- deploy.sh finished. dropping to shell ----"; exec sh -i'
 
 .PHONY: $(addprefix ui-,$(_image_names))
+
+# Run deploy.sh in a container with zsh already installed then drop into an interactive shell
+$(addprefix ui-zsh-,$(_image_names)): ui-zsh-%: %
+	@echo ">>  UI ZSH session in $* (deploy.sh then shell; Ctrl-D to exit)"
+	@docker run --rm -it -e TERM=xterm-256color -v "$$PWD:/app:ro" -w /app $*-test:with-zsh \
+		sh -c 'sh /app/deploy.sh; echo; echo "---- deploy.sh finished. dropping to shell ----"; exec sh -i'
+
+.PHONY: $(addprefix ui-zsh-,$(_image_names))
 
 ##
 ## DOCKER IMAGES

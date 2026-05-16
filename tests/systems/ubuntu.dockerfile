@@ -16,3 +16,15 @@ USER amy
 # Install basic packages
 FROM base AS with-basics
 RUN sudo apt-get install -y wget tar gzip
+
+# With git installed
+FROM with-basics AS with-git
+RUN sudo apt-get install -y git
+
+# With zsh installed
+FROM with-git AS with-zsh
+RUN sudo apt-get install -y zsh
+
+# With tmux installed
+FROM with-zsh AS with-tmux
+RUN sudo apt-get install -y tmux

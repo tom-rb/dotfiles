@@ -156,14 +156,14 @@ EOF
       else # this is choice handling
         case "$?" in
           1) backup_file "$tmux_conf" &&
-              printf "%s" "$contents" > "$tmux_conf" ;;
-          2) printf "%s" "$contents" >> "$tmux_conf" ;;
+              printf "%s\n" "$contents" > "$tmux_conf" ;;
+          2) printf "%s\n" "$contents" >> "$tmux_conf" ;;
           3) rm -v -f "$tmux_conf" &&
-              printf "%s" "$contents" > "$tmux_conf" ;;
+              printf "%s\n" "$contents" > "$tmux_conf" ;;
         esac
       fi
     else
-      printf "%s" "$contents" > "$tmux_conf"
+      printf "%s\n" "$contents" > "$tmux_conf"
     fi
 
     echo "****************************"

@@ -8,6 +8,11 @@ is_zsh_installed() {
   command_exists zsh
 }
 
+# Absolute path of the zsh binary
+get_zsh_path() {
+  command -v zsh
+}
+
 # Installs zsh from the system package manager
 install_zsh_program() {
   # Sub-shell for scoping set -e
@@ -27,46 +32,38 @@ install_zsh_program() {
   )
 }
 
-# Render $HOME/.zshenv stub that sources $DOTFILES/zsh/zshenv-base
-install_zsh_dotfiles() {
-  local zshenv contents
-  # Sub-shell for scoping set -e
+# Render $HOME/.zshenv with a marker block sourcing zshenv-base.
+# Idempotent: replaces the block in place if already present; preserves any
+# user content outside the markers. Other installers (e.g. install_zimfw)
+# append their own marker blocks to the same file.
+install_zsh_zshenv() {
+  local zshenv block start end
   (
     set -e
     zshenv="$HOME/.zshenv"
+    start='# >>> dotfiles:zsh >>>'
+    end='# <<< dotfiles:zsh <<<'
 
-    contents=$(cat <<-EOF
-		# Set DOTFILES so zshenv-base can locate the repo
+    block=$(cat <<-EOF
+		$start
+		# Managed by zsh/install_zsh.sh — edits inside this block will be overwritten.
 		export DOTFILES=${DOTFILES:?}
-		# Source base zsh env from dotfiles repo
 		source "\$DOTFILES/zsh/zshenv-base"
-		# Add machine custom config here
+		$end
 EOF
     )
 
-    # Ask user what to do if .zshenv already exists
-    if [ -e "$zshenv" ]; then
-      echo "Found existing $zshenv file: (tail of it)"
-      echo ">>>"
-      tail "$zshenv"
-      echo "<<<"
-      if choose "Backup existing .zshenv" \
-                "Append to existing .zshenv" \
-                "Overwrite existing .zshenv"
-      then # this is the cancel handling
-        echo ".zshenv not configured!"
-        return 1
-      else # this is choice handling
-        case "$?" in
-          1) backup_file "$zshenv" &&
-              printf "%s" "$contents" > "$zshenv" ;;
-          2) printf "%s" "$contents" >> "$zshenv" ;;
-          3) rm -v -f "$zshenv" &&
-              printf "%s" "$contents" > "$zshenv" ;;
-        esac
-      fi
+    if [ -e "$zshenv" ] && grep -qF "$start" "$zshenv"; then
+      # Replace existing block in place
+      awk -v s="$start" -v e="$end" -v b="$block" '
+        $0==s {print b; skip=1; next}
+        skip && $0==e {skip=0; next}
+        !skip
+      ' "$zshenv" > "$zshenv.tmp" && mv "$zshenv.tmp" "$zshenv"
     else
-      printf "%s" "$contents" > "$zshenv"
+      # Append block (creates file if absent)
+      [ -e "$zshenv" ] && printf '\n' >> "$zshenv"
+      printf '%s\n' "$block" >> "$zshenv"
     fi
 
     echo "****************************"
@@ -75,9 +72,64 @@ EOF
   )
 }
 
-# Absolute path of the zsh binary
-get_zsh_path() {
-  command -v zsh
+# Resolve $ZDOTDIR (matches zshenv-base default; honors caller override)
+get_zdotdir() {
+  echo "${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
+}
+
+# Render $ZDOTDIR/.zshrc stub with a marker block sourcing the repo base .zshrc.
+# The marker block is idempotent: re-running replaces it in place, preserving
+# user content outside the markers. Other installers (e.g. install_zimfw)
+# append their own marker blocks to the same file.
+install_zsh_zshrc_stub() {
+  local zdotdir zshrc block start end
+  (
+    set -e
+    zdotdir=$(get_zdotdir)
+    zshrc="$zdotdir/.zshrc"
+    start='# >>> dotfiles:zsh >>>'
+    end='# <<< dotfiles:zsh <<<'
+
+    block=$(cat <<-EOF
+		$start
+		# Managed by zsh/install_zsh.sh — edits inside this block will be overwritten.
+		source "\$DOTFILES/zsh/zshrc-base"
+		$end
+EOF
+    )
+
+    mkdir -p "$zdotdir"
+    mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
+
+    # Polite note about pre-existing $HOME/.zshrc (ZDOTDIR moved here)
+    if [ -e "$HOME/.zshrc" ] && [ "$zdotdir" != "$HOME" ]; then
+      echo "Note: \$HOME/.zshrc exists but ZDOTDIR is now $zdotdir."
+      echo "      Consider moving its contents to $zshrc."
+    fi
+
+    if [ -e "$zshrc" ] && grep -qF "$start" "$zshrc"; then
+      # Replace existing block in place
+      awk -v s="$start" -v e="$end" -v b="$block" '
+        $0==s {print b; skip=1; next}
+        skip && $0==e {skip=0; next}
+        !skip
+      ' "$zshrc" > "$zshrc.tmp" && mv "$zshrc.tmp" "$zshrc"
+    else
+      # Append block (creates file if absent)
+      [ -e "$zshrc" ] && printf '\n' >> "$zshrc"
+      printf '%s\n' "$block" >> "$zshrc"
+    fi
+
+    echo "****************************"
+    echo "$zshrc configured."
+    echo "****************************"
+  )
+}
+
+# Render $HOME/.zshenv stub that sources $DOTFILES/zsh/zshenv-base, then
+# render $ZDOTDIR/.zshrc stub with a marker block sourcing the repo base.
+install_zsh_dotfiles() {
+  install_zsh_zshenv && install_zsh_zshrc_stub
 }
 
 # Ensure chsh is available; install it from the PM if not.
