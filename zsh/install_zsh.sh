@@ -100,6 +100,7 @@ EOF
 
     mkdir -p "$zdotdir"
     mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
+    mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
 
     # Polite note about pre-existing $HOME/.zshrc (ZDOTDIR moved here)
     if [ -e "$HOME/.zshrc" ] && [ "$zdotdir" != "$HOME" ]; then

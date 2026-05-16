@@ -40,6 +40,14 @@ it_installs_zimfw_end_to_end() {
   # Verify zsh -ic still loads without error after zimfw is wired in
   quietly zsh -ic 'echo ok'
   assertTrue "zsh -ic should succeed with zimfw configured" $?
+
+  # zcompdump should land under XDG_CACHE_HOME (suffixed by zsh version),
+  # not in $HOME. The zstyles in zimfw/zshrc-zim relocate it there.
+  cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+  assertTrue "Expected zcompdump under $cache_dir" \
+    "ls $cache_dir/zcompdump-* >/dev/null 2>&1"
+  assertFalse "Should not leave a stray \$HOME/.zcompdump" \
+    "test -e $HOME/.zcompdump"
 }
 
 # shellcheck source=../tests/shunit2

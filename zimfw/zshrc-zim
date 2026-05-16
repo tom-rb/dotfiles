@@ -50,6 +50,17 @@ zstyle ':zim:ssh' ids 'id_rsa' 'id_ed25519'
 #zstyle ':zim:termtitle' format '%1~'
 
 #
+# completion
+#
+
+# Move zim's completion dumpfile under XDG_CACHE_HOME (dir created by install_zsh).
+# The ${ZSH_VERSION} suffix avoids stale-dump errors after a zsh upgrade.
+zstyle ':zim:completion' dumpfile "${XDG_CACHE_HOME}/zsh/zcompdump-${ZSH_VERSION}"
+
+# zsh's own completion cache (used by some completers)
+zstyle ':completion::complete:*' cache-path "${XDG_CACHE_HOME}/zsh/zcompcache"
+
+#
 # zsh-autosuggestions
 #
 

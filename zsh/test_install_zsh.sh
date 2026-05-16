@@ -135,6 +135,14 @@ test_zshrc_stub_creates_history_dir() {
     "test -d $XDG_DATA_HOME/zsh"
 }
 
+test_zshrc_stub_creates_cache_dir() {
+  XDG_CACHE_HOME=${SHUNIT_TMPDIR:?}/xdg-cache
+
+  quietly install_zsh_zshrc_stub
+  assertTrue "Should create \$XDG_CACHE_HOME/zsh for zcompdump/zcompcache" \
+    "test -d $XDG_CACHE_HOME/zsh"
+}
+
 test_zshrc_stub_block_is_idempotent_on_reinstall() {
   quietly install_zsh_zshrc_stub
   quietly install_zsh_zshrc_stub
