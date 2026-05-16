@@ -32,7 +32,8 @@ it_installs_git_configures_templates_and_hook_takes_effect() {
   # since its UX is covered by unit tests.
   git config --global user.name "Test User"
   git config --global user.email "test@example.com"
-  git config --global init.defaultBranch main
+
+  quietly install_git_default_branch
 
   # A freshly-init'd repo should inherit the prepare-commit-msg hook,
   # which prefixes the commit message with the issue id parsed from the branch.
@@ -41,6 +42,12 @@ it_installs_git_configures_templates_and_hook_takes_effect() {
   (
     cd "$repo"
     quietly git init
+  )
+  assertEquals "Fresh repo should be on 'main' after install_git_default_branch" \
+    "refs/heads/main" \
+    "$(cd "$repo" && git symbolic-ref HEAD)"
+  (
+    cd "$repo"
     quietly git checkout -b ABC-123-test-feature
     echo hello > file.txt
     quietly git add file.txt
