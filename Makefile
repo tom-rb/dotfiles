@@ -93,6 +93,14 @@ $(addprefix ui-zsh-,$(_image_names)): ui-zsh-%: %
 
 .PHONY: $(addprefix ui-zsh-,$(_image_names))
 
+# Run deploy.sh in a container with tmux already installed then drop into an interactive shell
+$(addprefix ui-tmux-,$(_image_names)): ui-tmux-%: %
+	@echo ">>  UI TMUX session in $* (deploy.sh then shell; Ctrl-D to exit)"
+	@docker run --rm -it -e TERM=xterm-256color -v "$$PWD:/app:ro" -w /app $*-test:with-tmux \
+		sh -c 'sh /app/deploy.sh; echo; echo "---- deploy.sh finished. dropping to shell ----"; exec sh -i'
+
+.PHONY: $(addprefix ui-tmux-,$(_image_names))
+
 ##
 ## DOCKER IMAGES
 ##

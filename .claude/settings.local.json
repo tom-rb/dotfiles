@@ -3,6 +3,8 @@
     "allow": [
       "Skill(grill-me)",
       "Skill(grill-me:*)",
+      "Bash(cat *)",
+      "Bash(grep *)",
       "Bash(make unit *)",
       "Bash(make unit-amazonlinux-2 *)",
       "Bash(make unit-ubuntu *)",

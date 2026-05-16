@@ -8,26 +8,6 @@
 # stub via a marker block — see zimfw/install_zimfw.sh.
 #
 
-#######################
-# Tmux initialization #
-#######################
-
-# () {
-#   # Load tmux helpers (if present) and initialize session
-#   if [ -f "$DOTFILES/tmux/tmux-cmds.sh" ]; then
-#     source $DOTFILES/tmux/tmux-cmds.sh
-#     # If tmux exists and isn't running
-#     if [ -z "${TMUX}" ] && command -v tmux >/dev/null; then
-#       # Open tmux when initiating a new terminal window (check some emulators)
-#       if [ -n "$WT_SESSION" ]; then # Windows Terminal defines this
-#         tmux-enter
-#       elif pstree -s $$ | grep -Eq "(gnome-terminal|wslbridge2?-back)"; then
-#         tmux-enter
-#       fi
-#     fi
-#   fi
-# }
-
 ###################
 # Dotfiles update #
 ###################

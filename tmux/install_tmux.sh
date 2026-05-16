@@ -3,8 +3,17 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
+# Pinned TPM release. Bump deliberately.
+TPM_VERSION='3.1.0'
+TPM_URL="https://github.com/tmux-plugins/tpm/archive/refs/tags/v${TPM_VERSION}.tar.gz"
+
 is_tmux_installed() {
   command_exists tmux
+}
+
+# Absolute path of the tmux plugins dir (matches install_tmux_dotfiles default).
+get_tmux_plugins_dir() {
+  echo "${XDG_DATA_HOME:-$HOME/.local/share}/tmux/plugins"
 }
 
 # Get latest available tmux version from package manager
@@ -59,30 +68,33 @@ install_tmux_program() {
   # Sub-shell for scoping set -e
   (
     set -e
+    # $tmux_desired_version is the minimum acceptable version. Anything >= it
+    # (installed or available from the package manager) is accepted as-is.
     if is_tmux_installed; then
       installed_version=$(tmux -V | cut -d' ' -f2)
-      if [ "$installed_version" = "$tmux_desired_version" ]; then
+      if version_ge "$installed_version" "$tmux_desired_version"; then
         echo "****************************"
-        echo "tmux $tmux_desired_version already installed."
+        echo "tmux $installed_version installed (>= required $tmux_desired_version)."
         echo "****************************"
         return 0
-      else
-        echo "tmux installed version: $installed_version"
-        echo "Dotfiles tmux version:  $tmux_desired_version"
-        echo "Versions are different, uninstall it yourself and try again. [press a key]"
-        read_char silent
-        return 1
       fi
+      echo "tmux installed version:    $installed_version"
+      echo "Dotfiles minimum version:  $tmux_desired_version"
+      echo "Some features may not work with the older tmux."
+      if confirm -n "Install dotfiles anyway?"; then
+        return 0
+      fi
+      return 1
     fi
 
     pm_version=$(get_tmux_package_version)
 
-    if [ "$pm_version" = "$tmux_desired_version" ]; then
-      echo "tmux $pm_version is available from package manager"
+    if [ -n "$pm_version" ] && version_ge "$pm_version" "$tmux_desired_version"; then
+      echo "tmux $pm_version is available from package manager (>= required $tmux_desired_version)"
       if confirm "Do you want to install from it?"; then
         install_from_pm tmux
         echo "****************************"
-        echo "tmux $tmux_desired_version installed."
+        echo "tmux $pm_version installed."
         echo "****************************"
         return 0
       fi
@@ -121,20 +133,27 @@ install_tmux_program() {
 }
 
 install_tmux_dotfiles() {
-  local config_dir tmux_conf contents
+  local config_dir tmux_conf contents plugins_dir
   # Sub-shell for scoping set -e
   (
     set -e
     config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/tmux"     # tmux.conf
-    mkdir -v -p "${XDG_DATA_HOME:-$HOME/.local/share}/tmux" # tmux plugins
+    plugins_dir="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/plugins"
     mkdir -v -p "$config_dir"
+    mkdir -v -p "$plugins_dir"
     tmux_conf="$config_dir/tmux.conf"
 
     # Use tmux source-file command to include dotfiles repo tmux.conf
     # With this, user can still use machine's options in its tmux.conf
+    # TMUX_PLUGIN_MANAGER_PATH is baked here as an absolute path so the repo
+    # conf does not depend on XDG_DATA_HOME being exported by the login shell.
     contents=$(cat <<-EOF
-		# Set user option @conf_dir to use it later
-		set -g @conf_dir ${DOTFILES:?}/tmux
+		# Path of this stub file — reload binding sources this back
+		set -g @user_conf "${tmux_conf}"
+		# Theme file shipped by the repo (absolute path)
+		set -g @theme_conf "${DOTFILES:?}/tmux/theme.conf"
+		# Resolve tmux plugin manager path
+		set-environment -g TMUX_PLUGIN_MANAGER_PATH "${plugins_dir}"
 		# Source tmux.conf from dotfiles repo
 		source-file ${DOTFILES:?}/tmux/tmux.conf
 		# Add machine custom config here
@@ -170,8 +189,137 @@ EOF
     echo "$tmux_conf configured."
     echo "****************************"
   )
-  # TODO: install tmux-cmds.sh somehow (bash and zsh only?)
-  # TODO: install tmux plugin manager
+}
+
+# True if TPM is present at the expected location.
+is_tpm_installed() {
+  test -x "$(get_tmux_plugins_dir)/tpm/tpm"
+}
+
+# Download + extract pinned TPM into <plugins>/tpm/. Idempotent: skips if present.
+install_tpm() {
+  local plugins_dir tarball
+  (
+    set -e
+    if is_tpm_installed; then
+      echo "****************************"
+      echo "TPM ${TPM_VERSION} already installed."
+      echo "****************************"
+      return 0
+    fi
+    plugins_dir=$(get_tmux_plugins_dir)
+    mkdir -p "$plugins_dir"
+    tarball="$plugins_dir/tpm-${TPM_VERSION}.tar.gz"
+    wget -nv -O "$tarball" "$TPM_URL"
+    # Tarball contains a single top-level dir tpm-<version>/; extract & rename.
+    tar -xzf "$tarball" -C "$plugins_dir"
+    rm -f "$tarball"
+    rm -rf "$plugins_dir/tpm"
+    mv "$plugins_dir/tpm-${TPM_VERSION}" "$plugins_dir/tpm"
+    echo "****************************"
+    echo "TPM ${TPM_VERSION} installed."
+    echo "****************************"
+  )
+}
+
+# Materialize @plugin entries declared in tmux.conf. Requires git (each plugin
+# is a git clone). install_plugins shells out to a tmux server internally.
+install_tpm_plugins() {
+  local plugins_dir
+  (
+    set -e
+    # shellcheck disable=SC2046  # intentional word-splitting of resolved names
+    install_from_pm $(pm_packages_for git)
+    plugins_dir=$(get_tmux_plugins_dir)
+    "$plugins_dir/tpm/bin/install_plugins"
+  )
+}
+
+# Resolve $ZDOTDIR (matches zshenv-base default)
+get_zdotdir() {
+  echo "${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
+}
+
+# True if the existing tmux-managed block in $1 already contains the
+# auto-enter snippet (used to pre-fill the wizard prompt default).
+bridge_block_has_auto_enter() {
+  local file="$1" start='# >>> dotfiles:tmux >>>' end='# <<< dotfiles:tmux <<<'
+  [ -f "$file" ] || return 1
+  awk -v s="$start" -v e="$end" '
+    $0==s {inb=1; next}
+    inb && $0==e {inb=0; next}
+    inb && /tmux-enter/ {found=1}
+    END {exit !found}
+  ' "$file"
+}
+
+# Install tmux bridge marker block into $ZDOTDIR/.zshrc, if present.
+# The block always sources tmux-cmds.sh. When the user opts in, the rich
+# auto-enter snippet (with terminal-emulator detection) is also injected.
+# Idempotent: re-running replaces the block in place, preserving the previous
+# auto-enter choice as the wizard prompt default.
+install_tmux_shell_bridge() {
+  local zdotdir zshrc start end block auto_enter want_auto_enter
+  (
+    set -e
+    zdotdir=$(get_zdotdir)
+    zshrc="$zdotdir/.zshrc"
+    start='# >>> dotfiles:tmux >>>'
+    end='# <<< dotfiles:tmux <<<'
+
+    if [ ! -f "$zshrc" ]; then
+      echo "No $zshrc found — skipping tmux shell bridge."
+      echo "Hint: run zsh/install_zsh.sh --wizard first to get a managed stub."
+      return 0
+    fi
+
+    # Default the auto-enter prompt to the previous choice (YES if the block
+    # already has the snippet, NO otherwise).
+    if bridge_block_has_auto_enter "$zshrc"; then
+      confirm    "Auto-launch tmux on new shells (with terminal-emulator detection)?" \
+        && want_auto_enter=1 || want_auto_enter=0
+    else
+      confirm -n "Auto-launch tmux on new shells (with terminal-emulator detection)?" \
+        && want_auto_enter=1 || want_auto_enter=0
+    fi
+    if [ "$want_auto_enter" = 1 ]; then
+      auto_enter=$(cat <<-'EOF'
+		# Auto-enter tmux when a new terminal opens (specific emulators only)
+		if [ -z "$TMUX" ] && command -v tmux >/dev/null; then
+		  if [ -n "$WT_SESSION" ]; then # Windows Terminal defines this
+		    tmux-enter
+		  elif pstree -s $$ | grep -Eq "(gnome-terminal|wslbridge2?-back)"; then
+		    tmux-enter
+		  fi
+		fi
+EOF
+      )
+    else
+      auto_enter=
+    fi
+
+    block=$(cat <<-EOF
+		$start
+		# Managed by tmux/install_tmux.sh — edits inside this block will be overwritten.
+		[ -f "\$DOTFILES/tmux/tmux-cmds.sh" ] && source "\$DOTFILES/tmux/tmux-cmds.sh"
+		${auto_enter}
+		$end
+EOF
+    )
+
+    if grep -qF "$start" "$zshrc"; then
+      awk -v s="$start" -v e="$end" -v b="$block" '
+        $0==s {print b; skip=1; next}
+        skip && $0==e {skip=0; next}
+        !skip
+      ' "$zshrc" > "$zshrc.tmp" && mv "$zshrc.tmp" "$zshrc"
+    else
+      printf '\n' >> "$zshrc"
+      printf '%s\n' "$block" >> "$zshrc"
+    fi
+
+    echo "$zshrc updated with tmux bridge block."
+  )
 }
 
 # Installs tmux and its dotfiles with an expected version
@@ -181,9 +329,17 @@ install_tmux_wizard() {
   if [ "$1" = -y ]; then
   # Sends "enter" continuously
   yes "
-" | install_tmux_program "$desired_version" && install_tmux_dotfiles
+" | { install_tmux_program "$desired_version" \
+      && install_tmux_dotfiles \
+      && install_tpm \
+      && install_tpm_plugins \
+      && install_tmux_shell_bridge; }
   else
-    install_tmux_program "$desired_version" && install_tmux_dotfiles
+    install_tmux_program "$desired_version" \
+      && install_tmux_dotfiles \
+      && install_tpm \
+      && install_tpm_plugins \
+      && install_tmux_shell_bridge
   fi
 }
 

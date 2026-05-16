@@ -1,4 +1,5 @@
-#!/usr/bin/env sh
+#!/usr/bin/env zsh
+# shellcheck disable=SC1071
 
 tmux-prepare-env () {
   local session_name=${1}

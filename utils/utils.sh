@@ -114,6 +114,16 @@ backup_file() {
 }
 
 #
+# Version utilities
+#
+
+# True if version $1 is >= version $2 (uses `sort -V` for natural ordering).
+# Handles dotted versions with optional suffix letters (e.g. 3.1 < 3.1a < 3.1b < 3.2).
+version_ge() {
+  [ "$(printf '%s\n%s\n' "${1:?}" "${2:?}" | sort -V | head -n1)" = "$2" ]
+}
+
+#
 # Package Manager utilities
 #
 

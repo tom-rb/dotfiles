@@ -49,7 +49,7 @@ make system-ubuntu FILE=zsh/test_install_zsh.system.sh TEST=it_checks_zsh_is_not
 ## Linting
 
 ```sh
-docker run --rm -v "$PWD:/app:ro" koalaman/shellcheck:stable $(find . -name '*.sh' -not -path '*/old/*' -not -path '*/tmux-cmds*' | sed 's|^.|/app|')
+docker run --rm -v "$PWD:/app:ro" koalaman/shellcheck:stable $(find . -name '*.sh' -not -path '*/old/*' | sed 's|^.|/app|')
 ```
 Config in `.shellcheckrc`. `old/` and `tmux/tmux-cmds.sh` (intentional bash) are excluded.
 

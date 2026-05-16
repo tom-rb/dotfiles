@@ -242,6 +242,39 @@ test_install_from_package_manager_fails_for_unsupported_pm() {
     "${err_msg}" "find package manager"
 }
 
+#
+# version_ge
+#
+
+test_version_ge_equal_versions() {
+  assertTrue  "3.1b >= 3.1b" "version_ge 3.1b 3.1b"
+  assertTrue  "3.2  >= 3.2"  "version_ge 3.2 3.2"
+  assertTrue  "3.1  >= 3.1"  "version_ge 3.1 3.1"
+}
+
+test_version_ge_major_difference() {
+  assertTrue  "4.0  >= 3.6a" "version_ge 4.0 3.6a"
+  assertTrue  "10.0 >= 3.6"  "version_ge 10.0 3.6"
+  assertFalse "2.9  >= 3.0"  "version_ge 2.9 3.0"
+  assertFalse "3.6a >= 4.0"  "version_ge 3.6a 4.0"
+}
+
+test_version_ge_minor_difference() {
+  assertTrue  "3.2  >= 3.1b" "version_ge 3.2 3.1b"
+  assertTrue  "3.10 >= 3.2"  "version_ge 3.10 3.2"
+  assertFalse "3.1  >= 3.2"  "version_ge 3.1 3.2"
+  assertFalse "3.1b >= 3.2"  "version_ge 3.1b 3.2"
+}
+
+test_version_ge_letter_suffix_difference() {
+  assertTrue  "3.1b >= 3.1a" "version_ge 3.1b 3.1a"
+  assertTrue  "3.1a >= 3.1"  "version_ge 3.1a 3.1"
+  assertTrue  "3.6a >= 3.6"  "version_ge 3.6a 3.6"
+  assertFalse "3.1a >= 3.1b" "version_ge 3.1a 3.1b"
+  assertFalse "3.1  >= 3.1a" "version_ge 3.1 3.1a"
+  assertFalse "3.6  >= 3.6a" "version_ge 3.6 3.6a"
+}
+
 
 # Run tests
 SHPY_PATH="$THISDIR/../tests/shpy"
