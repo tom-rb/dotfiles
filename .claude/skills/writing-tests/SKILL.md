@@ -106,6 +106,8 @@ assertNeverCalled    install_from_pm
 
 For commands that get called many times with different args (e.g. `git config` for read+write+read+write), spy on `git` once and use repeated `assertCalledWith` calls in order. The cursor advances each time.
 
+If `assertCalledWith` reports `was:<...first-call args...>` but your function logically *did* reach the later call, the cursor hasn't advanced — add an earlier `assertCalledWith` for each prior call in order. The failure message looks like "the expected call never happened" but really means "the cursor is still parked on an earlier call."
+
 ## Feeding stdin to interactive prompts
 
 `utils/utils.sh` provides three interactive primitives. Each consumes a different amount of stdin per call — important when chaining them:
