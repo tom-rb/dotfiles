@@ -3,6 +3,32 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
+# Idempotently set a global git config key. If the key already equals $target,
+# do nothing. If it's set to a different value, ask before overwriting.
+# $1: config key (e.g. init.templateDir)
+# $2: target value
+# $3: (optional) user-facing label for messages; defaults to $1
+set_git_global_config() {
+  local key target label current
+  key=${1:?} target=${2:?} label=${3:-$1}
+  current=$(git config --global --get "$key" || true)
+  if [ "$current" = "$target" ]; then
+    echo "$label already configured."
+    return 0
+  fi
+  if [ -n "$current" ]; then
+    echo "$key is already set to: $current"
+    if ! confirm -n "Overwrite with $target?"; then
+      echo "$label not configured."
+      return 0
+    fi
+  fi
+  git config --global "$key" "$target"
+  echo "****************************"
+  echo "$label configured."
+  echo "****************************"
+}
+
 # Check if git is installed
 is_git_installed() {
   command_exists git
@@ -30,78 +56,18 @@ install_git_program() {
 # Point git's init.templateDir at $DOTFILES/git/templates so new repos pick up
 # the hooks and info/exclude shipped here.
 install_git_templates() {
-  local current target
-  target="${DOTFILES:?}/git/templates"
-  current=$(git config --global --get init.templateDir || true)
-
-  if [ "$current" = "$target" ]; then
-    echo "git templates already configured."
-    return 0
-  fi
-
-  if [ -n "$current" ]; then
-    echo "init.templateDir is already set to: $current"
-    if ! confirm -n "Overwrite with $target?"; then
-      echo "git templates not configured."
-      return 0
-    fi
-  fi
-
-  git config --global init.templateDir "$target"
-  echo "****************************"
-  echo "git templates configured."
-  echo "****************************"
+  set_git_global_config init.templateDir "${DOTFILES:?}/git/templates" "git templates"
 }
 
 # Point git's core.excludesfile at $DOTFILES/git/.gitignore.global so the
 # globally-ignored patterns shipped here apply to every repo.
 install_git_excludesfile() {
-  local current target
-  target="${DOTFILES:?}/git/.gitignore.global"
-  current=$(git config --global --get core.excludesfile || true)
-
-  if [ "$current" = "$target" ]; then
-    echo "git excludesfile already configured."
-    return 0
-  fi
-
-  if [ -n "$current" ]; then
-    echo "core.excludesfile is already set to: $current"
-    if ! confirm -n "Overwrite with $target?"; then
-      echo "git excludesfile not configured."
-      return 0
-    fi
-  fi
-
-  git config --global core.excludesfile "$target"
-  echo "****************************"
-  echo "git excludesfile configured."
-  echo "****************************"
+  set_git_global_config core.excludesfile "${DOTFILES:?}/git/.gitignore.global" "git excludesfile"
 }
 
 # Set init.defaultBranch=main so `git init` no longer creates `master`.
 install_git_default_branch() {
-  local current target
-  target="main"
-  current=$(git config --global --get init.defaultBranch || true)
-
-  if [ "$current" = "$target" ]; then
-    echo "git init.defaultBranch already configured."
-    return 0
-  fi
-
-  if [ -n "$current" ]; then
-    echo "init.defaultBranch is already set to: $current"
-    if ! confirm -n "Overwrite with $target?"; then
-      echo "git init.defaultBranch not configured."
-      return 0
-    fi
-  fi
-
-  git config --global init.defaultBranch "$target"
-  echo "****************************"
-  echo "git init.defaultBranch configured."
-  echo "****************************"
+  set_git_global_config init.defaultBranch "main" "git init.defaultBranch"
 }
 
 # Offer to set git user.name and user.email globally.

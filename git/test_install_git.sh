@@ -45,135 +45,94 @@ test_install_git_from_package_manager_when_not_installed() {
 }
 
 #
-# install_git_templates
+# set_git_global_config
 #
 
-test_templates_noop_when_already_pointing_to_dotfiles() {
-  createSpy -u -o "$DOTFILES/git/templates" git
+test_set_git_global_config_sets_value_when_unconfigured() {
+  createSpy -u -o "" git
 
-  output=$(install_git_templates)
+  output=$(set_git_global_config init.templateDir "/some/path" "git templates")
+
+  assertCallCount git 2
+  assertCalledWith git config --global --get init.templateDir
+  assertCalledWith git config --global init.templateDir "/some/path"
+  assertContains "$output" "git templates configured"
+}
+
+test_set_git_global_config_skips_when_current_equals_target() {
+  createSpy -u -o "/some/path" git
+
+  output=$(set_git_global_config init.templateDir "/some/path" "git templates")
 
   assertCallCount git 1
   assertContains "$output" "already configured"
 }
 
-test_templates_set_when_unconfigured() {
-  createSpy -u -o "" git
+test_set_git_global_config_overwrites_when_user_confirms() {
+  createSpy -u -o "/other/path" git
 
-  output=$(install_git_templates)
-
-  assertCallCount git 2
-  assertCalledWith git config --global --get init.templateDir
-  assertCalledWith git config --global init.templateDir "$DOTFILES/git/templates"
-  assertContains "$output" "git templates configured"
-}
-
-test_templates_overwrite_when_user_confirms() {
-  createSpy -u -o "/some/other/path" git
-
-  output=$(echo y | install_git_templates)
+  output=$(echo y | set_git_global_config init.templateDir "/some/path" "git templates")
 
   assertCallCount git 2
   assertCalledWith git config --global --get init.templateDir
-  assertCalledWith git config --global init.templateDir "$DOTFILES/git/templates"
+  assertCalledWith git config --global init.templateDir "/some/path"
   assertContains "$output" "git templates configured"
 }
 
-test_templates_kept_when_user_declines_overwrite() {
-  createSpy -u -o "/some/other/path" git
+test_set_git_global_config_keeps_existing_when_user_declines() {
+  createSpy -u -o "/other/path" git
 
-  output=$(echo n | install_git_templates)
+  output=$(echo n | set_git_global_config init.templateDir "/some/path" "git templates")
 
   assertCallCount git 1
   assertContains "$output" "not configured"
+}
+
+test_set_git_global_config_defaults_label_to_key_when_omitted() {
+  createSpy -u -o "" git
+
+  output=$(set_git_global_config init.templateDir "/some/path")
+
+  assertContains "Should use key as label" "$output" "init.templateDir configured"
+}
+
+#
+# install_git_templates
+#
+
+test_templates_delegates_to_set_git_global_config() {
+  createSpy -u set_git_global_config
+
+  install_git_templates
+
+  assertCalledOnceWith set_git_global_config \
+    init.templateDir "$DOTFILES/git/templates" "git templates"
 }
 
 #
 # install_git_excludesfile
 #
 
-test_excludesfile_noop_when_already_pointing_to_dotfiles() {
-  createSpy -u -o "$DOTFILES/git/.gitignore.global" git
+test_excludesfile_delegates_to_set_git_global_config() {
+  createSpy -u set_git_global_config
 
-  output=$(install_git_excludesfile)
+  install_git_excludesfile
 
-  assertCallCount git 1
-  assertContains "$output" "already configured"
-}
-
-test_excludesfile_set_when_unconfigured() {
-  createSpy -u -o "" git
-
-  output=$(install_git_excludesfile)
-
-  assertCallCount git 2
-  assertCalledWith git config --global --get core.excludesfile
-  assertCalledWith git config --global core.excludesfile "$DOTFILES/git/.gitignore.global"
-  assertContains "$output" "git excludesfile configured"
-}
-
-test_excludesfile_overwrite_when_user_confirms() {
-  createSpy -u -o "/some/other/file" git
-
-  output=$(echo y | install_git_excludesfile)
-
-  assertCallCount git 2
-  assertCalledWith git config --global --get core.excludesfile
-  assertCalledWith git config --global core.excludesfile "$DOTFILES/git/.gitignore.global"
-  assertContains "$output" "git excludesfile configured"
-}
-
-test_excludesfile_kept_when_user_declines_overwrite() {
-  createSpy -u -o "/some/other/file" git
-
-  output=$(echo n | install_git_excludesfile)
-
-  assertCallCount git 1
-  assertContains "$output" "not configured"
+  assertCalledOnceWith set_git_global_config \
+    core.excludesfile "$DOTFILES/git/.gitignore.global" "git excludesfile"
 }
 
 #
 # install_git_default_branch
 #
 
-test_default_branch_noop_when_already_main() {
-  createSpy -u -o "main" git
+test_default_branch_delegates_to_set_git_global_config() {
+  createSpy -u set_git_global_config
 
-  output=$(install_git_default_branch)
+  install_git_default_branch
 
-  assertCallCount git 1
-  assertContains "$output" "already configured"
-}
-
-test_default_branch_set_when_unconfigured() {
-  createSpy -u -o "" git
-
-  output=$(install_git_default_branch)
-
-  assertCallCount git 2
-  assertCalledWith git config --global --get init.defaultBranch
-  assertCalledWith git config --global init.defaultBranch "main"
-  assertContains "$output" "git init.defaultBranch configured"
-}
-
-test_default_branch_overwrite_when_user_confirms() {
-  createSpy -u -o "master" git
-
-  output=$(echo y | install_git_default_branch)
-
-  assertCallCount git 2
-  assertCalledWith git config --global --get init.defaultBranch
-  assertCalledWith git config --global init.defaultBranch "main"
-  assertContains "$output" "git init.defaultBranch configured"
-}
-
-test_default_branch_kept_when_user_declines_overwrite() {
-  createSpy -u -o "master" git
-
-  output=$(echo n | install_git_default_branch)
-
-  assertCallCount git 1
-  assertContains "$output" "not configured"
+  assertCalledOnceWith set_git_global_config \
+    init.defaultBranch "main" "git init.defaultBranch"
 }
 
 #
