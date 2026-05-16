@@ -148,42 +148,15 @@ install_tmux_dotfiles() {
     # TMUX_PLUGIN_MANAGER_PATH is baked here as an absolute path so the repo
     # conf does not depend on XDG_DATA_HOME being exported by the login shell.
     contents=$(cat <<-EOF
-		# Path of this stub file — reload binding sources this back
+		# Managed by tmux/install_tmux.sh — edits inside this block will be overwritten.
 		set -g @user_conf "${tmux_conf}"
-		# Theme file shipped by the repo (absolute path)
 		set -g @theme_conf "${DOTFILES:?}/tmux/theme.conf"
-		# Resolve tmux plugin manager path
 		set-environment -g TMUX_PLUGIN_MANAGER_PATH "${plugins_dir}"
-		# Source tmux.conf from dotfiles repo
 		source-file ${DOTFILES:?}/tmux/tmux.conf
-		# Add machine custom config here
 EOF
     )
 
-    # Ask user what to do if tmux.conf already exist
-    if [ -e "$tmux_conf" ]; then
-      echo "Found existing $tmux_conf file: (tail of it)"
-      echo ">>>"
-      tail "$tmux_conf"
-      echo "<<<"
-      if choose "Backup existing tmux.conf" \
-                "Append to existing tmux.conf" \
-                "Overwrite existing tmux.conf"
-      then # this is the cancel handling
-        echo "tmux.conf not configured!"
-        return 1
-      else # this is choice handling
-        case "$?" in
-          1) backup_file "$tmux_conf" &&
-              printf "%s\n" "$contents" > "$tmux_conf" ;;
-          2) printf "%s\n" "$contents" >> "$tmux_conf" ;;
-          3) rm -v -f "$tmux_conf" &&
-              printf "%s\n" "$contents" > "$tmux_conf" ;;
-        esac
-      fi
-    else
-      printf "%s\n" "$contents" > "$tmux_conf"
-    fi
+    install_managed_block "$tmux_conf" "dotfiles:tmux" "$contents"
 
     echo "****************************"
     echo "$tmux_conf configured."
@@ -301,7 +274,7 @@ EOF
 		${auto_enter}
 EOF
     )
-    write_managed_block "$zshrc" "dotfiles:tmux" "$content"
+    install_managed_block "$zshrc" "dotfiles:tmux" "$content"
 
     echo "$zshrc updated with tmux bridge block."
   )

@@ -25,3 +25,62 @@ write_managed_block() {
     printf '%s\n%s\n%s\n' "$start" "$content" "$end" > "$file"
   fi
 }
+
+# True if $1 contains only managed-block fences (any tag) + blank lines, i.e.
+# no hand-rolled user content. Used by install_managed_block to skip the
+# first-time prompt when the only existing content is another module's block.
+only_managed_blocks() {
+  awk '
+    /^# >>> .+ >>>$/ { inb=1; next }
+    inb && /^# <<< .+ <<<$/ { inb=0; next }
+    inb { next }
+    /^[[:space:]]*$/ { next }
+    { user=1; exit }
+    END { exit user ? 1 : 0 }
+  ' "${1:?}"
+}
+
+# Interactive wrapper around write_managed_block. Handles "first-time placement":
+# if the target file already exists with hand-rolled content but no block for
+# this tag, prompt the user (backup / append / overwrite, default backup).
+# Quiet otherwise: missing file or block already present → straight upsert.
+# $1: target file
+# $2: tag
+# $3: content
+install_managed_block() {
+  local file tag content start
+  file=${1:?} tag=${2:?} content=${3?}
+  start="# >>> $tag >>>"
+  # Quiet path: nothing the user wrote is at stake.
+  # - file missing/empty (no content yet)
+  # - this tag's block already there (idempotent re-run)
+  # - file contains only other managed blocks + whitespace (e.g. zimfw
+  #   landing on a .zshenv freshly written by install_zsh)
+  if [ ! -s "$file" ] \
+     || grep -qF "$start" "$file" \
+     || only_managed_blocks "$file"; then
+    write_managed_block "$file" "$tag" "$content"
+    return
+  fi
+  echo "Found existing $file: (tail of it)"
+  echo ">>>"
+  tail "$file"
+  echo "<<<"
+  # `if`-wrap so a caller running under `set -e` doesn't abort on choose's
+  # non-zero exit (which is how the chosen option is returned).
+  local choice=0
+  if choose -d 1 "Backup existing $file and write block" \
+                 "Append block to existing $file" \
+                 "Overwrite existing $file with block only"
+    then choice=$?
+    else choice=$?
+  fi
+  case "$choice" in
+    0) echo "$file not configured!"; return 1 ;;
+    1) backup_file "$file"
+       printf '%s\n%s\n%s\n' "$start" "$content" "# <<< $tag <<<" > "$file" ;;
+    2) write_managed_block "$file" "$tag" "$content" ;;
+    3) rm -f "$file"
+       printf '%s\n%s\n%s\n' "$start" "$content" "# <<< $tag <<<" > "$file" ;;
+  esac
+}

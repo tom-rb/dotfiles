@@ -44,7 +44,7 @@ install_zsh_zshenv() {
 		source "\$DOTFILES/zsh/zshenv-base"
 EOF
     )
-    write_managed_block "$zshenv" "dotfiles:zsh" "$content"
+    install_managed_block "$zshenv" "dotfiles:zsh" "$content"
 
     echo "****************************"
     echo "$zshenv configured."
@@ -80,7 +80,7 @@ EOF
       echo "      Consider moving its contents to $zshrc."
     fi
 
-    write_managed_block "$zshrc" "dotfiles:zsh" "$content"
+    install_managed_block "$zshrc" "dotfiles:zsh" "$content"
 
     echo "****************************"
     echo "$zshrc configured."

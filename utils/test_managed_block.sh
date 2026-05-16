@@ -10,7 +10,7 @@ oneTimeSetUp() {
 }
 
 setUp() {
-  . "$THISDIR/managed_block.sh"
+  . "$THISDIR/utils.sh"
   TARGET="${SHUNIT_TMPDIR:?}/file"
 }
 
@@ -100,6 +100,128 @@ existing line 2
 source base
 # <<< dotfiles:zsh <<<'
   assertEquals "$expected" "$(cat "$TARGET")"
+}
+
+#
+# install_managed_block
+#
+
+test_install_managed_block_is_quiet_when_file_absent() {
+  createSpy -u choose
+
+  install_managed_block "$TARGET" "dotfiles:zsh" "source base" >/dev/null
+
+  assertNeverCalled choose
+  expected='# >>> dotfiles:zsh >>>
+source base
+# <<< dotfiles:zsh <<<'
+  assertEquals "$expected" "$(cat "$TARGET")"
+}
+
+test_install_managed_block_is_quiet_when_block_already_present() {
+  cat > "$TARGET" <<-EOF
+	above
+	# >>> dotfiles:zsh >>>
+	old
+	# <<< dotfiles:zsh <<<
+	below
+EOF
+  createSpy -u choose
+
+  install_managed_block "$TARGET" "dotfiles:zsh" "new" >/dev/null
+
+  assertNeverCalled choose
+  expected='above
+# >>> dotfiles:zsh >>>
+new
+# <<< dotfiles:zsh <<<
+below'
+  assertEquals "$expected" "$(cat "$TARGET")"
+}
+
+test_install_managed_block_is_quiet_when_file_only_has_other_managed_blocks() {
+  cat > "$TARGET" <<-EOF
+	# >>> dotfiles:zsh >>>
+	source zshrc
+	# <<< dotfiles:zsh <<<
+EOF
+  createSpy -u choose
+
+  install_managed_block "$TARGET" "dotfiles:zimfw" "zimfw block" >/dev/null
+
+  assertNeverCalled choose
+  expected='# >>> dotfiles:zsh >>>
+source zshrc
+# <<< dotfiles:zsh <<<
+
+# >>> dotfiles:zimfw >>>
+zimfw block
+# <<< dotfiles:zimfw <<<'
+  assertEquals "$expected" "$(cat "$TARGET")"
+  assertFalse "No backup should be created" "[ -f \"$TARGET.bkp\" ]"
+}
+
+test_install_managed_block_prompts_when_user_content_sits_alongside_managed_block() {
+  cat > "$TARGET" <<-EOF
+	hand-rolled line
+	# >>> dotfiles:zsh >>>
+	source zshrc
+	# <<< dotfiles:zsh <<<
+EOF
+
+  printf '\n' | install_managed_block "$TARGET" "dotfiles:zimfw" "zimfw block" >/dev/null
+
+  assertTrue "Backup should exist (prompt took the default)" "[ -f \"$TARGET.bkp\" ]"
+}
+
+test_install_managed_block_first_time_default_backs_up() {
+  printf 'user line\n' > "$TARGET"
+
+  printf '\n' | install_managed_block "$TARGET" "dotfiles:zsh" "block" >/dev/null
+
+  assertTrue "Backup file should exist" "[ -f \"$TARGET.bkp\" ]"
+  assertEquals "user line" "$(cat "$TARGET.bkp")"
+  expected='# >>> dotfiles:zsh >>>
+block
+# <<< dotfiles:zsh <<<'
+  assertEquals "$expected" "$(cat "$TARGET")"
+}
+
+test_install_managed_block_first_time_append_keeps_user_content() {
+  printf 'user line\n' > "$TARGET"
+
+  echo 2 | install_managed_block "$TARGET" "dotfiles:zsh" "block" >/dev/null
+
+  assertFalse "No backup should be created" "[ -f \"$TARGET.bkp\" ]"
+  expected='user line
+
+# >>> dotfiles:zsh >>>
+block
+# <<< dotfiles:zsh <<<'
+  assertEquals "$expected" "$(cat "$TARGET")"
+}
+
+test_install_managed_block_first_time_overwrite_drops_user_content() {
+  printf 'user line\n' > "$TARGET"
+
+  echo 3 | install_managed_block "$TARGET" "dotfiles:zsh" "block" >/dev/null
+
+  assertFalse "No backup should be created" "[ -f \"$TARGET.bkp\" ]"
+  expected='# >>> dotfiles:zsh >>>
+block
+# <<< dotfiles:zsh <<<'
+  assertEquals "$expected" "$(cat "$TARGET")"
+}
+
+test_install_managed_block_first_time_cancel_leaves_file_alone() {
+  printf 'user line\n' > "$TARGET"
+
+  echo q | install_managed_block "$TARGET" "dotfiles:zsh" "block" >/dev/null
+  rc=$?
+
+  assertEquals 1 "$rc"
+  assertEquals "user line" "$(cat "$TARGET")"
+  assertFalse "No backup should be created" "[ -f \"$TARGET.bkp\" ]"
 }
 
 

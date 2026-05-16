@@ -67,7 +67,7 @@ install_zimfw_zshenv_block() {
 		skip_global_compinit=1
 EOF
     )
-    write_managed_block "$zshenv" "dotfiles:zimfw" "$content"
+    install_managed_block "$zshenv" "dotfiles:zimfw" "$content"
 
     echo "$zshenv updated with zimfw block."
   )
@@ -85,48 +85,24 @@ install_zimfw_zshrc_block() {
 		source "$DOTFILES/zimfw/zshrc-zim"
 EOF
     )
-    write_managed_block "$zshrc" "dotfiles:zimfw" "$content"
+    install_managed_block "$zshrc" "dotfiles:zimfw" "$content"
 
     echo "$zshrc updated with zimfw block."
   )
 }
 
-# Write $ZDOTDIR/<name> as a one-line stub sourcing the repo file.
+# Write $ZDOTDIR/<name> as a managed-block stub sourcing the repo file.
 # $1: target basename (e.g. .zimrc), $2: repo source path
-# Asks user (backup/append/overwrite) if target exists.
 install_zimfw_zdotdir_stub() {
-  local zdotdir target src contents
+  local zdotdir target contents
   (
     set -e
     zdotdir=$(get_zdotdir)
     target="$zdotdir/${1:?}"
-    src="${2:?}"
 
-    contents=$(printf 'source "%s"' "$src")
+    contents=$(printf '# Managed by zimfw/install_zimfw.sh — edits inside this block will be overwritten.\nsource "%s"' "${2:?}")
 
-    if [ -e "$target" ]; then
-      echo "Found existing $target file: (tail of it)"
-      echo ">>>"
-      tail "$target"
-      echo "<<<"
-      if choose "Backup existing ${1}" \
-                "Append to existing ${1}" \
-                "Overwrite existing ${1}"
-      then
-        echo "$target not configured!"
-        return 1
-      else
-        case "$?" in
-          1) backup_file "$target" &&
-              printf '%s\n' "$contents" > "$target" ;;
-          2) printf '%s\n' "$contents" >> "$target" ;;
-          3) rm -v -f "$target" &&
-              printf '%s\n' "$contents" > "$target" ;;
-        esac
-      fi
-    else
-      printf '%s\n' "$contents" > "$target"
-    fi
+    install_managed_block "$target" "dotfiles:zimfw" "$contents"
 
     echo "$target configured."
   )

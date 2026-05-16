@@ -197,6 +197,46 @@ function tre() {
   tree -aC -I '.git|node_modules|bower_components' --dirsfirst "$@" | less -FRNX;
 }
 
+# Find and kill stuck processes (high CPU, defunct, or test hangs).
+# Displays candidates and prompts for confirmation before killing.
+function kill-stuck() {
+  emulate -L zsh
+
+  echo "Searching for stuck processes..."
+
+  # Find high-CPU (>10%) processes or stuck test processes
+  local stuck_data
+  stuck_data=$(ps aux --sort=-%cpu | awk '$3 > 10 && $11 !~ /ps|kill|zsh|grep/ {print $2 ":" $3 ":" $4 ":" $11}' | head -10)
+
+  if [[ -z "$stuck_data" ]]; then
+    stuck_data=$(ps aux | grep -E 'test.*\.(sh|py)' | grep -v grep | awk '{print $2 ":" $3 ":" $4 ":" $11}')
+  fi
+
+  if [[ -z "$stuck_data" ]]; then
+    echo "No stuck processes found."
+    return 0
+  fi
+
+  local killed_count=0
+  while IFS=: read -r pid cpu mem cmd; do
+    echo
+    echo "PID: $pid | CPU: ${cpu}% | MEM: ${mem}% | CMD: $cmd"
+    echo -n "Kill this process? (y/N) "
+    read -r confirm < /dev/tty
+
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+      kill -9 "$pid"
+      echo "✓ Killed PID $pid"
+      ((killed_count++))
+    else
+      echo "Skipped PID $pid"
+    fi
+  done <<< "$stuck_data"
+
+  echo
+  echo "Summary: Killed $killed_count process(es)"
+}
+
 # Run a script whenever it changes (e.g. for watch unit tests) with time stats
 function watch-test() {
   local script="$1"

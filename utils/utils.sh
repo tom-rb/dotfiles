@@ -67,10 +67,15 @@ confirm() {
 }
 
 # Show options to the user and return a choice
+# -d N: return choice N when the user just presses enter
 # $1-9: messages to choose from
 # Returns 0 on cancel or >=1 for the choice
 choose() {
-  local opt_i c
+  local opt_i c default=
+  if [ "$1" = -d ]; then
+    default=$2
+    shift 2
+  fi
   # While a valid option isn't chosen
   while : ; do
     opt_i=0
@@ -86,6 +91,7 @@ choose() {
       case "$c" in
         [1-$opt_i]) echo "$c"; return "$c" ;;
         q)   echo 'Cancelled'; return 0 ;;
+        "")  [ -n "$default" ] && { echo "$default"; return "$default"; } ;;
       esac
     done
   done

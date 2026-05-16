@@ -156,6 +156,24 @@ test_choose_returns_zero_when_canceled_with_q() {
   assertContains "$output" "Cancelled"
 }
 
+test_choose_returns_default_on_enter() {
+  output=$(printf '\n' | choose -d 2 first second third)
+  assertEquals 2 $?
+  assertEquals "Should echo default answer" "2" "${output##*[!2]}"
+}
+
+test_choose_with_default_still_accepts_explicit_choice() {
+  output=$(echo 3 | choose -d 1 first second third)
+  assertEquals 3 $?
+  assertEquals "Should echo explicit answer" "3" "${output##*[!3]}"
+}
+
+test_choose_with_default_still_cancels_on_q() {
+  output=$(echo q | choose -d 1 first second)
+  assertEquals 0 $?
+  assertContains "$output" "Cancelled"
+}
+
 test_choose_dont_print_anything_on_invalid_answer() {
   output=$(printf '%s\n%d' "034_all_invalid_except:" 1 | choose first second)
   assertEquals 1 $?

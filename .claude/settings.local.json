@@ -3,7 +3,10 @@
     "allow": [
       "Skill(grill-me)",
       "Skill(grill-me:*)",
+      "Skill(tdd)",
+      "Skill(tdd:*)",
       "Skill(writing-tests)",
+      "Skill(writing-tests:*)",
       "Bash(cat *)",
       "Bash(grep *)",
       "Bash(make unit *)",
