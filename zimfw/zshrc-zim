@@ -170,3 +170,33 @@ bindkey "^[o" autosuggest-accept-in-place
   # Git gone branches (gone remote tracking)
   alias ${gprefix}gone="git fetch --all --prune -q && git branch -vv | cut -c 3- | awk '"'/\[origin.*: gone\]/ { print $1 }'"'"
 }
+
+#
+# misc
+#
+
+# Patch /etc/zsh/zshrc to disable its global `compinit` call. zim's completion
+# module already runs compinit; the global one duplicates work and can race
+# with zim's dumpfile. Normally `skip_global_compinit=1` (set by install_zimfw
+# in $HOME/.zshenv) is enough to suppress it, but some setups don't honor that
+# variable — run this once on those machines.
+fixcompinit() {
+  local target=/etc/zsh/zshrc
+  if [[ ! -f $target ]]; then
+    echo "fixcompinit: $target not found; nothing to do."
+    return 0
+  fi
+  # Match an uncommented `compinit` invocation (allowing leading whitespace).
+  if ! grep -Eq '^[[:space:]]*compinit([[:space:]]|$)' $target; then
+    echo "fixcompinit: no active compinit call in $target; nothing to do."
+    return 0
+  fi
+  echo "fixcompinit: $target has an active compinit call which conflicts with zim."
+  echo "             About to comment it out (and the surrounding autoload) via:"
+  echo "             sudo sed -i ... $target"
+  echo "             sudo will prompt for your password."
+  sudo sed -i \
+    -e 's|^\([[:space:]]*\)\(autoload -U[z]\? compinit\)[[:space:]]*$|#\1\2|' \
+    -e 's|^\([[:space:]]*\)compinit[[:space:]]*$|#\1compinit\n\1:|' \
+    $target
+}
