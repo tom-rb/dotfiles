@@ -253,19 +253,16 @@ bridge_block_has_auto_enter() {
   ' "$file"
 }
 
-# Install tmux bridge marker block into $ZDOTDIR/.zshrc, if present.
+# Install tmux bridge managed block into $ZDOTDIR/.zshrc, if present.
 # The block always sources tmux-cmds.sh. When the user opts in, the rich
 # auto-enter snippet (with terminal-emulator detection) is also injected.
-# Idempotent: re-running replaces the block in place, preserving the previous
-# auto-enter choice as the wizard prompt default.
+# Re-running preserves the previous auto-enter choice as the prompt default.
 install_tmux_shell_bridge() {
-  local zdotdir zshrc start end block auto_enter want_auto_enter
+  local zdotdir zshrc content auto_enter want_auto_enter
   (
     set -e
     zdotdir=$(get_zdotdir)
     zshrc="$zdotdir/.zshrc"
-    start='# >>> dotfiles:tmux >>>'
-    end='# <<< dotfiles:tmux <<<'
 
     if [ ! -f "$zshrc" ]; then
       echo "No $zshrc found — skipping tmux shell bridge."
@@ -298,25 +295,13 @@ EOF
       auto_enter=
     fi
 
-    block=$(cat <<-EOF
-		$start
+    content=$(cat <<-EOF
 		# Managed by tmux/install_tmux.sh — edits inside this block will be overwritten.
 		[ -f "\$DOTFILES/tmux/tmux-cmds.sh" ] && source "\$DOTFILES/tmux/tmux-cmds.sh"
 		${auto_enter}
-		$end
 EOF
     )
-
-    if grep -qF "$start" "$zshrc"; then
-      awk -v s="$start" -v e="$end" -v b="$block" '
-        $0==s {print b; skip=1; next}
-        skip && $0==e {skip=0; next}
-        !skip
-      ' "$zshrc" > "$zshrc.tmp" && mv "$zshrc.tmp" "$zshrc"
-    else
-      printf '\n' >> "$zshrc"
-      printf '%s\n' "$block" >> "$zshrc"
-    fi
+    write_managed_block "$zshrc" "dotfiles:tmux" "$content"
 
     echo "$zshrc updated with tmux bridge block."
   )

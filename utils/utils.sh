@@ -2,6 +2,8 @@
 
 # shellcheck source=pm_packages.sh
 . "${DOTFILES:?}/utils/pm_packages.sh"
+# shellcheck source=managed_block.sh
+. "${DOTFILES:?}/utils/managed_block.sh"
 
 # Echo $1 and exit 1, or optionally with specified $2 code
 die() {

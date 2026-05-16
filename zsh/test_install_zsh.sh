@@ -85,27 +85,6 @@ test_zshenv_block_has_start_and_end_markers() {
   assertContains "Should contain end marker"   "$contents" "# <<< dotfiles:zsh <<<"
 }
 
-test_zshenv_block_is_idempotent_on_reinstall() {
-  quietly install_zsh_zshenv
-  quietly install_zsh_zshenv
-
-  count=$(grep -cF '# >>> dotfiles:zsh >>>' "$HOME/.zshenv")
-  assertEquals "Marker block should appear exactly once" "1" "$count"
-}
-
-test_zshenv_preserves_user_content_outside_markers() {
-  printf '# user line A\n# user line B\n' > "$HOME/.zshenv"
-
-  quietly install_zsh_zshenv
-  quietly install_zsh_zshenv
-
-  contents=$(cat "$HOME/.zshenv")
-  assertContains "User content A retained" "$contents" "# user line A"
-  assertContains "User content B retained" "$contents" "# user line B"
-  count=$(grep -cF '# >>> dotfiles:zsh >>>' "$HOME/.zshenv")
-  assertEquals "Marker block should appear exactly once" "1" "$count"
-}
-
 #
 # install_zsh_zshrc_stub (deployed at $ZDOTDIR/.zshrc with marker block)
 #
@@ -141,30 +120,6 @@ test_zshrc_stub_creates_cache_dir() {
   quietly install_zsh_zshrc_stub
   assertTrue "Should create \$XDG_CACHE_HOME/zsh for zcompdump/zcompcache" \
     "test -d $XDG_CACHE_HOME/zsh"
-}
-
-test_zshrc_stub_block_is_idempotent_on_reinstall() {
-  quietly install_zsh_zshrc_stub
-  quietly install_zsh_zshrc_stub
-
-  zshrc="$XDG_CONFIG_HOME/zsh/.zshrc"
-  count=$(grep -cF '# >>> dotfiles:zsh >>>' "$zshrc")
-  assertEquals "Marker block should appear exactly once" "1" "$count"
-}
-
-test_zshrc_stub_preserves_user_content_outside_markers() {
-  mkdir -p "$XDG_CONFIG_HOME/zsh"
-  zshrc="$XDG_CONFIG_HOME/zsh/.zshrc"
-  printf '# user line A\n# user line B\n' > "$zshrc"
-
-  quietly install_zsh_zshrc_stub
-  quietly install_zsh_zshrc_stub
-
-  contents=$(cat "$zshrc")
-  assertContains "User content A retained" "$contents" "# user line A"
-  assertContains "User content B retained" "$contents" "# user line B"
-  count=$(grep -cF '# >>> dotfiles:zsh >>>' "$zshrc")
-  assertEquals "Marker block should appear exactly once" "1" "$count"
 }
 
 test_zshrc_stub_prints_polite_note_when_home_zshrc_exists() {

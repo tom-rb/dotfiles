@@ -32,39 +32,19 @@ install_zsh_program() {
   )
 }
 
-# Render $HOME/.zshenv with a marker block sourcing zshenv-base.
-# Idempotent: replaces the block in place if already present; preserves any
-# user content outside the markers. Other installers (e.g. install_zimfw)
-# append their own marker blocks to the same file.
+# Render $HOME/.zshenv with a managed block sourcing zshenv-base.
 install_zsh_zshenv() {
-  local zshenv block start end
+  local zshenv content
   (
     set -e
     zshenv="$HOME/.zshenv"
-    start='# >>> dotfiles:zsh >>>'
-    end='# <<< dotfiles:zsh <<<'
-
-    block=$(cat <<-EOF
-		$start
+    content=$(cat <<-EOF
 		# Managed by zsh/install_zsh.sh — edits inside this block will be overwritten.
 		export DOTFILES=${DOTFILES:?}
 		source "\$DOTFILES/zsh/zshenv-base"
-		$end
 EOF
     )
-
-    if [ -e "$zshenv" ] && grep -qF "$start" "$zshenv"; then
-      # Replace existing block in place
-      awk -v s="$start" -v e="$end" -v b="$block" '
-        $0==s {print b; skip=1; next}
-        skip && $0==e {skip=0; next}
-        !skip
-      ' "$zshenv" > "$zshenv.tmp" && mv "$zshenv.tmp" "$zshenv"
-    else
-      # Append block (creates file if absent)
-      [ -e "$zshenv" ] && printf '\n' >> "$zshenv"
-      printf '%s\n' "$block" >> "$zshenv"
-    fi
+    write_managed_block "$zshenv" "dotfiles:zsh" "$content"
 
     echo "****************************"
     echo "$zshenv configured."
@@ -77,24 +57,16 @@ get_zdotdir() {
   echo "${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
 }
 
-# Render $ZDOTDIR/.zshrc stub with a marker block sourcing the repo base .zshrc.
-# The marker block is idempotent: re-running replaces it in place, preserving
-# user content outside the markers. Other installers (e.g. install_zimfw)
-# append their own marker blocks to the same file.
+# Render $ZDOTDIR/.zshrc stub with a managed block sourcing the repo base .zshrc.
 install_zsh_zshrc_stub() {
-  local zdotdir zshrc block start end
+  local zdotdir zshrc content
   (
     set -e
     zdotdir=$(get_zdotdir)
     zshrc="$zdotdir/.zshrc"
-    start='# >>> dotfiles:zsh >>>'
-    end='# <<< dotfiles:zsh <<<'
-
-    block=$(cat <<-EOF
-		$start
+    content=$(cat <<-'EOF'
 		# Managed by zsh/install_zsh.sh — edits inside this block will be overwritten.
-		source "\$DOTFILES/zsh/zshrc-base"
-		$end
+		source "$DOTFILES/zsh/zshrc-base"
 EOF
     )
 
@@ -108,18 +80,7 @@ EOF
       echo "      Consider moving its contents to $zshrc."
     fi
 
-    if [ -e "$zshrc" ] && grep -qF "$start" "$zshrc"; then
-      # Replace existing block in place
-      awk -v s="$start" -v e="$end" -v b="$block" '
-        $0==s {print b; skip=1; next}
-        skip && $0==e {skip=0; next}
-        !skip
-      ' "$zshrc" > "$zshrc.tmp" && mv "$zshrc.tmp" "$zshrc"
-    else
-      # Append block (creates file if absent)
-      [ -e "$zshrc" ] && printf '\n' >> "$zshrc"
-      printf '%s\n' "$block" >> "$zshrc"
-    fi
+    write_managed_block "$zshrc" "dotfiles:zsh" "$content"
 
     echo "****************************"
     echo "$zshrc configured."

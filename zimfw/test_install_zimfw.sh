@@ -113,32 +113,6 @@ test_zshenv_block_writes_skip_global_compinit() {
     "$contents" "skip_global_compinit=1"
 }
 
-test_zshenv_block_is_idempotent() {
-  _simulate_install_zsh
-
-  quietly install_zimfw_zshenv_block
-  quietly install_zimfw_zshenv_block
-
-  count=$(grep -cF '# >>> dotfiles:zimfw >>>' "$HOME/.zshenv")
-  assertEquals "Marker block should appear exactly once" "1" "$count"
-}
-
-test_zshenv_block_preserves_other_content() {
-  # Simulate the zsh-owned block sitting alongside the new zimfw block
-  # shellcheck disable=SC2016
-  printf '# >>> dotfiles:zsh >>>\nexport DOTFILES=/repo\nsource "$DOTFILES/zsh/zshenv-base"\n# <<< dotfiles:zsh <<<\n' \
-    > "$HOME/.zshenv"
-
-  quietly install_zimfw_zshenv_block
-  quietly install_zimfw_zshenv_block
-
-  contents=$(cat "$HOME/.zshenv")
-  assertContains "Should retain dotfiles:zsh block" "$contents" "# >>> dotfiles:zsh >>>"
-  assertContains "Should add dotfiles:zimfw block" "$contents" "# >>> dotfiles:zimfw >>>"
-  zim_count=$(grep -cF '# >>> dotfiles:zimfw >>>' "$HOME/.zshenv")
-  assertEquals "zimfw block exactly once" "1" "$zim_count"
-}
-
 #
 # install_zimfw_zshrc_block
 #
@@ -155,34 +129,6 @@ test_zshrc_block_appends_marker_block() {
   # shellcheck disable=SC2016
   assertContains "Should source zshrc-zim" \
     "$contents" 'source "$DOTFILES/zimfw/zshrc-zim"'
-}
-
-test_zshrc_block_is_idempotent() {
-  _simulate_install_zsh
-
-  quietly install_zimfw_zshrc_block
-  quietly install_zimfw_zshrc_block
-
-  zshrc="$XDG_CONFIG_HOME/zsh/.zshrc"
-  count=$(grep -cF '# >>> dotfiles:zimfw >>>' "$zshrc")
-  assertEquals "Marker block should appear exactly once" "1" "$count"
-}
-
-test_zshrc_block_preserves_other_content() {
-  _simulate_install_zsh
-  zshrc="$XDG_CONFIG_HOME/zsh/.zshrc"
-  # shellcheck disable=SC2016
-  printf '# >>> dotfiles:zsh >>>\nsource "$DOTFILES/zsh/zshrc-base"\n# <<< dotfiles:zsh <<<\n' \
-    > "$zshrc"
-
-  quietly install_zimfw_zshrc_block
-  quietly install_zimfw_zshrc_block
-
-  contents=$(cat "$zshrc")
-  assertContains "Should retain dotfiles:zsh block" "$contents" "# >>> dotfiles:zsh >>>"
-  assertContains "Should add dotfiles:zimfw block" "$contents" "# >>> dotfiles:zimfw >>>"
-  zim_count=$(grep -cF '# >>> dotfiles:zimfw >>>' "$zshrc")
-  assertEquals "zimfw block exactly once" "1" "$zim_count"
 }
 
 #

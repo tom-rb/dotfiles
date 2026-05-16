@@ -354,19 +354,6 @@ test_shell_bridge_injects_auto_enter_when_opted_in() {
     "$zshrc_contents" 'WT_SESSION'
 }
 
-test_shell_bridge_is_idempotent_and_replaces_in_place() {
-  mkdir -p "$HOME/.config/zsh"
-  printf '# user content above\n' > "$HOME/.config/zsh/.zshrc"
-
-  echo n | quietly install_tmux_shell_bridge
-  echo n | quietly install_tmux_shell_bridge
-
-  count=$(grep -cF '# >>> dotfiles:tmux >>>' "$HOME/.config/zsh/.zshrc")
-  assertEquals "Block should appear exactly once after re-run" 1 "$count"
-  assertContains "User content outside the block must be preserved" \
-    "$(cat "$HOME/.config/zsh/.zshrc")" '# user content above'
-}
-
 test_shell_bridge_defaults_prompt_to_previous_auto_enter_choice() {
   mkdir -p "$HOME/.config/zsh"
   : > "$HOME/.config/zsh/.zshrc"

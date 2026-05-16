@@ -55,68 +55,37 @@ install_zimfw_program() {
   )
 }
 
-# Append marker block to $HOME/.zshenv setting specific configs.
+# Append managed block to $HOME/.zshenv setting specific configs.
 install_zimfw_zshenv_block() {
-  local zshenv block start end
+  local zshenv content
   (
     set -e
     zshenv="$HOME/.zshenv"
-    start='# >>> dotfiles:zimfw >>>'
-    end='# <<< dotfiles:zimfw <<<'
-
-    block=$(cat <<-EOF
-		$start
+    content=$(cat <<-'EOF'
 		# Managed by zimfw/install_zimfw.sh — edits inside this block will be overwritten.
 		# Disable global compinit call in Ubuntu (since zimfw will call it)
 		skip_global_compinit=1
-		$end
 EOF
     )
-
-    if [ -e "$zshenv" ] && grep -qF "$start" "$zshenv"; then
-      awk -v s="$start" -v e="$end" -v b="$block" '
-        $0==s {print b; skip=1; next}
-        skip && $0==e {skip=0; next}
-        !skip
-      ' "$zshenv" > "$zshenv.tmp" && mv "$zshenv.tmp" "$zshenv"
-    else
-      [ -e "$zshenv" ] && printf '\n' >> "$zshenv"
-      printf '%s\n' "$block" >> "$zshenv"
-    fi
+    write_managed_block "$zshenv" "dotfiles:zimfw" "$content"
 
     echo "$zshenv updated with zimfw block."
   )
 }
 
-# Append marker block to $ZDOTDIR/.zshrc sourcing zimfw/zshrc-zim.
-# Idempotent: replaces the block in place if already present.
+# Append managed block to $ZDOTDIR/.zshrc sourcing zimfw/zshrc-zim.
 install_zimfw_zshrc_block() {
-  local zdotdir zshrc block start end
+  local zdotdir zshrc content
   (
     set -e
     zdotdir=$(get_zdotdir)
     zshrc="$zdotdir/.zshrc"
-    start='# >>> dotfiles:zimfw >>>'
-    end='# <<< dotfiles:zimfw <<<'
-
-    block=$(cat <<-EOF
-		$start
+    content=$(cat <<-'EOF'
 		# Managed by zimfw/install_zimfw.sh — edits inside this block will be overwritten.
-		source "\$DOTFILES/zimfw/zshrc-zim"
-		$end
+		source "$DOTFILES/zimfw/zshrc-zim"
 EOF
     )
-
-    if [ -e "$zshrc" ] && grep -qF "$start" "$zshrc"; then
-      awk -v s="$start" -v e="$end" -v b="$block" '
-        $0==s {print b; skip=1; next}
-        skip && $0==e {skip=0; next}
-        !skip
-      ' "$zshrc" > "$zshrc.tmp" && mv "$zshrc.tmp" "$zshrc"
-    else
-      [ -e "$zshrc" ] && printf '\n' >> "$zshrc"
-      printf '%s\n' "$block" >> "$zshrc"
-    fi
+    write_managed_block "$zshrc" "dotfiles:zimfw" "$content"
 
     echo "$zshrc updated with zimfw block."
   )
