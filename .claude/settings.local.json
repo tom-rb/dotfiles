@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(grill-me)",
+      "Skill(grill-me:*)",
+      "Bash(make unit *)",
+      "Bash(make unit-amazonlinux-2 *)",
+      "Bash(make unit-ubuntu *)",
+      "Bash(make system-ubuntu *)",
+      "Bash(make help *)"
+    ]
+  }
+}
