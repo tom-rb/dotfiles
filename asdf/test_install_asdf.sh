@@ -92,13 +92,13 @@ test_zshenv_block_is_written() {
   contents=$(cat "$HOME/.zshenv")
   # shellcheck disable=SC2016
   assertContains "Should export ASDF_DATA_DIR off XDG_DATA_HOME" \
-    "$contents" 'export ASDF_DATA_DIR=${XDG_DATA_HOME:?'
+    "$contents" 'export ASDF_DATA_DIR="${XDG_DATA_HOME:?'
   # shellcheck disable=SC2016
   assertContains "Should prepend \$HOME/.local/bin so asdf itself is on PATH" \
-    "$contents" 'export PATH=$HOME/.local/bin:$PATH'
+    "$contents" 'export PATH="$HOME/.local/bin:$PATH"'
   # shellcheck disable=SC2016
   assertContains "Should prepend the asdf shims dir to PATH" \
-    "$contents" 'export PATH=$ASDF_DATA_DIR/shims:$PATH'
+    "$contents" 'export PATH="$ASDF_DATA_DIR/shims:$PATH"'
   assertContains "Should conditionally source the asdf java plugin loader" \
     "$contents" "set-java-home.zsh"
   assertContains "Should be wrapped in the dotfiles:asdf managed block" \

@@ -72,9 +72,9 @@ install_asdf_zshenv() {
     zshenv="$HOME/.zshenv"
     content=$(cat <<-'EOF'
 			# Managed by asdf/install_asdf.sh — edits inside this block will be overwritten.
-			export ASDF_DATA_DIR=${XDG_DATA_HOME:?'XDG_DATA_HOME is not set, have you run the zsh setup?'}/asdf
-			export PATH=$HOME/.local/bin:$PATH
-			export PATH=$ASDF_DATA_DIR/shims:$PATH
+			export ASDF_DATA_DIR="${XDG_DATA_HOME:?'XDG_DATA_HOME is not set, have you run the zsh setup?'}/asdf"
+			export PATH="$HOME/.local/bin:$PATH"
+			export PATH="$ASDF_DATA_DIR/shims:$PATH"
 			[[ -r "$ASDF_DATA_DIR/plugins/java/set-java-home.zsh" ]] && source "$ASDF_DATA_DIR/plugins/java/set-java-home.zsh"
 EOF
     )
