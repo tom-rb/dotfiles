@@ -88,8 +88,8 @@ configure_git_user() {
   done
 }
 
-# Installs git, configures templates and global excludes, then offers to set
-# user identity. Supports -y for non-interactive runs.
+# Installs git, configures templates and global excludes, then offers to set user identity.
+# -y: accepts default answer for all questions
 install_git_wizard() {
   wizard_run "$@" -- install_git_program install_git_templates install_git_excludesfile install_git_default_branch configure_git_user
 }

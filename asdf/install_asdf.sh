@@ -117,7 +117,7 @@ install_asdf_dotfiles() {
 }
 
 # Installs asdf and its dotfile block.
-# -y: accept default answers for all questions (none today, kept for symmetry)
+# -y: accept default answers for all questions
 install_asdf_wizard() {
   wizard_run "$@" -- install_asdf_program install_asdf_dotfiles
 }
