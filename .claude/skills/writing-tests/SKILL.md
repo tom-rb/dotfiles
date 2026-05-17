@@ -155,4 +155,4 @@ setUp() {
 - `chmod +x` every new test file
 - `make unit FILE=...` from the repo root, not the module dir
 - After editing a system Dockerfile, the make target rebuilds automatically — no manual `docker build`
-- Shellcheck-clean: `docker run --rm -v "$PWD:/app:ro" koalaman/shellcheck:stable $(find . -name '*.sh' -not -path '*/old/*' -not -path '*/tmux-cmds*' | sed 's|^.|/app|')`
+- Shellcheck-clean: `make lint`

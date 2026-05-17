@@ -28,6 +28,18 @@ all: unit-tests system-tests
 .PHONY: help all
 
 ##
+## LINT
+##
+
+# Run shellcheck against every tracked shell script (excludes old/)
+lint:
+	@docker run --rm -v "$$PWD:/app:ro" koalaman/shellcheck:stable \
+		$$(find . -name '*.sh' -not -path '*/old/*' | sed 's|^.|/app|') \
+		&& echo "OK"
+
+.PHONY: lint
+
+##
 ## TEST FILE DISCOVERY (honors FILE= filter)
 ##
 
