@@ -20,4 +20,17 @@ A fenced region inside an owned dotfile, marked by `# >>> <tag> >>>` … `# <<< 
 
 ## First-time placement
 
-The case where an owned dotfile already exists but has no managed block for the given tag — i.e. the user has hand-rolled content that predates this install. `install_managed_block` prompts (backup / append / overwrite, default backup) only here. Subsequent runs (block present, or file absent) are quiet.
+The case where an owned dotfile already exists but has no managed block for the given tag — i.e. the user has hand-rolled content that predates this install. `install_managed_block` prompts (backup / append / overwrite, default backup) only here. Subsequent runs (block present, file absent/empty, or file containing only other managed blocks) are quiet.
+
+## Inlined vs sourced runtime config
+
+Some runtime config lives in a repo file that the managed block *sources* (e.g. `zsh/zshrc-base`, `zimfw/zshrc-zim`). Some is *inlined* — written verbatim into the managed block by the install script (e.g. the XDG/ZDOTDIR exports owned by `install_zsh_zshenv`).
+
+The split is by trait, not convention:
+
+- **Inline** when the content is short, stable, and would otherwise create a lockstep between the sh-side install helpers and a zsh-side runtime file (the two layers must agree on default paths). Inlining makes the install script the single source of truth and saves one file source on every zsh startup. Cost: edits only take effect after re-running the wizard.
+- **Source** when the content is substantial, has its own dev cycle (edit-and-reload), or defines functions/aliases users iterate on. The repo file can be edited live without re-running the installer.
+
+## XDG paths module
+
+`utils/xdg_paths.sh` is the single repo-wide source for XDG Base Directory paths and tool-specific subdirs. It exposes path segments as constants (`XDG_CONFIG_DEFAULT_SUBPATH=.config`, `ZDOTDIR_SUBPATH=zsh`, etc.) AND the sh-side helpers that consume them (`xdg_config_home`, `get_zdotdir`, `get_zim_home`, `get_tmux_plugins_dir`).

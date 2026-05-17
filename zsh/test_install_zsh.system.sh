@@ -25,8 +25,8 @@ it_installs_zsh_and_its_dotfiles() {
     "$(cat "$HOME/.zshenv")" "export DOTFILES=$DOTFILES"
 
   # shellcheck disable=SC2016
-  assertContains "Should source zshenv-base in .zshenv" \
-    "$(cat "$HOME/.zshenv")" 'source "$DOTFILES/zsh/zshenv-base"'
+  assertContains "Should inline ZDOTDIR export in .zshenv" \
+    "$(cat "$HOME/.zshenv")" 'export ZDOTDIR=${XDG_CONFIG_HOME}/zsh'
 
   # Verify zsh can actually load the rendered env without errors
   output=$(zsh -c 'echo "ZDOTDIR=$ZDOTDIR DOTFILES=$DOTFILES"')

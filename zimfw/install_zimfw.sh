@@ -6,16 +6,6 @@
 # Pinned zimfw release. Bump deliberately, never to a moving branch.
 ZIMFW_URL='https://github.com/zimfw/zimfw/releases/download/v1.19.1/zimfw.zsh'
 
-# Resolve $ZIM_HOME (matches zimfw/zshrc-zim default)
-get_zim_home() {
-  echo "${ZIM_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/zim}"
-}
-
-# Resolve $ZDOTDIR (matches zshenv-base default)
-get_zdotdir() {
-  echo "${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
-}
-
 # True if zimfw.zsh is present in $ZIM_HOME
 is_zimfw_installed() {
   test -s "$(get_zim_home)/zimfw.zsh"

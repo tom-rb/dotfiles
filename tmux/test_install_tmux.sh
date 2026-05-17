@@ -161,7 +161,9 @@ test_tmux_dotfiles_are_installed() {
 }
 
 test_tmux_dotfiles_installation_respects_xdg_config_home() {
+  # shellcheck disable=SC2034  # used by install_tmux_dotfiles, export pollutes the whole env
   XDG_CONFIG_HOME="$HOME/.myconfig"
+  # shellcheck disable=SC2034  # used by install_tmux_dotfiles, export pollutes the whole env
   XDG_DATA_HOME="$HOME/.mydata"
 
   output=$(install_tmux_dotfiles)

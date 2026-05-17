@@ -1,0 +1,25 @@
+# Initial setup file for both interactive and noninteractive zsh
+#
+# Read config sequence (except /etc/*)
+#
+#  login shell
+#    $HOME/.zshenv -> managed block (inlined by zsh/install_zsh.sh)
+#    $ZDOTDIR/.zprofile
+#    $ZDOTDIR/.zshrc
+#    $ZDOTDIR/.zlogin
+#
+#  interactive zsh
+#    $HOME/.zshenv
+#    $ZDOTDIR/.zshrc
+#
+#  shell scripts
+#    $HOME/.zshenv
+#
+#  remote noninteractive zsh (e.g. ssh hostname command)
+#    $HOME/.zshenv
+#
+#  logout:
+#    $ZDOTDIR/.zlogout
+#    /etc/zlogout
+#
+# Thanks to: https://github.com/yonchu/dotfiles/blob/master/.zsh/.zshenv

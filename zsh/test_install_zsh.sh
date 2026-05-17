@@ -61,12 +61,25 @@ test_zshenv_stub_is_installed() {
 
   assertTrue "Should have created \$HOME/.zshenv" "test -f $HOME/.zshenv"
 
-  # shellcheck disable=SC2016
-  assertContains "Should source zshenv-base from dotfiles repo" \
-    "$(cat "$HOME/.zshenv")" 'source "$DOTFILES/zsh/zshenv-base"'
-
+  contents=$(cat "$HOME/.zshenv")
   assertContains "Should export real DOTFILES path" \
-    "$(cat "$HOME/.zshenv")" "export DOTFILES=$DOTFILES"
+    "$contents" "export DOTFILES=$DOTFILES"
+  assertContains "Should default XDG_CONFIG_HOME inline" \
+    "$contents" "XDG_CONFIG_HOME=\${HOME}/.config"
+  assertContains "Should default XDG_DATA_HOME inline" \
+    "$contents" "XDG_DATA_HOME=\${HOME}/.local/share"
+  assertContains "Should default XDG_CACHE_HOME inline" \
+    "$contents" "XDG_CACHE_HOME=\${HOME}/.cache"
+  # shellcheck disable=SC2016
+  assertContains "Should export ZDOTDIR off XDG_CONFIG_HOME" \
+    "$contents" 'export ZDOTDIR=${XDG_CONFIG_HOME}/zsh'
+  # shellcheck disable=SC2016
+  assertContains "Should export ASDF_DATA_DIR off XDG_DATA_HOME" \
+    "$contents" 'export ASDF_DATA_DIR=${XDG_DATA_HOME}/asdf'
+  assertContains "Should include read-sequence doc header" \
+    "$contents" "Read config sequence"
+  assertNotContains "Should NOT source the old zshenv-base file" \
+    "$contents" 'zshenv-base'
 }
 
 test_zshenv_stub_ends_with_a_newline() {

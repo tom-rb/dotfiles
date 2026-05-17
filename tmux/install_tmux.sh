@@ -11,11 +11,6 @@ is_tmux_installed() {
   command_exists tmux
 }
 
-# Absolute path of the tmux plugins dir (matches install_tmux_dotfiles default).
-get_tmux_plugins_dir() {
-  echo "${XDG_DATA_HOME:-$HOME/.local/share}/tmux/plugins"
-}
-
 # Get latest available tmux version from package manager
 get_tmux_package_version() {
   get_version_in_pm tmux \
@@ -137,8 +132,8 @@ install_tmux_dotfiles() {
   # Sub-shell for scoping set -e
   (
     set -e
-    config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/tmux"     # tmux.conf
-    plugins_dir="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/plugins"
+    config_dir="$(xdg_config_home)/tmux"
+    plugins_dir="$(get_tmux_plugins_dir)"
     mkdir -v -p "$config_dir"
     mkdir -v -p "$plugins_dir"
     tmux_conf="$config_dir/tmux.conf"
@@ -206,11 +201,6 @@ install_tpm_plugins() {
     plugins_dir=$(get_tmux_plugins_dir)
     "$plugins_dir/tpm/bin/install_plugins"
   )
-}
-
-# Resolve $ZDOTDIR (matches zshenv-base default)
-get_zdotdir() {
-  echo "${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
 }
 
 # True if the existing tmux-managed block in $1 already contains the

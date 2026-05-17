@@ -32,16 +32,31 @@ install_zsh_program() {
   )
 }
 
-# Render $HOME/.zshenv with a managed block sourcing zshenv-base.
+# Render $HOME/.zshenv with a managed block that inlines the read-sequence doc
+# from zshenv-doc plus the XDG/ZDOTDIR exports. Inlined (not sourced) so zsh
+# startup avoids an extra file read; the tradeoff is that edits to defaults
+# only take effect after re-running this installer.
 install_zsh_zshenv() {
-  local zshenv content
+  local zshenv doc content
   (
     set -e
     zshenv="$HOME/.zshenv"
+    doc=$(cat "${DOTFILES:?}/zsh/zshenv-doc")
     content=$(cat <<-EOF
 		# Managed by zsh/install_zsh.sh — edits inside this block will be overwritten.
 		export DOTFILES=${DOTFILES:?}
-		source "\$DOTFILES/zsh/zshenv-base"
+		${doc}
+
+		# Define default XDG Base Directory Specification directories
+		(( ! \${+XDG_CONFIG_HOME} )) && export XDG_CONFIG_HOME=\${HOME}/$XDG_CONFIG_DEFAULT_SUBPATH && mkdir -p \$XDG_CONFIG_HOME
+		(( ! \${+XDG_CACHE_HOME} )) && export XDG_CACHE_HOME=\${HOME}/$XDG_CACHE_DEFAULT_SUBPATH && mkdir -p \$XDG_CACHE_HOME
+		(( ! \${+XDG_DATA_HOME} )) && export XDG_DATA_HOME=\${HOME}/$XDG_DATA_DEFAULT_SUBPATH && mkdir -p \$XDG_DATA_HOME
+
+		# Setup ZDOTDIR — where zsh reads .zshrc, .zlogin, etc.
+		export ZDOTDIR=\${XDG_CONFIG_HOME}/$ZDOTDIR_SUBPATH
+
+		# Data path for asdf version manager
+		export ASDF_DATA_DIR=\${XDG_DATA_HOME}/asdf
 EOF
     )
     install_managed_block "$zshenv" "dotfiles:zsh" "$content"
@@ -50,11 +65,6 @@ EOF
     echo "$zshenv configured."
     echo "****************************"
   )
-}
-
-# Resolve $ZDOTDIR (matches zshenv-base default; honors caller override)
-get_zdotdir() {
-  echo "${ZDOTDIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh}"
 }
 
 # Render $ZDOTDIR/.zshrc stub with a managed block sourcing the repo base .zshrc.
@@ -71,8 +81,8 @@ EOF
     )
 
     mkdir -p "$zdotdir"
-    mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
-    mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+    mkdir -p "$(xdg_data_home)/$ZDOTDIR_SUBPATH"
+    mkdir -p "$(xdg_cache_home)/$ZDOTDIR_SUBPATH"
 
     # Polite note about pre-existing $HOME/.zshrc (ZDOTDIR moved here)
     if [ -e "$HOME/.zshrc" ] && [ "$zdotdir" != "$HOME" ]; then
@@ -88,8 +98,8 @@ EOF
   )
 }
 
-# Render $HOME/.zshenv stub that sources $DOTFILES/zsh/zshenv-base, then
-# render $ZDOTDIR/.zshrc stub with a marker block sourcing the repo base.
+# Render $HOME/.zshenv with the inlined env block (XDG defaults + ZDOTDIR),
+# then render $ZDOTDIR/.zshrc stub with a marker block sourcing the repo base.
 install_zsh_dotfiles() {
   install_zsh_zshenv && install_zsh_zshrc_stub
 }
