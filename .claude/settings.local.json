@@ -10,6 +10,7 @@
       "Skill(writing-tests)",
       "Skill(writing-tests:*)",
       "Bash(cat *)",
+      "Bash(echo *)",
       "Bash(ls *)",
       "Bash(grep *)",
       "Bash(make help *)",
