@@ -30,8 +30,17 @@ write_managed_block() {
   elif [ -s "$file" ]; then
     printf '\n%s\n%s\n%s\n' "$start" "$content" "$end" >> "$file"
   else
-    printf '%s\n%s\n%s\n' "$start" "$content" "$end" > "$file"
+    _write_block_only "$file" "$tag" "$content"
   fi
+}
+
+# Write a file containing only the managed block, replacing any prior content.
+# Used by write_managed_block's empty-file branch and by install_managed_block's
+# backup/overwrite choices, where preserved user content is either saved or dropped.
+_write_block_only() {
+  local file tag content
+  file=${1:?} tag=${2:?} content=${3?}
+  printf '%s\n%s\n%s\n' "# >>> $tag >>>" "$content" "# <<< $tag <<<" > "$file"
 }
 
 # True if $1 contains only managed-block fences (any tag) + blank lines, i.e.
@@ -57,7 +66,7 @@ only_managed_blocks() {
 # $2: tag
 # $3: content
 install_managed_block() {
-  local file tag content start prepend=0
+  local file tag content start prepend=0 add_label
   if [ "$1" = "-p" ] || [ "$1" = "--prepend" ]; then
     prepend=1
     shift
@@ -86,8 +95,12 @@ install_managed_block() {
   # `if`-wrap so a caller running under `set -e` doesn't abort on choose's
   # non-zero exit (which is how the chosen option is returned).
   local choice=0
+  if [ "$prepend" = 1 ]
+    then add_label="Prepend block to existing $file"
+    else add_label="Append block to existing $file"
+  fi
   if choose -d 1 "Backup existing $file and write block" \
-                 "Append block to existing $file" \
+                 "$add_label" \
                  "Overwrite existing $file with block only"
     then choice=$?
     else choice=$?
@@ -95,9 +108,11 @@ install_managed_block() {
   case "$choice" in
     0) echo "$file not configured!"; return 1 ;;
     1) backup_file "$file"
-       printf '%s\n%s\n%s\n' "$start" "$content" "# <<< $tag <<<" > "$file" ;;
-    2) write_managed_block "$file" "$tag" "$content" ;;
-    3) rm -f "$file"
-       printf '%s\n%s\n%s\n' "$start" "$content" "# <<< $tag <<<" > "$file" ;;
+       _write_block_only "$file" "$tag" "$content" ;;
+    2) if [ "$prepend" = 1 ]
+         then write_managed_block --prepend "$file" "$tag" "$content"
+         else write_managed_block "$file" "$tag" "$content"
+       fi ;;
+    3) _write_block_only "$file" "$tag" "$content" ;;
   esac
 }

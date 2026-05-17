@@ -236,6 +236,20 @@ block
   assertEquals "$expected" "$(cat "$TARGET")"
 }
 
+test_install_managed_block_first_time_append_with_prepend_lands_block_at_top() {
+  printf 'user line\n' > "$TARGET"
+
+  echo 2 | install_managed_block --prepend "$TARGET" "dotfiles:zsh" "block" >/dev/null
+
+  assertFalse "No backup should be created" "[ -f \"$TARGET.bkp\" ]"
+  expected='# >>> dotfiles:zsh >>>
+block
+# <<< dotfiles:zsh <<<
+
+user line'
+  assertEquals "$expected" "$(cat "$TARGET")"
+}
+
 test_install_managed_block_first_time_overwrite_drops_user_content() {
   printf 'user line\n' > "$TARGET"
 

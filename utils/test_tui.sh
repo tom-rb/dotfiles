@@ -19,35 +19,7 @@ tearDown() {
 
 
 #
-# Tests
-#
-
-test_die_with_default_message_and_code() {
-  message=$(die)
-  assertEquals 1 $?
-  assertEquals "Aborted." "$message"
-}
-
-test_die_with_custom_message_and_code() {
-  message=$(die Bye)
-  assertEquals 1 $?
-  assertEquals "Bye" "$message"
-
-  message=$(die 'Custom code' 129)
-  assertEquals 129 $?
-  assertEquals "Custom code" "$message"
-}
-
-test_check_a_command_exists() {
-  command_exists cat
-  assertTrue "Command cat should be found" $?
-
-  command_exists no_such_command
-  assertFalse "Command no_such_command should not be found" $?
-}
-
-#
-# CLI utils
+# read_char
 #
 
 test_read_char_from_pipe() {
@@ -60,6 +32,10 @@ test_read_char_silent_from_pipe() {
   # Used for "waiting for input" case
   assertEquals "" "$char"
 }
+
+#
+# confirm
+#
 
 test_confirm_has_default_message() {
   message=$(yes | confirm)
@@ -132,6 +108,10 @@ test_confirm_write_y_for_enter() {
   assertEquals "y" "${message##*[!y]}"
 }
 
+#
+# choose
+#
+
 test_choose_print_the_options() {
   output=$(echo 1 | choose "first option" second)
   assertContains "Should print first option" \
@@ -181,6 +161,10 @@ test_choose_dont_print_anything_on_invalid_answer() {
     "$(echo "$output" | tr '\n' '|')"
 }
 
+#
+# prompt_line
+#
+
 test_prompt_line_reads_input_into_named_var() {
   answer=
   answer=$(echo "Alice" | { prompt_line "Name: " answer > /dev/null; echo "$answer"; })
@@ -201,96 +185,6 @@ test_prompt_line_sets_empty_when_input_is_blank() {
   answer=PRESET
   answer=$(echo "" | { prompt_line "> " answer > /dev/null; echo "$answer"; })
   assertEquals "" "$answer"
-}
-
-#
-# File utils
-#
-
-test_backup_fails_if_arg_is_empty_or_file_does_not_exist() {
-  backup_file "inexistent" 2> /dev/null
-  assertFalse "Expected failure for inexistent file" $?
-
-  (backup_file) 2> /dev/null
-  assertFalse "Expected failure for no argument" $?
-}
-
-test_backup_file_copies_it() {
-  # TODO: check all functions that accept files putting spaces in them
-  file="${SHUNIT_TMPDIR:?}/original with spaces"
-  echo "original" > "$file"
-
-  backup_file "$file"
-
-  assertTrue "No errors expected" $?
-  assertTrue "Expected backup copy" "[ -f \"$file.bkp\" ]"
-}
-
-test_backup_file_increments_bkp_number_if_backup_exists() {
-  file="${SHUNIT_TMPDIR:?}/original with spaces"
-  echo "original" > "$file"
-
-  backup_file "$file"
-  backup_file "$file"
-  assertTrue "Expected 2nd backup copy" "[ -f \"$file.bkp1\" ]"
-
-  backup_file "$file"
-  assertTrue "Expected 3rd backup copy" "[ -f \"$file.bkp2\" ]"
-}
-
-#
-# Package Manager utilities
-#
-
-test_get_version_in_package_manager_fails_for_unsupported_pm() {
-  createSpy -u -r "$SHUNIT_FALSE" command_exists
-
-  err_msg=$({ get_version_in_pm htop 1>/dev/null; } 2>&1)
-
-  assertContains "Should get an error message" \
-    "${err_msg}" "find package manager"
-}
-
-test_install_from_package_manager_fails_for_unsupported_pm() {
-  createSpy -u -r "$SHUNIT_FALSE" command_exists
-
-  err_msg=$({ install_from_pm htop 1>/dev/null; } 2>&1)
-
-  assertContains "Should get an error message" \
-    "${err_msg}" "find package manager"
-}
-
-#
-# version_ge
-#
-
-test_version_ge_equal_versions() {
-  assertTrue  "3.1b >= 3.1b" "version_ge 3.1b 3.1b"
-  assertTrue  "3.2  >= 3.2"  "version_ge 3.2 3.2"
-  assertTrue  "3.1  >= 3.1"  "version_ge 3.1 3.1"
-}
-
-test_version_ge_major_difference() {
-  assertTrue  "4.0  >= 3.6a" "version_ge 4.0 3.6a"
-  assertTrue  "10.0 >= 3.6"  "version_ge 10.0 3.6"
-  assertFalse "2.9  >= 3.0"  "version_ge 2.9 3.0"
-  assertFalse "3.6a >= 4.0"  "version_ge 3.6a 4.0"
-}
-
-test_version_ge_minor_difference() {
-  assertTrue  "3.2  >= 3.1b" "version_ge 3.2 3.1b"
-  assertTrue  "3.10 >= 3.2"  "version_ge 3.10 3.2"
-  assertFalse "3.1  >= 3.2"  "version_ge 3.1 3.2"
-  assertFalse "3.1b >= 3.2"  "version_ge 3.1b 3.2"
-}
-
-test_version_ge_letter_suffix_difference() {
-  assertTrue  "3.1b >= 3.1a" "version_ge 3.1b 3.1a"
-  assertTrue  "3.1a >= 3.1"  "version_ge 3.1a 3.1"
-  assertTrue  "3.6a >= 3.6"  "version_ge 3.6a 3.6"
-  assertFalse "3.1a >= 3.1b" "version_ge 3.1a 3.1b"
-  assertFalse "3.1  >= 3.1a" "version_ge 3.1 3.1a"
-  assertFalse "3.6  >= 3.6a" "version_ge 3.6 3.6a"
 }
 
 

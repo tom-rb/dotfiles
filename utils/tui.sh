@@ -1,0 +1,87 @@
+#!/usr/bin/env sh
+
+# Read one char from terminal input (or piped stdin)
+# If $1 is not empty, echoing the char is turned off
+# https://stackoverflow.com/a/30022297/4783169
+# shellcheck disable=SC2120
+read_char() {
+  # TODO: block -isig chars too; restore only what was enabled before
+  # Only apply stty changes if FD 0 is open (stdin is from tty)
+  [ -t 0 ] && stty -icanon -echo
+  if [ -z "$1" ]; then
+    dd bs=1 count=1 2>/dev/null
+  else
+    # Only read a char (for a "waiting for input" effect)
+    dd bs=1 count=1 1>/dev/null 2>&1
+  fi
+  [ -t 0 ] && stty icanon echo
+}
+
+# Ask for user confirmation with a keystroke
+# -n: Make default answer be NO
+# $1: (optional) Confirmation message
+confirm() {
+  local c message out_code
+  if [ "$1" != '-n' ]
+    then message=$1 out_code=0
+    else message=$2 out_code=1
+  fi
+  # Remove trailing whitespace characters
+  message="${message%"${message##*[![:space:]]}"}"
+  message="${message:-Continue?}"
+  if [ $out_code -eq 0 ]
+    then message="$message (Y/n) "
+    else message="$message (y/N) "
+  fi
+  printf "%s" "$message"
+  while : ; do
+    c=$(read_char)
+    case "$c" in
+      [nN]) echo "$c"; return 1;;
+      [yY]) echo "$c"; return 0;;
+      "")   [ $out_code -eq 0 ] && echo 'y' || echo 'n'
+            return $out_code;;
+      *)    echo ' Choose y or n.';;
+    esac
+  done
+}
+
+# Show options to the user and return a choice
+# -d N: return choice N when the user just presses enter
+# $1-9: messages to choose from
+# Returns 0 on cancel or >=1 for the choice
+choose() {
+  local opt_i c default=
+  if [ "$1" = -d ]; then
+    default=$2
+    shift 2
+  fi
+  # While a valid option isn't chosen
+  while : ; do
+    opt_i=0
+    # Print options
+    for opt in "$@"; do
+      opt_i=$((opt_i + 1))
+      printf '%d) %s\n' $opt_i "$opt"
+    done
+    echo "q) Quit"
+    # Get answer TODO: ctrl+c should cancel, not return 2
+    while : ; do
+      c=$(read_char)
+      case "$c" in
+        [1-$opt_i]) echo "$c"; return "$c" ;;
+        q)   echo 'Cancelled'; return 0 ;;
+        "")  [ -n "$default" ] && { echo "$default"; return "$default"; } ;;
+      esac
+    done
+  done
+}
+
+# Prompt the user for a single line of input.
+# Leading and trailing whitespace are stripped (default IFS read behavior).
+# $1: prompt message
+# $2: name of variable to set with the response
+prompt_line() {
+  printf "%s" "${1:?}"
+  read -r "${2:?}"
+}

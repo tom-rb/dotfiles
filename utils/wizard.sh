@@ -18,20 +18,13 @@ wizard_run() {
   # Consume the -- separator
   shift
 
-  # Build an &&-chain string from the step names
-  local chain=""
-  for step in "$@"; do
-    if [ -z "$chain" ]; then
-      chain="$step"
-    else
-      chain="$chain && $step"
-    fi
-  done
-
+  # Subshell uses `exit` (not `return`) because POSIX `return` from a subshell
+  # forked off a function is non-portable; the failing step's code propagates
+  # via the pipe's last-command status.
   if [ "$use_yes" = 1 ]; then
-    yes "" | eval "$chain"
+    yes "" | { for step in "$@"; do "$step" || exit; done; }
   else
-    eval "$chain"
+    for step in "$@"; do "$step" || return; done
   fi
 }
 

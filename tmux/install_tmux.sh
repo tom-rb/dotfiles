@@ -30,9 +30,8 @@ get_tmux_release_version() {
 }
 
 install_tmux_build_dependencies() {
-  # shellcheck disable=SC2046  # intentional word-splitting of resolved names
-  install_from_pm $(pm_packages_for \
-    wget tar gzip gcc make libevent-headers ncurses-headers bison)
+  install_from_pm \
+    wget tar gzip gcc make libevent-headers ncurses-headers bison
 }
 
 # Install version $1 from source, (optional) install at $2 location
@@ -202,8 +201,7 @@ install_tpm_plugins() {
   local plugins_dir
   (
     set -e
-    # shellcheck disable=SC2046  # intentional word-splitting of resolved names
-    install_from_pm $(pm_packages_for git)
+    install_from_pm git
     plugins_dir=$(get_tmux_plugins_dir)
     "$plugins_dir/tpm/bin/install_plugins"
   )

@@ -107,8 +107,7 @@ ensure_chsh_available() {
   if command_exists chsh; then
     return 0
   fi
-  # shellcheck disable=SC2046  # intentional word-splitting of resolved names
-  install_from_pm $(pm_packages_for chsh) || {
+  install_from_pm chsh || {
     echo "Couldn't install chsh from package manager."
     return 0
   }

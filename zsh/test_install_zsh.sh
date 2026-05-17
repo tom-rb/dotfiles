@@ -188,20 +188,18 @@ test_ensure_chsh_skips_when_already_installed() {
   assertNeverCalled install_from_pm
 }
 
-test_ensure_chsh_installs_util_linux_user_on_yum() {
+test_ensure_chsh_installs_chsh_canonical_via_pm() {
   createSpy -u -r "$SHUNIT_FALSE" command_exists
-  createSpy -u -o 'yum' get_supported_pm
   createSpy -u install_from_pm
 
   ensure_chsh_available
 
   assertTrue "Should succeed after install" $?
-  assertCalledOnceWith install_from_pm util-linux-user
+  assertCalledOnceWith install_from_pm chsh
 }
 
 test_ensure_chsh_warns_and_returns_zero_when_install_fails() {
   createSpy -u -r "$SHUNIT_FALSE" command_exists
-  createSpy -u -o 'yum' get_supported_pm
   createSpy -u -r "$SHUNIT_FALSE" install_from_pm
 
   output=$(ensure_chsh_available)

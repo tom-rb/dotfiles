@@ -441,7 +441,6 @@ echo "install_plugins called"
 EOF
   chmod +x "$plugins_dir/tpm/bin/install_plugins"
   createSpy -u install_from_pm
-  createSpy -u -o 'git' pm_packages_for
 
   output=$(install_tpm_plugins)
 
