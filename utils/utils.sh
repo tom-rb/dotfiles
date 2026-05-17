@@ -6,6 +6,8 @@
 . "${DOTFILES:?}/utils/managed_block.sh"
 # shellcheck source=xdg_paths.sh
 . "${DOTFILES:?}/utils/xdg_paths.sh"
+# shellcheck source=wizard.sh
+. "${DOTFILES:?}/utils/wizard.sh"
 
 # Echo $1 and exit 1, or optionally with specified $2 code
 die() {

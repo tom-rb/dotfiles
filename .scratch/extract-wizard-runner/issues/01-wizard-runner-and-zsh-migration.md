@@ -1,6 +1,6 @@
 # Wizard runner module + zsh tracer-bullet migration
 
-Status: ready-for-agent
+Status: done
 
 ## Parent
 
@@ -55,3 +55,19 @@ Prior art for the test conventions: `utils/test_managed_block.sh` (pure transfor
 ## Blocked by
 
 None - can start immediately
+
+## Comments
+
+### 2026-05-17 — landed on develop
+
+- New `utils/wizard.sh` with `wizard_run`, `wizard_main`, `start_module_wizard` (POSIX sh, sourced via `utils/utils.sh`).
+- `utils/test_wizard.sh` covers all 9 behaviours from the spec (order, short-circuit, exit-code preservation, `-y` stdin, no-`-y` stdin passthrough, `wizard_main` dispatch + no-op, `start_module_wizard` argv + exit code).
+- `zsh/install_zsh.sh`: body is now `wizard_run "$@" -- install_zsh_program install_zsh_dotfiles set_zsh_as_default_shell`; footer is `wizard_main install_zsh_wizard "$@"`.
+- `zsh/test_install_zsh.sh`: deleted the two old wizard-chain tests; replaced with a single `test_wizard_delegates_step_list_to_wizard_run` (~5 lines) asserting argv to `wizard_run`.
+- `deploy.sh`: deleted `start_zsh_wizard`; `deploy_wizard` now calls `start_module_wizard zsh`. Other four `start_<mod>_wizard` pass-throughs untouched (slices 02-05 will delete them).
+
+**Deviation from spec.** Spec says "spy on `sh`" in `utils/test_wizard.sh`. shpy generates spy executables with `#!/usr/bin/env sh` shebangs, so a `sh` spy on PATH recurses through env infinitely. Worked around by introducing a one-line `_sh()` wrapper in `wizard.sh` and spying on `_sh` in the test. Argv contract is preserved at the `_sh` boundary; production `sh --` semantics are unchanged.
+
+**Pre-existing bug noticed.** `tests/test_deploy.sh` never spies on `start_asdf_wizard`, so running `make unit FILE=tests/test_deploy.sh` actually downloads asdf from GitHub during two of the four tests. Not introduced by this slice — was already broken. Worth a follow-up issue.
+
+**Validation that passed.** `make lint`; `make unit FILE=utils/test_wizard.sh` (9/9); `make unit FILE=zsh/test_install_zsh.sh` (21/21); `make unit FILE=tests/test_deploy.sh` (4/4); `make system-ubuntu FILE=zsh/test_install_zsh.system.sh` (2/2).

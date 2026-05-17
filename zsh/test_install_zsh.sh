@@ -269,27 +269,13 @@ test_set_default_shell_returns_success_with_hint_when_chsh_fails() {
 # wizard
 #
 
-test_wizard_installs_dotfiles_when_zsh_is_installed() {
-  createSpy -u install_zsh_program
-  createSpy -u install_zsh_dotfiles
-  createSpy -u set_zsh_as_default_shell
+test_wizard_delegates_step_list_to_wizard_run() {
+  createSpy -u wizard_run
 
+  # shellcheck disable=SC2119
   install_zsh_wizard
 
-  assertCallCount install_zsh_program 1
-  assertCallCount install_zsh_dotfiles 1
-  assertCallCount set_zsh_as_default_shell 1
-}
-
-test_wizard_does_not_install_dotfiles_when_zsh_installation_fails() {
-  createSpy -u -r "$SHUNIT_FALSE" install_zsh_program
-  createSpy -u install_zsh_dotfiles
-  createSpy -u set_zsh_as_default_shell
-
-  install_zsh_wizard
-
-  assertCallCount install_zsh_program 1
-  assertNeverCalled install_zsh_dotfiles
+  assertCalledOnceWith wizard_run -- install_zsh_program install_zsh_dotfiles set_zsh_as_default_shell
 }
 
 # Run tests

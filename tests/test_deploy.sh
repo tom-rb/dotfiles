@@ -27,7 +27,7 @@ test_deploy_wizard_installs_basic_packages() {
   # Basic packages not installed
   createSpy -u -r "$SHUNIT_FALSE" command_exists
   createSpy -u install_from_pm
-  createSpy -u start_zsh_wizard
+  createSpy -u start_module_wizard
   createSpy -u start_zimfw_wizard
   createSpy -u start_tmux_wizard
   createSpy -u start_git_wizard
@@ -37,7 +37,7 @@ test_deploy_wizard_installs_basic_packages() {
   assertContains "Expected continuation message" \
     "$message" "basic packages first"
   assertCallCount install_from_pm 1
-  assertCallCount start_zsh_wizard 1
+  assertCalledOnceWith start_module_wizard zsh
   assertCallCount start_zimfw_wizard 1
   assertCallCount start_tmux_wizard 1
   assertCallCount start_git_wizard 1
@@ -47,7 +47,7 @@ test_deploy_wizard_skips_basic_packages_if_installed() {
   # Basic packages are installed
   createSpy -u -r "$SHUNIT_TRUE" command_exists
   createSpy -u install_from_pm
-  createSpy -u start_zsh_wizard
+  createSpy -u start_module_wizard
   createSpy -u start_zimfw_wizard
   createSpy -u start_tmux_wizard
   createSpy -u start_git_wizard
@@ -57,7 +57,7 @@ test_deploy_wizard_skips_basic_packages_if_installed() {
   assertNotContains "Continuation message not expected" \
     "$message" "basic packages first"
   assertCallCount install_from_pm 0
-  assertCallCount start_zsh_wizard 1
+  assertCalledOnceWith start_module_wizard zsh
   assertCallCount start_zimfw_wizard 1
   assertCallCount start_tmux_wizard 1
   assertCallCount start_git_wizard 1
@@ -66,7 +66,7 @@ test_deploy_wizard_skips_basic_packages_if_installed() {
 test_deploy_wizard_skips_zimfw_when_zsh_declined() {
   createSpy -u -r "$SHUNIT_TRUE" command_exists
   createSpy -u install_from_pm
-  createSpy -u start_zsh_wizard
+  createSpy -u start_module_wizard
   createSpy -u start_zimfw_wizard
   createSpy -u start_tmux_wizard
   createSpy -u start_git_wizard
@@ -74,7 +74,7 @@ test_deploy_wizard_skips_zimfw_when_zsh_declined() {
   # Decline zsh; accept the rest. confirm reads one byte per call.
   printf 'n\ny\ny\n' | deploy_wizard >/dev/null
 
-  assertNeverCalled start_zsh_wizard
+  assertNeverCalled start_module_wizard
   assertNeverCalled start_zimfw_wizard
   assertCallCount start_tmux_wizard 1
   assertCallCount start_git_wizard 1

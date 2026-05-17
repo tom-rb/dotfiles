@@ -149,16 +149,8 @@ set_zsh_as_default_shell() {
 # Installs zsh and its dotfiles, then offers to set it as default shell
 # -y: accepts default answer for all questions
 install_zsh_wizard() {
-  if [ "$1" = -y ]; then
-  # Sends "enter" continuously
-  yes "
-" | { install_zsh_program && install_zsh_dotfiles && set_zsh_as_default_shell; }
-  else
-    install_zsh_program && install_zsh_dotfiles && set_zsh_as_default_shell
-  fi
+  wizard_run "$@" -- install_zsh_program install_zsh_dotfiles set_zsh_as_default_shell
 }
 
 # Run installation if called with --wizard
-if [ "$1" = --wizard ]; then
-  install_zsh_wizard interactive
-fi
+wizard_main install_zsh_wizard "$@"
