@@ -127,6 +127,12 @@ install_tmux_program() {
   )
 }
 
+# No-arg step adapter for install_tmux_program so the wizard runner can call it
+# from the step list without arguments. The version constant lives here.
+install_tmux_program_step() {
+  install_tmux_program 3.1b
+}
+
 install_tmux_dotfiles() {
   local config_dir tmux_conf contents plugins_dir
   # Sub-shell for scoping set -e
@@ -273,25 +279,8 @@ EOF
 # Installs tmux and its dotfiles with an expected version
 # -y: accepts default answer for all questions
 install_tmux_wizard() {
-  local desired_version=3.1b
-  if [ "$1" = -y ]; then
-  # Sends "enter" continuously
-  yes "
-" | { install_tmux_program "$desired_version" \
-      && install_tmux_dotfiles \
-      && install_tpm \
-      && install_tpm_plugins \
-      && install_tmux_shell_bridge; }
-  else
-    install_tmux_program "$desired_version" \
-      && install_tmux_dotfiles \
-      && install_tpm \
-      && install_tpm_plugins \
-      && install_tmux_shell_bridge
-  fi
+  wizard_run "$@" -- install_tmux_program_step install_tmux_dotfiles install_tpm install_tpm_plugins install_tmux_shell_bridge
 }
 
 # Run installation if called with --wizard
-if [ "$1" = --wizard ]; then
-  install_tmux_wizard interactive
-fi
+wizard_main install_tmux_wizard "$@"

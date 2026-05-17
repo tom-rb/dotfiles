@@ -29,18 +29,17 @@ test_deploy_wizard_installs_basic_packages() {
   createSpy -u install_from_pm
   createSpy -u start_module_wizard
   createSpy -u start_zimfw_wizard
-  createSpy -u start_tmux_wizard
 
   message="$(yes | deploy_wizard)"
 
   assertContains "Expected continuation message" \
     "$message" "basic packages first"
   assertCallCount install_from_pm 1
-  assertCallCount start_module_wizard 2
+  assertCallCount start_module_wizard 3
   assertCalledWith start_module_wizard zsh
+  assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
   assertCallCount start_zimfw_wizard 1
-  assertCallCount start_tmux_wizard 1
 }
 
 test_deploy_wizard_skips_basic_packages_if_installed() {
@@ -49,18 +48,17 @@ test_deploy_wizard_skips_basic_packages_if_installed() {
   createSpy -u install_from_pm
   createSpy -u start_module_wizard
   createSpy -u start_zimfw_wizard
-  createSpy -u start_tmux_wizard
 
   message="$(yes | deploy_wizard)"
 
   assertNotContains "Continuation message not expected" \
     "$message" "basic packages first"
   assertCallCount install_from_pm 0
-  assertCallCount start_module_wizard 2
+  assertCallCount start_module_wizard 3
   assertCalledWith start_module_wizard zsh
+  assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
   assertCallCount start_zimfw_wizard 1
-  assertCallCount start_tmux_wizard 1
 }
 
 test_deploy_wizard_skips_zimfw_when_zsh_declined() {
@@ -68,14 +66,14 @@ test_deploy_wizard_skips_zimfw_when_zsh_declined() {
   createSpy -u install_from_pm
   createSpy -u start_module_wizard
   createSpy -u start_zimfw_wizard
-  createSpy -u start_tmux_wizard
 
   # Decline zsh; accept the rest. confirm reads one byte per call.
   printf 'n\ny\ny\n' | deploy_wizard >/dev/null
 
-  assertCalledOnceWith start_module_wizard git
+  assertCallCount start_module_wizard 2
+  assertCalledWith start_module_wizard tmux
+  assertCalledWith start_module_wizard git
   assertNeverCalled start_zimfw_wizard
-  assertCallCount start_tmux_wizard 1
 }
 
 test_deploy_wizard_dies_if_basic_packages_fail() {

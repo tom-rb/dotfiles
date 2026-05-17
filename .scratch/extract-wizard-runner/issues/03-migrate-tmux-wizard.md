@@ -1,6 +1,6 @@
 # Migrate `install_tmux_wizard` onto the Wizard runner
 
-Status: ready-for-agent
+Status: done
 
 ## Parent
 
@@ -39,3 +39,14 @@ Test surface:
 ## Blocked by
 
 - `.scratch/extract-wizard-runner/issues/01-wizard-runner-and-zsh-migration.md`
+
+## Comments
+
+### 2026-05-17 — landed on develop
+
+- `tmux/install_tmux.sh`: added `install_tmux_program_step` no-arg wrapper next to `install_tmux_program`; the `3.1b` desired-version constant lives in the wrapper. `install_tmux_wizard` body is now `wizard_run "$@" -- install_tmux_program_step install_tmux_dotfiles install_tpm install_tpm_plugins install_tmux_shell_bridge`; footer is `wizard_main install_tmux_wizard "$@"`.
+- `tmux/test_install_tmux.sh`: deleted the two old chain-mock wizard tests; added `test_install_tmux_program_step_forwards_pinned_version` (asserts `install_tmux_program 3.1b`) and `test_wizard_delegates_step_list_to_wizard_run`.
+- `deploy.sh`: deleted `start_tmux_wizard`; `deploy_wizard` calls `start_module_wizard tmux`.
+- `tests/test_deploy.sh`: `start_module_wizard` is now called 3 times in the all-yes tests (zsh, tmux, git) and 2 times in the zsh-declined test (tmux, git); ordered `assertCalledWith` updated accordingly.
+
+**Validation that passed.** `make lint`; `make unit FILE=tmux/test_install_tmux.sh` (31/31); `make unit FILE=tests/test_deploy.sh` (4/4); `make system-ubuntu FILE=tmux/test_install_tmux.system.sh` (7/7).

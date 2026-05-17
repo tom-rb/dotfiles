@@ -251,36 +251,26 @@ test_with_existing_tmux_dotfiles_user_can_cancel() {
     "# Some existing config" "$(cat "$HOME"/.config/tmux/tmux.conf)"
 }
 
-test_wizard_installs_dotfiles_when_tmux_is_installed() {
+# install_tmux_program_step
+
+test_install_tmux_program_step_forwards_pinned_version() {
   createSpy -u install_tmux_program
-  createSpy -u install_tmux_dotfiles
-  createSpy -u install_tpm
-  createSpy -u install_tpm_plugins
-  createSpy -u install_tmux_shell_bridge
 
-  install_tmux_wizard
+  install_tmux_program_step
 
-  assertCallCount install_tmux_program 1
-  assertCallCount install_tmux_dotfiles 1
-  assertCallCount install_tpm 1
-  assertCallCount install_tpm_plugins 1
-  assertCallCount install_tmux_shell_bridge 1
+  assertCalledOnceWith install_tmux_program 3.1b
 }
 
-test_wizard_does_not_install_dotfiles_when_tmux_installation_fails() {
-  createSpy -u -r "$SHUNIT_FALSE" install_tmux_program
-  createSpy -u install_tmux_dotfiles
-  createSpy -u install_tpm
-  createSpy -u install_tpm_plugins
-  createSpy -u install_tmux_shell_bridge
+#
+# wizard
 
+test_wizard_delegates_step_list_to_wizard_run() {
+  createSpy -u wizard_run
+
+  # shellcheck disable=SC2119
   install_tmux_wizard
 
-  assertCallCount install_tmux_program 1
-  assertNeverCalled install_tmux_dotfiles
-  assertNeverCalled install_tpm
-  assertNeverCalled install_tpm_plugins
-  assertNeverCalled install_tmux_shell_bridge
+  assertCalledOnceWith wizard_run -- install_tmux_program_step install_tmux_dotfiles install_tpm install_tpm_plugins install_tmux_shell_bridge
 }
 
 #

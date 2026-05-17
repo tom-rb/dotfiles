@@ -41,10 +41,6 @@ start_zimfw_wizard() {
   sh -- "$DOTFILES/zimfw/install_zimfw.sh" --wizard
 }
 
-start_tmux_wizard() {
-  sh -- "$DOTFILES/tmux/install_tmux.sh" --wizard
-}
-
 start_asdf_wizard() {
   sh -- "$DOTFILES/asdf/install_asdf.sh" --wizard
 }
@@ -72,7 +68,7 @@ deploy_wizard() {
   fi
 
   if confirm "Install tmux?"; then
-    start_tmux_wizard
+    start_module_wizard tmux
   fi
 
   if confirm "Install git?"; then
