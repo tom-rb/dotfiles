@@ -81,3 +81,17 @@ readonly THISDIR
 **Comments:** Each function gets a short comment directly above it describing what it does. If it takes arguments or flags, document them on subsequent lines: `-n: make default answer NO` / `$1: confirmation message`. If the return value is non-obvious, note it too: `Returns 0 on cancel or >=1 for the choice`. No block comments, no `@param`/`@returns` tags.
 
 Related functions are grouped with a `#\n# Section name\n#` divider. Inline comments inside a function explain non-obvious logic only — a workaround, a hidden constraint, a subtle invariant — never what the code does.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as markdown files under `.scratch/<feature-slug>/` in this repo. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.

@@ -8,7 +8,15 @@ A per-tool slice of the repo — `git/`, `tmux/`, `zsh/`, `zimfw/`, `asdf/`, plu
 
 ## Wizard
 
-The user-facing install flow for a module, exposed as `install_<module>_wizard` and triggered by `sh <module>/install_<module>.sh --wizard`. A wizard composes the smaller install steps (program, dotfiles, post-install) into an `&&`-chain, and accepts `-y` to accept default answers for every interactive prompt.
+The user-facing install flow for a module, exposed as `install_<module>_wizard` and triggered by `sh <module>/install_<module>.sh --wizard`. A wizard is a list of [[Wizard step]]s composed by the [[Wizard runner]] into an `&&`-chain, with `-y` accepting default answers for every interactive prompt. The per-module `install_<module>_wizard` function is the adapter: it names the step list, the runner does everything else.
+
+## Wizard step
+
+One function in a wizard's chain — typically a program install, a dotfile render, or a post-install hook (e.g. `install_zsh_program`, `install_zsh_dotfiles`, `set_zsh_as_default_shell`). Steps are no-arg by convention; modules that need to parameterize a step (e.g. `install_tmux_program "$desired_version"`) wrap the call in a no-arg step function. The runner short-circuits on the first step that returns non-zero.
+
+## Wizard runner
+
+`utils/wizard.sh` — the shared machinery behind every wizard. Exposes two helpers: `wizard_run` (executes a step list, handles `-y` by piping `yes` into the chain) and `wizard_main` (the `--wizard` dispatch at the bottom of each installer script). Cross-module orchestration in `deploy.sh` uses `start_module_wizard <name>`, which shells out to the module's install script under a fresh `sh -- ` so a `die` in one module doesn't terminate the surrounding `deploy_wizard`.
 
 ## Owned dotfile
 
