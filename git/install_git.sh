@@ -89,16 +89,9 @@ configure_git_user() {
 }
 
 # Installs git, configures templates and global excludes, then offers to set
-# user identity
+# user identity. Supports -y for non-interactive runs.
 install_git_wizard() {
-  install_git_program \
-    && install_git_templates \
-    && install_git_excludesfile \
-    && install_git_default_branch \
-    && configure_git_user
+  wizard_run "$@" -- install_git_program install_git_templates install_git_excludesfile install_git_default_branch configure_git_user
 }
 
-# Run installation if called with --wizard
-if [ "$1" = --wizard ]; then
-  install_git_wizard
-fi
+wizard_main install_git_wizard "$@"

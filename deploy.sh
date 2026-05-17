@@ -45,10 +45,6 @@ start_tmux_wizard() {
   sh -- "$DOTFILES/tmux/install_tmux.sh" --wizard
 }
 
-start_git_wizard() {
-  sh -- "$DOTFILES/git/install_git.sh" --wizard
-}
-
 start_asdf_wizard() {
   sh -- "$DOTFILES/asdf/install_asdf.sh" --wizard
 }
@@ -80,7 +76,7 @@ deploy_wizard() {
   fi
 
   if confirm "Install git?"; then
-    start_git_wizard
+    start_module_wizard git
   fi
 }
 

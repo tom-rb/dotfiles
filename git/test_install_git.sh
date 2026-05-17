@@ -178,78 +178,13 @@ test_configure_user_skips_when_value_input_is_empty() {
 # install_git_wizard
 #
 
-test_wizard_chains_calls() {
-  createSpy -u install_git_program
-  createSpy -u install_git_templates
-  createSpy -u install_git_excludesfile
-  createSpy -u install_git_default_branch
-  createSpy -u configure_git_user
+test_wizard_delegates_step_list_to_wizard_run() {
+  createSpy -u wizard_run
 
+  # shellcheck disable=SC2119
   install_git_wizard
 
-  assertCallCount install_git_program 1
-  assertCallCount install_git_templates 1
-  assertCallCount install_git_excludesfile 1
-  assertCallCount install_git_default_branch 1
-  assertCallCount configure_git_user 1
-}
-
-test_wizard_stops_when_program_install_fails() {
-  createSpy -u -r "$SHUNIT_FALSE" install_git_program
-  createSpy -u install_git_templates
-  createSpy -u install_git_excludesfile
-  createSpy -u install_git_default_branch
-  createSpy -u configure_git_user
-
-  install_git_wizard
-
-  assertCallCount install_git_program 1
-  assertNeverCalled install_git_templates
-  assertNeverCalled install_git_excludesfile
-  assertNeverCalled install_git_default_branch
-  assertNeverCalled configure_git_user
-}
-
-test_wizard_stops_when_templates_install_fails() {
-  createSpy -u install_git_program
-  createSpy -u -r "$SHUNIT_FALSE" install_git_templates
-  createSpy -u install_git_excludesfile
-  createSpy -u install_git_default_branch
-  createSpy -u configure_git_user
-
-  install_git_wizard
-
-  assertCallCount install_git_templates 1
-  assertNeverCalled install_git_excludesfile
-  assertNeverCalled install_git_default_branch
-  assertNeverCalled configure_git_user
-}
-
-test_wizard_stops_when_excludesfile_install_fails() {
-  createSpy -u install_git_program
-  createSpy -u install_git_templates
-  createSpy -u -r "$SHUNIT_FALSE" install_git_excludesfile
-  createSpy -u install_git_default_branch
-  createSpy -u configure_git_user
-
-  install_git_wizard
-
-  assertCallCount install_git_excludesfile 1
-  assertNeverCalled install_git_default_branch
-  assertNeverCalled configure_git_user
-}
-
-test_wizard_stops_when_default_branch_install_fails() {
-  createSpy -u install_git_program
-  createSpy -u install_git_templates
-  createSpy -u install_git_excludesfile
-  createSpy -u -r "$SHUNIT_FALSE" install_git_default_branch
-  createSpy -u configure_git_user
-
-  install_git_wizard
-
-  assertCallCount install_git_default_branch 1
-  assertNeverCalled configure_git_user
+  assertCalledOnceWith wizard_run -- install_git_program install_git_templates install_git_excludesfile install_git_default_branch configure_git_user
 }
 
 # Run tests

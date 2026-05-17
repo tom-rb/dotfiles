@@ -1,6 +1,6 @@
 # Migrate `install_git_wizard` onto the Wizard runner
 
-Status: ready-for-agent
+Status: done
 
 ## Parent
 
@@ -39,3 +39,14 @@ Test surface:
 ## Blocked by
 
 - `.scratch/extract-wizard-runner/issues/01-wizard-runner-and-zsh-migration.md`
+
+## Comments
+
+### 2026-05-17 — landed on develop
+
+- `git/install_git.sh`: `install_git_wizard` body is now `wizard_run "$@" -- install_git_program install_git_templates install_git_excludesfile install_git_default_branch configure_git_user`; footer is `wizard_main install_git_wizard "$@"`. Wizard now supports `-y` for free.
+- `git/test_install_git.sh`: deleted the five chain-composition tests; replaced with a single `test_wizard_delegates_step_list_to_wizard_run`.
+- `deploy.sh`: deleted `start_git_wizard`; `deploy_wizard` calls `start_module_wizard git`.
+- `tests/test_deploy.sh`: dropped `start_git_wizard` spies/assertions; updated the all-yes tests to assert two ordered `start_module_wizard` calls (zsh then git); fixed `test_deploy_wizard_skips_zimfw_when_zsh_declined` to assert `start_module_wizard git` once (since git still runs when zsh is declined).
+
+**Validation that passed.** `make lint`; `make unit FILE=git/test_install_git.sh` (14/14); `make unit FILE=tests/test_deploy.sh` (4/4); `make system-ubuntu FILE=git/test_install_git.system.sh` (2/2).
