@@ -54,9 +54,6 @@ install_zsh_zshenv() {
 
 		# Setup ZDOTDIR — where zsh reads .zshrc, .zlogin, etc.
 		export ZDOTDIR=\${XDG_CONFIG_HOME}/$ZDOTDIR_SUBPATH
-
-		# Data path for asdf version manager
-		export ASDF_DATA_DIR=\${XDG_DATA_HOME}/asdf
 EOF
     )
     install_managed_block "$zshenv" "dotfiles:zsh" "$content"

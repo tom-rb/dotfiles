@@ -4,7 +4,7 @@ This file is the glossary for the dotfiles repo. When code or docs name a concep
 
 ## Module
 
-A per-tool slice of the repo — `git/`, `tmux/`, `zsh/`, `zimfw/`, plus shared infrastructure under `utils/`. A module owns its configuration files, its install script, and its tests. Modules are self-contained: they source `utils/utils.sh` for shared helpers and otherwise know nothing about each other.
+A per-tool slice of the repo — `git/`, `tmux/`, `zsh/`, `zimfw/`, `asdf/`, plus shared infrastructure under `utils/`. A module owns its configuration files, its install script, and its tests. Modules are self-contained: they source `utils/utils.sh` for shared helpers and otherwise know nothing about each other.
 
 ## Wizard
 

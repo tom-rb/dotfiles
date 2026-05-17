@@ -88,6 +88,20 @@ source base
   assertEquals "$expected" "$(cat "$TARGET")"
 }
 
+test_prepends_with_blank_line_separator_when_file_has_content_without_markers() {
+  printf '%s\n' "existing line 1" "existing line 2" > "$TARGET"
+
+  write_managed_block --prepend "$TARGET" "dotfiles:zsh" "source base"
+
+  expected='# >>> dotfiles:zsh >>>
+source base
+# <<< dotfiles:zsh <<<
+
+existing line 1
+existing line 2'
+  assertEquals "$expected" "$(cat "$TARGET")"
+}
+
 test_appends_with_blank_line_separator_when_file_has_content_without_markers() {
   printf '%s\n' "existing line 1" "existing line 2" > "$TARGET"
 
@@ -159,6 +173,27 @@ zimfw block
 # <<< dotfiles:zimfw <<<'
   assertEquals "$expected" "$(cat "$TARGET")"
   assertFalse "No backup should be created" "[ -f \"$TARGET.bkp\" ]"
+}
+
+test_install_managed_block_prepend_lands_block_above_existing_managed_block() {
+  cat > "$TARGET" <<-EOF
+		# >>> dotfiles:zimfw >>>
+		source zimrc-base
+		# <<< dotfiles:zimfw <<<
+EOF
+  createSpy -u choose
+
+  install_managed_block --prepend "$TARGET" "dotfiles:asdf" "zmodule asdf" >/dev/null
+
+  assertNeverCalled choose
+  expected='# >>> dotfiles:asdf >>>
+zmodule asdf
+# <<< dotfiles:asdf <<<
+
+# >>> dotfiles:zimfw >>>
+source zimrc-base
+# <<< dotfiles:zimfw <<<'
+  assertEquals "$expected" "$(cat "$TARGET")"
 }
 
 test_install_managed_block_prompts_when_user_content_sits_alongside_managed_block() {

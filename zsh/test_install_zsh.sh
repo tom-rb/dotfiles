@@ -73,9 +73,6 @@ test_zshenv_stub_is_installed() {
   # shellcheck disable=SC2016
   assertContains "Should export ZDOTDIR off XDG_CONFIG_HOME" \
     "$contents" 'export ZDOTDIR=${XDG_CONFIG_HOME}/zsh'
-  # shellcheck disable=SC2016
-  assertContains "Should export ASDF_DATA_DIR off XDG_DATA_HOME" \
-    "$contents" 'export ASDF_DATA_DIR=${XDG_DATA_HOME}/asdf'
   assertContains "Should include read-sequence doc header" \
     "$contents" "Read config sequence"
   assertNotContains "Should NOT source the old zshenv-base file" \

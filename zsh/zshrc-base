@@ -99,7 +99,7 @@ export TIME=$'\nreal\t%E\nuser\t%U\nsys\t%S\ncpu\t%P'
 # More sane history defaults in zim's environment module.
 
 # The file to save the history in.
-HISTFILE="${XDG_DATA_HOME:?XDG_DATA_HOME unset — were zsh dotfiles installed by the dotfiles wizard?}/zsh/zsh_history"
+HISTFILE="${XDG_DATA_HOME:?'XDG_DATA_HOME unset — were zsh dotfiles installed by the dotfiles wizard?'}/zsh/zsh_history"
 
 # Remove older command from the history if a duplicate is to be added.
 setopt HIST_IGNORE_ALL_DUPS
@@ -180,9 +180,6 @@ bindkey '\eq' push-line-or-edit
 #######################
 # Application aliases #
 #######################
-
-# Set JAVA_HOME if asdf plugin is available
-[ -f "$XDG_DATA_HOME/asdf/plugins/java/set-java-home.zsh" ] && source $XDG_DATA_HOME/asdf/plugins/java/set-java-home.zsh
 
 # Remove some folders from grep by default; enable color so GREP_COLORS applies.
 if (( ${+aliases[grep]} )); then

@@ -4,11 +4,16 @@
 # marker pair (# >>> $tag >>> ... # <<< $tag <<<). The function owns the
 # markers; callers pass only the content that goes between them.
 # Creates the file if missing.
+# -p / --prepend: place at the top of an existing non-empty file (default: append)
 # $1: target file
 # $2: tag (e.g. dotfiles:zsh)
 # $3: content (between the markers, without trailing newline)
 write_managed_block() {
-  local file tag content start end
+  local file tag content start end prepend=0
+  if [ "$1" = "-p" ] || [ "$1" = "--prepend" ]; then
+    prepend=1
+    shift
+  fi
   file=${1:?} tag=${2:?} content=${3?}
   start="# >>> $tag >>>"
   end="# <<< $tag <<<"
@@ -19,6 +24,9 @@ write_managed_block() {
       skip && $0==e {skip=0; next}
       !skip
     ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+  elif [ -s "$file" ] && [ "$prepend" = 1 ]; then
+    { printf '%s\n%s\n%s\n\n' "$start" "$content" "$end"; cat "$file"; } > "$file.tmp" \
+      && mv "$file.tmp" "$file"
   elif [ -s "$file" ]; then
     printf '\n%s\n%s\n%s\n' "$start" "$content" "$end" >> "$file"
   else
@@ -44,11 +52,16 @@ only_managed_blocks() {
 # if the target file already exists with hand-rolled content but no block for
 # this tag, prompt the user (backup / append / overwrite, default backup).
 # Quiet otherwise: missing file or block already present → straight upsert.
+# -p / --prepend: forwarded to write_managed_block on the quiet path
 # $1: target file
 # $2: tag
 # $3: content
 install_managed_block() {
-  local file tag content start
+  local file tag content start prepend=0
+  if [ "$1" = "-p" ] || [ "$1" = "--prepend" ]; then
+    prepend=1
+    shift
+  fi
   file=${1:?} tag=${2:?} content=${3?}
   start="# >>> $tag >>>"
   # Quiet path: nothing the user wrote is at stake.
@@ -59,7 +72,11 @@ install_managed_block() {
   if [ ! -s "$file" ] \
      || grep -qF "$start" "$file" \
      || only_managed_blocks "$file"; then
-    write_managed_block "$file" "$tag" "$content"
+    if [ "$prepend" = 1 ]; then
+      write_managed_block --prepend "$file" "$tag" "$content"
+    else
+      write_managed_block "$file" "$tag" "$content"
+    fi
     return
   fi
   echo "Found existing $file: (tail of it)"

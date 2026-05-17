@@ -53,6 +53,10 @@ start_git_wizard() {
   sh -- "$DOTFILES/git/install_git.sh" --wizard
 }
 
+start_asdf_wizard() {
+  sh -- "$DOTFILES/asdf/install_asdf.sh" --wizard
+}
+
 deploy_wizard() {
   if ! check_supported_pm; then
     echo "Sorry, this OS is not supported."
@@ -69,6 +73,9 @@ deploy_wizard() {
     start_zsh_wizard
     if confirm "Install zimfw (zsh framework)?"; then
       start_zimfw_wizard
+    fi
+    if confirm "Install asdf?"; then
+      start_asdf_wizard
     fi
   fi
 
