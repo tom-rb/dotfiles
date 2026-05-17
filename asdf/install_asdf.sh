@@ -119,15 +119,8 @@ install_asdf_dotfiles() {
 # Installs asdf and its dotfile block.
 # -y: accept default answers for all questions (none today, kept for symmetry)
 install_asdf_wizard() {
-  if [ "$1" = -y ]; then
-    yes "
-" | { install_asdf_program && install_asdf_dotfiles; }
-  else
-    install_asdf_program && install_asdf_dotfiles
-  fi
+  wizard_run "$@" -- install_asdf_program install_asdf_dotfiles
 }
 
 # Run installation if called with --wizard
-if [ "$1" = --wizard ]; then
-  install_asdf_wizard interactive
-fi
+wizard_main install_asdf_wizard "$@"

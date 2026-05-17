@@ -150,6 +150,19 @@ test_zimrc_block_is_skipped_when_zimrc_missing() {
     "$output" "zimfw not installed"
 }
 
+#
+# install_asdf_wizard
+#
+
+test_wizard_delegates_step_list_to_wizard_run() {
+  createSpy -u wizard_run
+
+  # shellcheck disable=SC2119
+  install_asdf_wizard
+
+  assertCalledOnceWith wizard_run -- install_asdf_program install_asdf_dotfiles
+}
+
 SHPY_PATH="$THISDIR/../tests/shpy"
 export SHPY_PATH
 . "$THISDIR/../tests/shpy"

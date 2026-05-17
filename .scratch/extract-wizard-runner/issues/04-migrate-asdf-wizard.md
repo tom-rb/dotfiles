@@ -1,6 +1,6 @@
 # Migrate `install_asdf_wizard` onto the Wizard runner
 
-Status: ready-for-agent
+Status: done
 
 ## Parent
 
@@ -37,3 +37,16 @@ Test surface:
 ## Blocked by
 
 - `.scratch/extract-wizard-runner/issues/01-wizard-runner-and-zsh-migration.md`
+
+## Comments
+
+### 2026-05-17 — landed on develop
+
+- `asdf/install_asdf.sh`: `install_asdf_wizard` body is `wizard_run "$@" -- install_asdf_program install_asdf_dotfiles`; footer is `wizard_main install_asdf_wizard "$@"`. Drops the dead `interactive` literal.
+- `asdf/test_install_asdf.sh`: added `test_wizard_delegates_step_list_to_wizard_run`. The file had no pre-existing wizard-chain test block to delete (the spec was written conservatively).
+- `deploy.sh`: deleted `start_asdf_wizard`; `deploy_wizard` calls `start_module_wizard asdf`.
+- `tests/test_deploy.sh`: all-yes tests bump `start_module_wizard` count from 3 → 4 and add `assertCalledWith start_module_wizard asdf` in the correct ordinal slot (zsh, asdf, tmux, git per `deploy_wizard`). The zsh-declined test is unchanged (count stays at 2 — asdf is gated on zsh-yes).
+
+**Side-effect cleanup.** Pre-existing flake noted in slice 01's comment is now fixed: `make unit FILE=tests/test_deploy.sh` no longer downloads asdf from GitHub at test time because `start_module_wizard` is spied in the test.
+
+**Validation that passed.** `make lint`; `make unit FILE=asdf/test_install_asdf.sh` (9/9); `make unit FILE=tests/test_deploy.sh` (4/4); `make system-ubuntu FILE=asdf/test_install_asdf.system.sh` (4/4).

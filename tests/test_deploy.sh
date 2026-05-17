@@ -35,8 +35,9 @@ test_deploy_wizard_installs_basic_packages() {
   assertContains "Expected continuation message" \
     "$message" "basic packages first"
   assertCallCount install_from_pm 1
-  assertCallCount start_module_wizard 3
+  assertCallCount start_module_wizard 4
   assertCalledWith start_module_wizard zsh
+  assertCalledWith start_module_wizard asdf
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
   assertCallCount start_zimfw_wizard 1
@@ -54,8 +55,9 @@ test_deploy_wizard_skips_basic_packages_if_installed() {
   assertNotContains "Continuation message not expected" \
     "$message" "basic packages first"
   assertCallCount install_from_pm 0
-  assertCallCount start_module_wizard 3
+  assertCallCount start_module_wizard 4
   assertCalledWith start_module_wizard zsh
+  assertCalledWith start_module_wizard asdf
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
   assertCallCount start_zimfw_wizard 1
