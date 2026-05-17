@@ -1,6 +1,6 @@
 # Migrate `install_zimfw_wizard` onto the Wizard runner
 
-Status: ready-for-agent
+Status: done
 
 ## Parent
 
@@ -48,3 +48,15 @@ Test surface:
 ## Blocked by
 
 - `.scratch/extract-wizard-runner/issues/01-wizard-runner-and-zsh-migration.md`
+
+## Comments
+
+### 2026-05-17 — landed on develop
+
+- `zimfw/install_zimfw.sh`: `install_zimfw_wizard` now runs `check_zsh_prerequisites || return $?` then `wizard_run "$@" -- install_zimfw_program install_zimfw_dotfiles install_zimfw_modules`. **Placement choice:** pre-call. Reads as "preconditions then chain" and keeps the runner's step list pure (only real install steps). The three precondition diagnostics surface verbatim — they're emitted by `check_zsh_prerequisites` itself, unchanged. Footer is `wizard_main install_zimfw_wizard "$@"`.
+- `zimfw/test_install_zimfw.sh`: deleted the three chain-mock wizard tests; added `test_wizard_aborts_when_preconditions_fail` and `test_wizard_delegates_step_list_to_wizard_run`. The existing `test_preconditions_die_if_*` tests stay — they cover the precondition's diagnostic output, which the wizard tests don't duplicate.
+- `zimfw/test_install_zimfw.system.sh`: added `# shellcheck disable=SC2119` on the `install_zimfw_wizard` no-arg call (same pattern other migrated tests use).
+- `deploy.sh`: deleted `start_zimfw_wizard`; `deploy_wizard` calls `start_module_wizard zimfw`. No `start_<mod>_wizard` pass-throughs remain — the PRD's `deploy.sh`-side goal is now complete.
+- `tests/test_deploy.sh`: all-yes tests now assert `start_module_wizard 5` (zsh, zimfw, asdf, tmux, git) with `assertCalledWith` in that order. Dropped `start_zimfw_wizard` spies/asserts.
+
+**Validation that passed.** `make lint`; `make unit FILE=zimfw/test_install_zimfw.sh` (15/15); `make unit FILE=tests/test_deploy.sh` (4/4); `make system-ubuntu FILE=zimfw/test_install_zimfw.system.sh` (2/2).

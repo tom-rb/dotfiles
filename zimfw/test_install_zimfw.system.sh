@@ -11,6 +11,7 @@ oneTimeSetUp() {
 
 # @image: with-basics
 it_aborts_when_zsh_is_not_installed() {
+  # shellcheck disable=SC2119
   output=$(install_zimfw_wizard 2>&1)
   assertFalse "Wizard should fail without zsh installed" $?
   assertContains "Should hint to run install_zsh" \

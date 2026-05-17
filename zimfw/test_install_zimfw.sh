@@ -211,42 +211,23 @@ test_dotfiles_calls_all_writers() {
 
 test_wizard_aborts_when_preconditions_fail() {
   createSpy -u -r "$SHUNIT_FALSE" check_zsh_prerequisites
-  createSpy -u install_zimfw_program
-  createSpy -u install_zimfw_dotfiles
-  createSpy -u install_zimfw_modules
+  createSpy -u wizard_run
 
+  # shellcheck disable=SC2119
   install_zimfw_wizard
 
   assertCallCount check_zsh_prerequisites 1
-  assertNeverCalled install_zimfw_program
-  assertNeverCalled install_zimfw_dotfiles
-  assertNeverCalled install_zimfw_modules
+  assertNeverCalled wizard_run
 }
 
-test_wizard_runs_full_chain_when_preconditions_pass() {
+test_wizard_delegates_step_list_to_wizard_run() {
   createSpy -u check_zsh_prerequisites
-  createSpy -u install_zimfw_program
-  createSpy -u install_zimfw_dotfiles
-  createSpy -u install_zimfw_modules
+  createSpy -u wizard_run
 
+  # shellcheck disable=SC2119
   install_zimfw_wizard
 
-  assertCallCount install_zimfw_program 1
-  assertCallCount install_zimfw_dotfiles 1
-  assertCallCount install_zimfw_modules 1
-}
-
-test_wizard_stops_chain_when_program_fails() {
-  createSpy -u check_zsh_prerequisites
-  createSpy -u -r "$SHUNIT_FALSE" install_zimfw_program
-  createSpy -u install_zimfw_dotfiles
-  createSpy -u install_zimfw_modules
-
-  install_zimfw_wizard
-
-  assertCallCount install_zimfw_program 1
-  assertNeverCalled install_zimfw_dotfiles
-  assertNeverCalled install_zimfw_modules
+  assertCalledOnceWith wizard_run -- install_zimfw_program install_zimfw_dotfiles install_zimfw_modules
 }
 
 # Run tests

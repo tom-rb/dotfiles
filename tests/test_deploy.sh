@@ -28,19 +28,18 @@ test_deploy_wizard_installs_basic_packages() {
   createSpy -u -r "$SHUNIT_FALSE" command_exists
   createSpy -u install_from_pm
   createSpy -u start_module_wizard
-  createSpy -u start_zimfw_wizard
 
   message="$(yes | deploy_wizard)"
 
   assertContains "Expected continuation message" \
     "$message" "basic packages first"
   assertCallCount install_from_pm 1
-  assertCallCount start_module_wizard 4
+  assertCallCount start_module_wizard 5
   assertCalledWith start_module_wizard zsh
+  assertCalledWith start_module_wizard zimfw
   assertCalledWith start_module_wizard asdf
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
-  assertCallCount start_zimfw_wizard 1
 }
 
 test_deploy_wizard_skips_basic_packages_if_installed() {
@@ -48,26 +47,24 @@ test_deploy_wizard_skips_basic_packages_if_installed() {
   createSpy -u -r "$SHUNIT_TRUE" command_exists
   createSpy -u install_from_pm
   createSpy -u start_module_wizard
-  createSpy -u start_zimfw_wizard
 
   message="$(yes | deploy_wizard)"
 
   assertNotContains "Continuation message not expected" \
     "$message" "basic packages first"
   assertCallCount install_from_pm 0
-  assertCallCount start_module_wizard 4
+  assertCallCount start_module_wizard 5
   assertCalledWith start_module_wizard zsh
+  assertCalledWith start_module_wizard zimfw
   assertCalledWith start_module_wizard asdf
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
-  assertCallCount start_zimfw_wizard 1
 }
 
 test_deploy_wizard_skips_zimfw_when_zsh_declined() {
   createSpy -u -r "$SHUNIT_TRUE" command_exists
   createSpy -u install_from_pm
   createSpy -u start_module_wizard
-  createSpy -u start_zimfw_wizard
 
   # Decline zsh; accept the rest. confirm reads one byte per call.
   printf 'n\ny\ny\n' | deploy_wizard >/dev/null
@@ -75,7 +72,6 @@ test_deploy_wizard_skips_zimfw_when_zsh_declined() {
   assertCallCount start_module_wizard 2
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
-  assertNeverCalled start_zimfw_wizard
 }
 
 test_deploy_wizard_dies_if_basic_packages_fail() {

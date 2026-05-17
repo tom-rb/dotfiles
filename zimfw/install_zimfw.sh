@@ -120,15 +120,8 @@ install_zimfw_modules() {
 # -y: accepts default answer for all questions
 install_zimfw_wizard() {
   check_zsh_prerequisites || return $?
-  if [ "$1" = -y ]; then
-    yes "
-" | { install_zimfw_program && install_zimfw_dotfiles && install_zimfw_modules; }
-  else
-    install_zimfw_program && install_zimfw_dotfiles && install_zimfw_modules
-  fi
+  wizard_run "$@" -- install_zimfw_program install_zimfw_dotfiles install_zimfw_modules
 }
 
 # Run installation if called with --wizard
-if [ "$1" = --wizard ]; then
-  install_zimfw_wizard interactive
-fi
+wizard_main install_zimfw_wizard "$@"

@@ -37,10 +37,6 @@ install_basic_packages() {
   install_from_pm $basic_packages
 }
 
-start_zimfw_wizard() {
-  sh -- "$DOTFILES/zimfw/install_zimfw.sh" --wizard
-}
-
 deploy_wizard() {
   if ! check_supported_pm; then
     echo "Sorry, this OS is not supported."
@@ -56,7 +52,7 @@ deploy_wizard() {
   if confirm "Install zsh?"; then
     start_module_wizard zsh
     if confirm "Install zimfw (zsh framework)?"; then
-      start_zimfw_wizard
+      start_module_wizard zimfw
     fi
     if confirm "Install asdf?"; then
       start_module_wizard asdf
