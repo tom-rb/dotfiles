@@ -5,7 +5,7 @@
 
 # Pinned TPM release. Bump deliberately.
 TPM_VERSION='3.1.0'
-TPM_URL="https://github.com/tmux-plugins/tpm/archive/refs/tags/v${TPM_VERSION}.tar.gz"
+TPM_REPO='https://github.com/tmux-plugins/tpm'
 
 is_tmux_installed() {
   command_exists tmux
@@ -169,9 +169,11 @@ is_tpm_installed() {
   test -x "$(get_tmux_plugins_dir)/tpm/tpm"
 }
 
-# Download + extract pinned TPM into <plugins>/tpm/. Idempotent: skips if present.
+# Clone pinned TPM into <plugins>/tpm/ as a git repo. Idempotent: skips if present.
+# A git-backed install lets tpm/bin/install_plugins recognize tpm itself as already
+# managed and skip re-cloning it.
 install_tpm() {
-  local plugins_dir tarball
+  local plugins_dir
   (
     set -e
     if is_tpm_installed; then
@@ -180,30 +182,22 @@ install_tpm() {
       echo "****************************"
       return 0
     fi
+    install_from_pm git
     plugins_dir=$(get_tmux_plugins_dir)
     mkdir -p "$plugins_dir"
-    tarball="$plugins_dir/tpm-${TPM_VERSION}.tar.gz"
-    wget -nv -O "$tarball" "$TPM_URL"
-    # Tarball contains a single top-level dir tpm-<version>/; extract & rename.
-    tar -xzf "$tarball" -C "$plugins_dir"
-    rm -f "$tarball"
-    rm -rf "$plugins_dir/tpm"
-    mv "$plugins_dir/tpm-${TPM_VERSION}" "$plugins_dir/tpm"
+    git clone --depth=1 --branch "v${TPM_VERSION}" -c advice.detachedHead=false "$TPM_REPO" "$plugins_dir/tpm"
     echo "****************************"
     echo "TPM ${TPM_VERSION} installed."
     echo "****************************"
   )
 }
 
-# Materialize @plugin entries declared in tmux.conf. Requires git (each plugin
-# is a git clone). install_plugins shells out to a tmux server internally.
+# Materialize @plugin entries declared in tmux.conf via TPM's headless installer.
+# Requires git (each plugin is a git clone).
 install_tpm_plugins() {
-  local plugins_dir
   (
     set -e
-    install_from_pm git
-    plugins_dir=$(get_tmux_plugins_dir)
-    "$plugins_dir/tpm/bin/install_plugins"
+    "$(get_tmux_plugins_dir)/tpm/bin/install_plugins"
   )
 }
 

@@ -16,6 +16,7 @@ it_checks_zsh_is_not_installed() {
 # @image: with-basics
 it_installs_zsh_and_its_dotfiles() {
   quietly install_zsh_wizard -y
+  assertTrue "Expected wizard to exit 0" $?
 
   assertTrue "Expect zsh to be installed" "is_zsh_installed"
 

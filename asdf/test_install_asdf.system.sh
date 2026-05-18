@@ -18,7 +18,9 @@ it_installs_asdf_and_its_dotfiles() {
   # The asdf zshenv block references $XDG_DATA_HOME, defined by the zsh
   # installer's earlier block in the same file.
   quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard
+  assertTrue "Expected zsh wizard to exit 0" $?
   quietly install_asdf_wizard -y
+  assertTrue "Expected asdf wizard to exit 0" $?
 
   assertTrue "Expect asdf binary at \$HOME/.local/bin/asdf" \
     "test -x $HOME/.local/bin/asdf"
@@ -28,7 +30,7 @@ it_installs_asdf_and_its_dotfiles() {
     "$contents" "dotfiles:asdf"
   # shellcheck disable=SC2016
   assertContains "Should export ASDF_DATA_DIR" \
-    "$contents" 'export ASDF_DATA_DIR=${XDG_DATA_HOME'
+    "$contents" 'export ASDF_DATA_DIR="${XDG_DATA_HOME'
 
   # Verify zsh resolves `asdf` via the PATH set up by our managed block
   output=$(zsh -c 'type -a asdf')
@@ -44,6 +46,7 @@ it_installs_asdf_and_its_dotfiles() {
 # @image: with-zsh
 it_skips_zimrc_block_when_zimfw_is_not_installed() {
   quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard
+  assertTrue "Expected zsh wizard to exit 0" $?
   output=$(install_asdf_wizard -y)
 
   assertContains "Should announce the skip" "$output" "zimfw not installed"
@@ -56,8 +59,11 @@ it_skips_zimrc_block_when_zimfw_is_not_installed() {
 # @image: with-zsh
 it_adds_zmodule_asdf_to_zimrc_when_zimfw_is_installed() {
   quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard
+  assertTrue "Expected zsh wizard to exit 0" $?
   quietly sh "$DOTFILES/zimfw/install_zimfw.sh" --wizard
+  assertTrue "Expected zimfw wizard to exit 0" $?
   quietly install_asdf_wizard -y
+  assertTrue "Expected asdf wizard to exit 0" $?
 
   zdotdir="$HOME/.config/zsh"
   contents=$(cat "$zdotdir/.zimrc")

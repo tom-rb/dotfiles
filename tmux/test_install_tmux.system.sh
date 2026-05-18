@@ -41,6 +41,7 @@ it_installs_tmux_from_source_to_specified_location() {
 # @image: with-zsh
 it_installs_tmux_and_its_dotfiles() {
   quietly install_tmux_wizard -y
+  assertTrue "Expected wizard to exit 0" $?
 
   assertTrue "Expect tmux to be installed" "is_tmux_installed"
 
@@ -58,6 +59,7 @@ it_installs_tmux_and_its_dotfiles() {
 it_resolves_tmux_plugin_manager_path_without_xdg_data_home_in_env() {
   unset XDG_DATA_HOME
   quietly install_tmux_wizard -y
+  assertTrue "Expected wizard to exit 0" $?
 
   output=$(tmux start \; show-environment -g TMUX_PLUGIN_MANAGER_PATH)
   assertContains "Should bake absolute path under HOME default" \
@@ -67,6 +69,7 @@ it_resolves_tmux_plugin_manager_path_without_xdg_data_home_in_env() {
 # @image: with-tmux
 it_installs_tpm_and_materializes_declared_plugins() {
   quietly install_tmux_wizard -y
+  assertTrue "Expected wizard to exit 0" $?
 
   plugins_dir="$HOME/.local/share/tmux/plugins"
   assertTrue "Expected TPM script at <plugins>/tpm/tpm" \

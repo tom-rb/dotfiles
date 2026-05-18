@@ -22,8 +22,10 @@ it_aborts_when_zsh_is_not_installed() {
 it_installs_zimfw_end_to_end() {
   # Prerequisite: zsh + base dotfiles
   quietly install_zsh_wizard -y
+  assertTrue "Expected zsh wizard to exit 0" $?
 
   quietly install_zimfw_wizard -y
+  assertTrue "Expected wizard to exit 0" $?
 
   assertTrue "zimfw.zsh should be on disk" "is_zimfw_installed"
 
