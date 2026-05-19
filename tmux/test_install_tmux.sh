@@ -395,43 +395,36 @@ test_install_tpm_skips_when_already_installed() {
   mkdir -p "$plugins_dir/tpm"
   printf '#!/bin/sh\n' > "$plugins_dir/tpm/tpm"
   chmod +x "$plugins_dir/tpm/tpm"
-  createSpy -u wget
+  createSpy -u install_from_pm
+  createSpy -u git
 
   output=$(install_tpm)
 
   assertTrue "Should not error when TPM is already installed" $?
   assertContains "Should report already installed" \
     "$output" "already installed"
-  assertNeverCalled wget
+  assertNeverCalled install_from_pm
+  assertNeverCalled git
 }
 
-test_install_tpm_downloads_and_extracts_pinned_version() {
+test_install_tpm_clones_pinned_version() {
   plugins_dir="$HOME/.local/share/tmux/plugins"
-  # Fake wget that materializes a tarball matching the expected archive layout
-  # (a single top-level dir tpm-<version>/ containing a `tpm` script).
-  createSpy wget   # no-op; tar input is created below
-  # Pre-create the extracted layout that `tar -xzf` would have produced, then
-  # spy tar to be a no-op so our pre-created layout survives.
-  mkdir -p "$plugins_dir/tpm-${TPM_VERSION}"
-  printf '#!/bin/sh\n' > "$plugins_dir/tpm-${TPM_VERSION}/tpm"
-  chmod +x "$plugins_dir/tpm-${TPM_VERSION}/tpm"
-  createSpy tar
-  createSpy rm    # avoid removing our pre-created files via the cleanup rm -f
+  createSpy -u install_from_pm   # guard against sudo apt-get
+  createSpy -u git               # guard against real network clone
 
   quietly install_tpm
   rc=$?
 
   assertTrue "install_tpm should succeed" $rc
-  # wget called with the pinned URL
-  assertCalledWith wget -nv -O "$plugins_dir/tpm-${TPM_VERSION}.tar.gz" "$TPM_URL"
-  # tar called to extract into the plugins dir
-  assertCalledWith tar -xzf "$plugins_dir/tpm-${TPM_VERSION}.tar.gz" -C "$plugins_dir"
-  # Final tpm/ dir present after the rename step
-  assertTrue "tpm dir should exist after rename" "test -d $plugins_dir/tpm"
-  assertTrue "tpm/tpm script should exist after rename" "test -x $plugins_dir/tpm/tpm"
+  # git is ensured before the clone
+  assertCalledOnceWith install_from_pm git
+  # Pinned version is cloned shallowly into plugins/tpm
+  assertCalledOnceWith git \
+    clone --depth=1 --branch "v${TPM_VERSION}" \
+    -c advice.detachedHead=false "$TPM_REPO" "$plugins_dir/tpm"
 }
 
-test_install_tpm_plugins_ensures_git_then_runs_install_plugins() {
+test_install_tpm_plugins_runs_install_plugins() {
   plugins_dir="$HOME/.local/share/tmux/plugins"
   mkdir -p "$plugins_dir/tpm/bin"
   # Stub install_plugins so we can verify it was invoked
@@ -440,12 +433,10 @@ test_install_tpm_plugins_ensures_git_then_runs_install_plugins() {
 echo "install_plugins called"
 EOF
   chmod +x "$plugins_dir/tpm/bin/install_plugins"
-  createSpy -u install_from_pm
 
   output=$(install_tpm_plugins)
 
   assertTrue "install_tpm_plugins should succeed" $?
-  assertCalledOnceWith install_from_pm git
   assertContains "Should actually run install_plugins" \
     "$output" "install_plugins called"
 }

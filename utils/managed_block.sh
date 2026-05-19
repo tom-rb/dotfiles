@@ -57,6 +57,27 @@ only_managed_blocks() {
   ' "${1:?}"
 }
 
+# True if file $1's managed block for tag $2 contains a line matching the
+# awk ERE $3. Returns 1 if the file is absent or the tag's block isn't present.
+# Lets callers ask "does my block already have this snippet?" without
+# re-deriving the fence format.
+# $1: target file
+# $2: tag
+# $3: awk regex matched against each line between the markers
+managed_block_contains() {
+  local file tag pattern start end
+  file=${1:?} tag=${2:?} pattern=${3:?}
+  start="# >>> $tag >>>"
+  end="# <<< $tag <<<"
+  [ -f "$file" ] || return 1
+  awk -v s="$start" -v e="$end" -v p="$pattern" '
+    $0==s {inb=1; next}
+    inb && $0==e {inb=0; next}
+    inb && $0 ~ p {found=1}
+    END {exit !found}
+  ' "$file"
+}
+
 # Interactive wrapper around write_managed_block. Handles "first-time placement":
 # if the target file already exists with hand-rolled content but no block for
 # this tag, prompt the user (backup / append / overwrite, default backup).

@@ -3,6 +3,8 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
+BLOCK_TAG="dotfiles:tmux"
+
 # Pinned TPM release. Bump deliberately.
 TPM_VERSION='3.1.0'
 TPM_REPO='https://github.com/tmux-plugins/tpm'
@@ -156,7 +158,7 @@ install_tmux_dotfiles() {
 EOF
     )
 
-    install_managed_block "$tmux_conf" "dotfiles:tmux" "$contents"
+    install_managed_block "$tmux_conf" "$BLOCK_TAG" "$contents"
 
     echo "****************************"
     echo "$tmux_conf configured."
@@ -201,19 +203,6 @@ install_tpm_plugins() {
   )
 }
 
-# True if the existing tmux-managed block in $1 already contains the
-# auto-enter snippet (used to pre-fill the wizard prompt default).
-bridge_block_has_auto_enter() {
-  local file="$1" start='# >>> dotfiles:tmux >>>' end='# <<< dotfiles:tmux <<<'
-  [ -f "$file" ] || return 1
-  awk -v s="$start" -v e="$end" '
-    $0==s {inb=1; next}
-    inb && $0==e {inb=0; next}
-    inb && /tmux-enter/ {found=1}
-    END {exit !found}
-  ' "$file"
-}
-
 # Install tmux bridge managed block into $ZDOTDIR/.zshrc, if present.
 # The block always sources tmux-cmds.sh. When the user opts in, the rich
 # auto-enter snippet (with terminal-emulator detection) is also injected.
@@ -233,7 +222,7 @@ install_tmux_shell_bridge() {
 
     # Default the auto-enter prompt to the previous choice (YES if the block
     # already has the snippet, NO otherwise).
-    if bridge_block_has_auto_enter "$zshrc"; then
+    if managed_block_contains "$zshrc" "$BLOCK_TAG" 'tmux-enter'; then
       confirm    "Auto-launch tmux on new shells (with terminal-emulator detection)?" \
         && want_auto_enter=1 || want_auto_enter=0
     else
@@ -262,7 +251,7 @@ EOF
 		${auto_enter}
 EOF
     )
-    install_managed_block "$zshrc" "dotfiles:tmux" "$content"
+    install_managed_block "$zshrc" "$BLOCK_TAG" "$content"
 
     echo "$zshrc updated with tmux bridge block."
   )

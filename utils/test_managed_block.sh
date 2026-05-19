@@ -274,6 +274,66 @@ test_install_managed_block_first_time_cancel_leaves_file_alone() {
 }
 
 
+#
+# managed_block_contains
+#
+
+test_managed_block_contains_true_when_pattern_inside_block() {
+  cat > "$TARGET" <<-EOF
+	# >>> dotfiles:tmux >>>
+	source tmux-cmds.sh
+	tmux-enter
+	# <<< dotfiles:tmux <<<
+EOF
+
+  managed_block_contains "$TARGET" "dotfiles:tmux" "tmux-enter"
+  assertTrue "Should match line inside the block" $?
+}
+
+test_managed_block_contains_false_when_pattern_outside_block() {
+  cat > "$TARGET" <<-EOF
+	tmux-enter
+	# >>> dotfiles:tmux >>>
+	source tmux-cmds.sh
+	# <<< dotfiles:tmux <<<
+	tmux-enter
+EOF
+
+  managed_block_contains "$TARGET" "dotfiles:tmux" "tmux-enter"
+  assertFalse "Should ignore matches outside the fence" $?
+}
+
+test_managed_block_contains_false_when_pattern_in_other_tags_block() {
+  cat > "$TARGET" <<-EOF
+	# >>> dotfiles:zsh >>>
+	tmux-enter
+	# <<< dotfiles:zsh <<<
+	# >>> dotfiles:tmux >>>
+	source tmux-cmds.sh
+	# <<< dotfiles:tmux <<<
+EOF
+
+  managed_block_contains "$TARGET" "dotfiles:tmux" "tmux-enter"
+  assertFalse "Should only inspect the requested tag's block" $?
+}
+
+test_managed_block_contains_false_when_tag_has_no_block() {
+  cat > "$TARGET" <<-EOF
+	# >>> dotfiles:zsh >>>
+	tmux-enter
+	# <<< dotfiles:zsh <<<
+EOF
+
+  managed_block_contains "$TARGET" "dotfiles:tmux" "tmux-enter"
+  assertFalse "Should return false when the tag isn't present" $?
+}
+
+test_managed_block_contains_false_when_file_missing() {
+  managed_block_contains "$SHUNIT_TMPDIR/does-not-exist" "dotfiles:tmux" "tmux-enter"
+  assertFalse "Should return false when the file doesn't exist" $?
+}
+
+
 # Run tests
 SHPY_PATH="$THISDIR/../tests/shpy"
 export SHPY_PATH

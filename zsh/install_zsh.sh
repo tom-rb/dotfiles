@@ -3,6 +3,8 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
+BLOCK_TAG="dotfiles:zsh"
+
 # Check if zsh is installed
 is_zsh_installed() {
   command_exists zsh
@@ -56,7 +58,7 @@ install_zsh_zshenv() {
 		export ZDOTDIR=\${XDG_CONFIG_HOME}/$ZDOTDIR_SUBPATH
 EOF
     )
-    install_managed_block "$zshenv" "dotfiles:zsh" "$content"
+    install_managed_block "$zshenv" "$BLOCK_TAG" "$content"
 
     echo "****************************"
     echo "$zshenv configured."
@@ -87,7 +89,7 @@ EOF
       echo "      Consider moving its contents to $zshrc."
     fi
 
-    install_managed_block "$zshrc" "dotfiles:zsh" "$content"
+    install_managed_block "$zshrc" "$BLOCK_TAG" "$content"
 
     echo "****************************"
     echo "$zshrc configured."
