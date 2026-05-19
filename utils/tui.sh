@@ -84,4 +84,74 @@ choose() {
 prompt_line() {
   printf "%s" "${1:?}"
   read -r "${2:?}"
+  # Defensive trailing newline. Under pipes the terminal driver isn't echoing
+  # the user's Enter, so without this the next caller's prompt collides on the
+  # same line. In TTY mode it costs us one extra blank line — acceptable trade.
+  echo
+}
+
+#
+# Status reporting helpers
+#
+# Single glyph + short message replaces the previous asterisk-wall pattern.
+# The visual vocabulary is intentionally tiny so users can scan by symbol:
+#   section header    "name"          ↵ top-level module banner (blank line above)
+#   say_ok            "✓ message"     ↵ a step completed
+#   say_step          "→ message"     ↵ a step is starting / a download
+#   say_warn          "! message"     ↵ non-fatal warning the user should notice
+#   say_info          "  message"     ↵ extra, lower-noise context (indented two)
+#
+
+# Print a top-level section banner with a preceding blank line.
+# $1: section name (e.g. "zsh", "tmux")
+say_section() {
+  printf '\n== %s ==\n' "${1:?}"
+}
+
+# Print a success line: "  ✓ <msg>"
+say_ok() {
+  printf '  ✓ %s\n' "${1:?}"
+}
+
+# Print an in-progress step: "  → <msg>"
+say_step() {
+  printf '  → %s\n' "${1:?}"
+}
+
+# Print a warning line to stderr: "  ! <msg>"
+# Stderr so it stands out in piped logs and survives stdout muting.
+say_warn() {
+  printf '  ! %s\n' "${1:?}" >&2
+}
+
+# Print an indented context line: "    <msg>" (4-space indent so it nests under say_*)
+say_info() {
+  printf '    %s\n' "${1:?}"
+}
+
+# Echo singular form when count is 1, plural form otherwise.
+# $1: count, $2: singular form, $3: plural form
+pluralize() {
+  if [ "${1:?}" = "1" ]; then echo "${2:?}"; else echo "${3:?}"; fi
+}
+
+# Run a command, suppressing stdout/stderr by default.
+# On non-zero exit OR when DEBUG=1, the captured output is replayed to stderr
+# so the user can diagnose. Idea: keep the happy path quiet, keep failures loud.
+# $@: the command + args to run
+run_quiet() {
+  local _rq_log _rq_rc
+  if [ "${DEBUG:-}" = "1" ]; then
+    "$@"
+    return $?
+  fi
+  _rq_log=$(mktemp 2>/dev/null || printf '/tmp/run_quiet.%d' $$)
+  "$@" >"$_rq_log" 2>&1
+  _rq_rc=$?
+  if [ "$_rq_rc" -ne 0 ]; then
+    # Replay everything we swallowed so the failure isn't a mystery
+    cat "$_rq_log" >&2
+  fi
+  rm -f "$_rq_log"
+  return $_rq_rc
 }

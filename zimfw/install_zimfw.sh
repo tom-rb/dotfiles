@@ -3,7 +3,7 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
-BLOCK_TAG="dotfiles:zimfw"
+ZIMFW_BLOCK_TAG="dotfiles:zimfw"
 
 # Pinned zimfw release. Bump deliberately, never to a moving branch.
 ZIMFW_URL='https://github.com/zimfw/zimfw/releases/download/v1.19.1/zimfw.zsh'
@@ -27,7 +27,8 @@ download_zimfw() {
   local zim_home
   zim_home=$(get_zim_home)
   mkdir -p "$zim_home"
-  wget -nv -O "$zim_home/zimfw.zsh" "$ZIMFW_URL"
+  say_step "downloading zimfw"
+  run_quiet wget -q -O "$zim_home/zimfw.zsh" "$ZIMFW_URL"
 }
 
 # Download zimfw.zsh if not already present
@@ -35,15 +36,11 @@ install_zimfw_program() {
   (
     set -e
     if is_zimfw_installed; then
-      echo "****************************"
-      echo "zimfw already installed."
-      echo "****************************"
+      say_ok "zimfw already installed"
       return 0
     fi
     download_zimfw
-    echo "****************************"
-    echo "zimfw installed."
-    echo "****************************"
+    say_ok "zimfw installed"
   )
 }
 
@@ -59,9 +56,9 @@ install_zimfw_zshenv_block() {
 		skip_global_compinit=1
 EOF
     )
-    install_managed_block "$zshenv" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshenv" "$ZIMFW_BLOCK_TAG" "$content"
 
-    echo "$zshenv updated with zimfw block."
+    say_ok "$zshenv updated"
   )
 }
 
@@ -77,9 +74,9 @@ install_zimfw_zshrc_block() {
 		source "$DOTFILES/zimfw/zshrc-zim"
 EOF
     )
-    install_managed_block "$zshrc" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshrc" "$ZIMFW_BLOCK_TAG" "$content"
 
-    echo "$zshrc updated with zimfw block."
+    say_ok "$zshrc updated"
   )
 }
 
@@ -94,9 +91,9 @@ install_zimfw_zdotdir_stub() {
 
     contents=$(printf '# Managed by zimfw/install_zimfw.sh — edits inside this block will be overwritten.\nsource "%s"' "${2:?}")
 
-    install_managed_block "$target" "$BLOCK_TAG" "$contents"
+    install_managed_block "$target" "$ZIMFW_BLOCK_TAG" "$contents"
 
-    echo "$target configured."
+    say_ok "$target configured"
   )
 }
 
@@ -111,11 +108,28 @@ install_zimfw_dotfiles() {
   )
 }
 
-# Run `zimfw install` to populate modules listed in .zimrc
+# Run `zimfw install` to populate modules listed in .zimrc.
+# Each module clones a git repo and prints a line; we collapse the wall into
+# a single count, replaying full output on failure (or under DEBUG=1).
 install_zimfw_modules() {
-  local zim_home
+  local zim_home log rc count
   zim_home=$(get_zim_home)
-  ZIM_HOME="$zim_home" zsh "$zim_home/zimfw.zsh" install
+  say_step "installing zim modules"
+  if [ "${DEBUG:-}" = "1" ]; then
+    ZIM_HOME="$zim_home" zsh "$zim_home/zimfw.zsh" install
+    return $?
+  fi
+  log=$(mktemp 2>/dev/null || printf '/tmp/zimfw_install.%d' $$)
+  ZIM_HOME="$zim_home" zsh "$zim_home/zimfw.zsh" install >"$log" 2>&1
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    cat "$log" >&2
+    rm -f "$log"
+    return $rc
+  fi
+  count=$(grep -c ': Installed' "$log" 2>/dev/null || echo 0)
+  rm -f "$log"
+  say_ok "$count zim modules installed"
 }
 
 # Coordinates the install: preconditions, framework, dotfiles, modules.

@@ -3,7 +3,7 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
-BLOCK_TAG="dotfiles:zsh"
+ZSH_BLOCK_TAG="dotfiles:zsh"
 
 # Check if zsh is installed
 is_zsh_installed() {
@@ -21,16 +21,12 @@ install_zsh_program() {
   (
     set -e
     if is_zsh_installed; then
-      echo "****************************"
-      echo "zsh already installed."
-      echo "****************************"
+      say_ok "zsh already installed"
       return 0
     fi
 
     install_from_pm zsh
-    echo "****************************"
-    echo "zsh installed."
-    echo "****************************"
+    say_ok "zsh installed"
   )
 }
 
@@ -58,11 +54,9 @@ install_zsh_zshenv() {
 		export ZDOTDIR=\${XDG_CONFIG_HOME}/$ZDOTDIR_SUBPATH
 EOF
     )
-    install_managed_block "$zshenv" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshenv" "$ZSH_BLOCK_TAG" "$content"
 
-    echo "****************************"
-    echo "$zshenv configured."
-    echo "****************************"
+    say_ok "$zshenv configured"
   )
 }
 
@@ -89,11 +83,9 @@ EOF
       echo "      Consider moving its contents to $zshrc."
     fi
 
-    install_managed_block "$zshrc" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshrc" "$ZSH_BLOCK_TAG" "$content"
 
-    echo "****************************"
-    echo "$zshrc configured."
-    echo "****************************"
+    say_ok "$zshrc configured"
   )
 }
 
@@ -142,9 +134,7 @@ set_zsh_as_default_shell() {
     return 0
   fi
 
-  echo "****************************"
-  echo "Default shell set to zsh."
-  echo "****************************"
+  say_ok "default shell set to zsh"
 }
 
 # Installs zsh and its dotfiles, then offers to set it as default shell

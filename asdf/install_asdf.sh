@@ -3,7 +3,7 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
-BLOCK_TAG="dotfiles:asdf"
+ASDF_BLOCK_TAG="dotfiles:asdf"
 
 ASDF_VERSION="v0.16.7"
 
@@ -40,9 +40,7 @@ install_asdf_program() {
   (
     set -e
     if is_asdf_installed; then
-      echo "****************************"
-      echo "asdf already installed."
-      echo "****************************"
+      say_ok "asdf already installed"
       return 0
     fi
 
@@ -52,13 +50,12 @@ install_asdf_program() {
     tarball="$bin_dir/asdf.tar.gz"
 
     mkdir -p "$bin_dir"
-    wget -O "$tarball" "$url"
+    say_step "downloading asdf ${ASDF_VERSION} (${arch})"
+    run_quiet wget -q -O "$tarball" "$url"
     tar -xzf "$tarball" -C "$bin_dir" asdf
     rm -f "$tarball"
 
-    echo "****************************"
-    echo "asdf installed."
-    echo "****************************"
+    say_ok "asdf ${ASDF_VERSION} installed"
   )
 }
 
@@ -80,11 +77,9 @@ install_asdf_zshenv() {
 			[[ -r "$ASDF_DATA_DIR/plugins/java/set-java-home.zsh" ]] && source "$ASDF_DATA_DIR/plugins/java/set-java-home.zsh"
 EOF
     )
-    install_managed_block "$zshenv" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshenv" "$ASDF_BLOCK_TAG" "$content"
 
-    echo "****************************"
-    echo "$zshenv configured for asdf."
-    echo "****************************"
+    say_ok "$zshenv configured for asdf"
   )
 }
 
@@ -96,7 +91,7 @@ install_asdf_zimrc() {
   zdotdir=$(get_zdotdir)
   zimrc="$zdotdir/.zimrc"
   if [ ! -f "$zimrc" ]; then
-    echo "zimfw not installed; skipping asdf completions."
+    say_info "zimfw not installed; skipping asdf completions"
     return 0
   fi
   content=$(cat <<-'EOF'
@@ -108,8 +103,8 @@ EOF
   # Prepend: zim modules that add to fpath (e.g. `asdf`) must be declared
   # before `zmodule completion` runs compinit. zimrc-base is sourced from
   # the dotfiles:zimfw block, so this block must precede it.
-  install_managed_block --prepend "$zimrc" "$BLOCK_TAG" "$content"
-  echo "$zimrc updated with asdf zmodule."
+  install_managed_block --prepend "$zimrc" "$ASDF_BLOCK_TAG" "$content"
+  say_ok "$zimrc updated"
 }
 
 # Render the asdf dotfile block(s): the .zshenv exports, plus an optional

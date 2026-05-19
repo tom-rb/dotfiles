@@ -55,7 +55,7 @@ it_installs_tmux_and_its_dotfiles() {
 
 # Regression: tmux must resolve its plugin manager path even when the login
 # shell does not export XDG_DATA_HOME (i.e. when install_zsh never ran).
-# @image: with-tmux
+# @image: with-zsh
 it_resolves_tmux_plugin_manager_path_without_xdg_data_home_in_env() {
   unset XDG_DATA_HOME
   quietly install_tmux_wizard -y
@@ -66,7 +66,7 @@ it_resolves_tmux_plugin_manager_path_without_xdg_data_home_in_env() {
     "$output" "$HOME/.local/share/tmux/plugins"
 }
 
-# @image: with-tmux
+# @image: with-zsh
 it_installs_tpm_and_materializes_declared_plugins() {
   quietly install_tmux_wizard -y
   assertTrue "Expected wizard to exit 0" $?

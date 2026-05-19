@@ -3,7 +3,7 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
-BLOCK_TAG="dotfiles:tmux"
+TMUX_BLOCK_TAG="dotfiles:tmux"
 
 # Pinned TPM release. Bump deliberately.
 TPM_VERSION='3.1.0'
@@ -46,12 +46,15 @@ install_tmux_from_source() {
     set -e
     cd "$HOME"
     # TODO: checksum
-    wget "https://github.com/tmux/tmux/releases/download/${version_tmux}/${tmux_tar_gz}"
+    say_step "downloading tmux ${version_tmux} source"
+    run_quiet wget -q "https://github.com/tmux/tmux/releases/download/${version_tmux}/${tmux_tar_gz}"
     tar xf "${tmux_tar_gz}" && rm -f "${tmux_tar_gz}"
     (
       cd "tmux-${version_tmux}"
-      ./configure --prefix="${install_prefix}" && make -j4
-      sudo make install
+      say_step "building tmux ${version_tmux} from source"
+      run_quiet ./configure --prefix="${install_prefix}"
+      run_quiet make -j4
+      run_quiet sudo make install
     )
     rm -rf "tmux-${version_tmux}"
   )
@@ -69,9 +72,7 @@ install_tmux_program() {
     if is_tmux_installed; then
       installed_version=$(tmux -V | cut -d' ' -f2)
       if version_ge "$installed_version" "$tmux_desired_version"; then
-        echo "****************************"
-        echo "tmux $installed_version installed (>= required $tmux_desired_version)."
-        echo "****************************"
+        say_ok "tmux $installed_version already installed"
         return 0
       fi
       echo "tmux installed version:    $installed_version"
@@ -89,9 +90,7 @@ install_tmux_program() {
       echo "tmux $pm_version is available from package manager (>= required $tmux_desired_version)"
       if confirm "Do you want to install from it?"; then
         install_from_pm tmux
-        echo "****************************"
-        echo "tmux $pm_version installed."
-        echo "****************************"
+        say_ok "tmux $pm_version installed"
         return 0
       fi
     fi
@@ -122,9 +121,7 @@ install_tmux_program() {
     fi
 
     install_tmux_from_source "$tmux_desired_version" "$location"
-    echo "****************************"
-    echo "tmux $tmux_desired_version installed."
-    echo "****************************"
+    say_ok "tmux $tmux_desired_version installed"
   )
 }
 
@@ -141,8 +138,8 @@ install_tmux_dotfiles() {
     set -e
     config_dir="$(xdg_config_home)/tmux"
     plugins_dir="$(get_tmux_plugins_dir)"
-    mkdir -v -p "$config_dir"
-    mkdir -v -p "$plugins_dir"
+    mkdir -p "$config_dir"
+    mkdir -p "$plugins_dir"
     tmux_conf="$config_dir/tmux.conf"
 
     # Use tmux source-file command to include dotfiles repo tmux.conf
@@ -158,11 +155,9 @@ install_tmux_dotfiles() {
 EOF
     )
 
-    install_managed_block "$tmux_conf" "$BLOCK_TAG" "$contents"
+    install_managed_block "$tmux_conf" "$TMUX_BLOCK_TAG" "$contents"
 
-    echo "****************************"
-    echo "$tmux_conf configured."
-    echo "****************************"
+    say_ok "$tmux_conf configured"
   )
 }
 
@@ -175,32 +170,63 @@ is_tpm_installed() {
 # A git-backed install lets tpm/bin/install_plugins recognize tpm itself as already
 # managed and skip re-cloning it.
 install_tpm() {
-  local plugins_dir
+  local plugins_dir log rc
   (
     set -e
     if is_tpm_installed; then
-      echo "****************************"
-      echo "TPM ${TPM_VERSION} already installed."
-      echo "****************************"
+      say_ok "TPM ${TPM_VERSION} already installed"
       return 0
     fi
     install_from_pm git
     plugins_dir=$(get_tmux_plugins_dir)
     mkdir -p "$plugins_dir"
-    git clone --depth=1 --branch "v${TPM_VERSION}" -c advice.detachedHead=false "$TPM_REPO" "$plugins_dir/tpm"
-    echo "****************************"
-    echo "TPM ${TPM_VERSION} installed."
-    echo "****************************"
+    say_step "cloning TPM ${TPM_VERSION}"
+    # Capture so we can surface real `warning:` lines (e.g. annotated-tag refs)
+    # via say_warn while hiding routine git progress.
+    log=$(mktemp 2>/dev/null || printf '/tmp/tpm_clone.%d' $$)
+    git clone --quiet --depth=1 --branch "v${TPM_VERSION}" \
+      -c advice.detachedHead=false "$TPM_REPO" "$plugins_dir/tpm" >"$log" 2>&1
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+      cat "$log" >&2
+      rm -f "$log"
+      return "$rc"
+    fi
+    grep -i '^warning:' "$log" 2>/dev/null | while IFS= read -r w; do
+      say_warn "$w"
+    done
+    rm -f "$log"
+    say_ok "TPM ${TPM_VERSION} installed"
   )
 }
 
 # Materialize @plugin entries declared in tmux.conf via TPM's headless installer.
-# Requires git (each plugin is a git clone).
+# Requires git (each plugin is a git clone). We capture TPM's chatter so the
+# success summary can report how many plugins were installed (or already present)
+# and so failures still surface their full log.
 install_tpm_plugins() {
-  (
-    set -e
+  local log rc installed already
+  say_step "installing tmux plugins via TPM"
+  if [ "${DEBUG:-}" = "1" ]; then
     "$(get_tmux_plugins_dir)/tpm/bin/install_plugins"
-  )
+    return $?
+  fi
+  log=$(mktemp 2>/dev/null || printf '/tmp/tpm_plugins.%d' $$)
+  "$(get_tmux_plugins_dir)/tpm/bin/install_plugins" >"$log" 2>&1
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    cat "$log" >&2
+    rm -f "$log"
+    return $rc
+  fi
+  installed=$(grep -c 'download success' "$log" 2>/dev/null || echo 0)
+  already=$(grep -c '^Already installed' "$log" 2>/dev/null || echo 0)
+  rm -f "$log"
+  if [ "$installed" -gt 0 ]; then
+    say_ok "$installed $(pluralize "$installed" plugin plugins) installed ($already already present)"
+  else
+    say_ok "tmux plugins up to date ($already already present)"
+  fi
 }
 
 # Install tmux bridge managed block into $ZDOTDIR/.zshrc, if present.
@@ -222,7 +248,7 @@ install_tmux_shell_bridge() {
 
     # Default the auto-enter prompt to the previous choice (YES if the block
     # already has the snippet, NO otherwise).
-    if managed_block_contains "$zshrc" "$BLOCK_TAG" 'tmux-enter'; then
+    if managed_block_contains "$zshrc" "$TMUX_BLOCK_TAG" 'tmux-enter'; then
       confirm    "Auto-launch tmux on new shells (with terminal-emulator detection)?" \
         && want_auto_enter=1 || want_auto_enter=0
     else
@@ -251,9 +277,9 @@ EOF
 		${auto_enter}
 EOF
     )
-    install_managed_block "$zshrc" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshrc" "$TMUX_BLOCK_TAG" "$content"
 
-    echo "$zshrc updated with tmux bridge block."
+    say_ok "$zshrc updated"
   )
 }
 

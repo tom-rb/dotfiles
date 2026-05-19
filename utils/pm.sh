@@ -39,10 +39,10 @@ install_from_pm() {
   set -- $(_pm_packages_for "$@")
   case $(get_supported_pm) in
     apt-get)
-      sudo apt-get update &&
-      sudo apt-get install -y "$@";;
+      run_quiet sudo apt-get update &&
+      run_quiet sudo apt-get install -y "$@";;
     yum)
-      sudo yum -y install "$@";;
+      run_quiet sudo yum -y install "$@";;
     *)
       >&2 echo "Couldn't find package manager";;
   esac

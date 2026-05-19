@@ -66,10 +66,12 @@ test_deploy_wizard_skips_zimfw_when_zsh_declined() {
   createSpy -u install_from_pm
   createSpy -u start_module_wizard
 
-  # Decline zsh; accept the rest. confirm reads one byte per call.
-  printf 'n\ny\ny\n' | deploy_wizard >/dev/null
+  # Decline zsh (which skips the nested zimfw prompt); accept asdf, tmux, git.
+  # confirm reads one byte per call: zsh=n, asdf=y, tmux=y, git=y.
+  printf 'n\ny\ny\ny\n' | deploy_wizard >/dev/null
 
-  assertCallCount start_module_wizard 2
+  assertCallCount start_module_wizard 3
+  assertCalledWith start_module_wizard asdf
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
 }

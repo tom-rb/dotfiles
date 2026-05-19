@@ -65,7 +65,7 @@ test_install_returns_true_if_tmux_is_installed_with_desired_version() {
 
   assertTrue "Tmux already installed should not be an error" $?
   assertContains "Should return immediately with msg" \
-    "$output" "3.1b installed"
+    "$output" "3.1b already installed"
 }
 
 test_install_returns_true_if_installed_version_is_higher_than_desired() {
@@ -76,7 +76,7 @@ test_install_returns_true_if_installed_version_is_higher_than_desired() {
 
   assertTrue "Newer installed tmux should be accepted" $?
   assertContains "Should report the actual installed version" \
-    "$output" "3.4 installed"
+    "$output" "3.4 already installed"
 }
 
 test_install_proceeds_with_dotfiles_when_installed_is_below_min_and_user_accepts() {
@@ -420,25 +420,26 @@ test_install_tpm_clones_pinned_version() {
   assertCalledOnceWith install_from_pm git
   # Pinned version is cloned shallowly into plugins/tpm
   assertCalledOnceWith git \
-    clone --depth=1 --branch "v${TPM_VERSION}" \
+    clone --quiet --depth=1 --branch "v${TPM_VERSION}" \
     -c advice.detachedHead=false "$TPM_REPO" "$plugins_dir/tpm"
 }
 
 test_install_tpm_plugins_runs_install_plugins() {
   plugins_dir="$HOME/.local/share/tmux/plugins"
+  marker="$SHUNIT_TMPDIR/install_plugins.ran"
   mkdir -p "$plugins_dir/tpm/bin"
-  # Stub install_plugins so we can verify it was invoked
-  cat > "$plugins_dir/tpm/bin/install_plugins" <<'EOF'
+  # install_tpm_plugins mutes the stub's stdout via run_quiet, so we verify
+  # invocation through a side-effect marker file instead of captured output.
+  cat > "$plugins_dir/tpm/bin/install_plugins" <<EOF
 #!/bin/sh
-echo "install_plugins called"
+touch "$marker"
 EOF
   chmod +x "$plugins_dir/tpm/bin/install_plugins"
 
-  output=$(install_tpm_plugins)
+  install_tpm_plugins >/dev/null
 
   assertTrue "install_tpm_plugins should succeed" $?
-  assertContains "Should actually run install_plugins" \
-    "$output" "install_plugins called"
+  assertTrue "install_plugins script should have been invoked" "[ -e '$marker' ]"
 }
 
 # Run tests

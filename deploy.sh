@@ -49,20 +49,27 @@ deploy_wizard() {
     install_basic_packages || die "Couldn't install basic packages"
   fi
 
+  say_section zsh
   if confirm "Install zsh?"; then
     start_module_wizard zsh
-    if confirm "Install zimfw (zsh framework)?"; then
+
+    say_section "zimfw (zsh framework)"
+    if confirm "Install zimfw?"; then
       start_module_wizard zimfw
     fi
+
+    say_section asdf
     if confirm "Install asdf?"; then
       start_module_wizard asdf
     fi
   fi
 
+  say_section tmux
   if confirm "Install tmux?"; then
     start_module_wizard tmux
   fi
 
+  say_section git
   if confirm "Install git?"; then
     start_module_wizard git
   fi

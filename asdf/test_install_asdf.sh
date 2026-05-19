@@ -53,10 +53,10 @@ test_install_downloads_and_extracts_asdf_when_not_installed() {
   assertTrue "asdf install should not be an error" $?
   assertCalledOnceWith detect_asdf_arch
   # URL pattern: https://github.com/asdf-vm/asdf/releases/download/<ver>/asdf-<ver>-<os>-<arch>.tar.gz
-  assertCalledWith wget -O "$HOME/.local/bin/asdf.tar.gz" \
+  assertCalledWith wget -q -O "$HOME/.local/bin/asdf.tar.gz" \
     "https://github.com/asdf-vm/asdf/releases/download/v0.16.7/asdf-v0.16.7-linux-amd64.tar.gz"
   assertCalledWith tar -xzf "$HOME/.local/bin/asdf.tar.gz" -C "$HOME/.local/bin" asdf
-  assertContains "Should report installed" "$output" "asdf installed"
+  assertContains "Should report installed" "$output" "asdf v0.16.7 installed"
 }
 
 #

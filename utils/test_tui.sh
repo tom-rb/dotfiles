@@ -181,10 +181,98 @@ test_prompt_line_trims_leading_and_trailing_whitespace() {
   assertEquals "spaced value" "$answer"
 }
 
+test_prompt_line_emits_trailing_newline_so_next_prompt_does_not_collide() {
+  # Defensive unconditional newline: under pipes the terminal isn't echoing
+  # the user's Enter, so without this the next caller's prompt collides on
+  # the same line.
+  out=$(echo "Alice" | { prompt_line "Name: " answer; echo NEXT_LINE; })
+  assertEquals "Name: " "$(printf '%s' "$out" | sed -n '1p')"
+  assertEquals "NEXT_LINE" "$(printf '%s' "$out" | sed -n '2p')"
+}
+
 test_prompt_line_sets_empty_when_input_is_blank() {
   answer=PRESET
   answer=$(echo "" | { prompt_line "> " answer > /dev/null; echo "$answer"; })
   assertEquals "" "$answer"
+}
+
+#
+# say_section / say_ok / say_step / say_warn / say_info
+#
+
+test_say_section_has_blank_line_above_and_header() {
+  out=$(say_section zsh)
+  assertEquals "" "$(printf '%s' "$out" | sed -n '1p')"
+  assertEquals "== zsh ==" "$(printf '%s' "$out" | sed -n '2p')"
+}
+
+test_say_ok_prints_checkmark_and_indent() {
+  out=$(say_ok "zsh installed")
+  assertEquals "  ✓ zsh installed" "$out"
+}
+
+test_say_step_prints_arrow_and_indent() {
+  out=$(say_step "downloading asdf")
+  assertEquals "  → downloading asdf" "$out"
+}
+
+test_say_warn_writes_to_stderr() {
+  out=$(say_warn "tag is annotated" 2>/dev/null)
+  assertEquals "" "$out"
+
+  err=$(say_warn "tag is annotated" 2>&1 >/dev/null)
+  assertEquals "  ! tag is annotated" "$err"
+}
+
+test_say_info_is_double_indented() {
+  out=$(say_info "extra detail")
+  assertEquals "    extra detail" "$out"
+}
+
+#
+# pluralize
+#
+
+test_pluralize_returns_singular_for_one() {
+  assertEquals "plugin" "$(pluralize 1 plugin plugins)"
+}
+
+test_pluralize_returns_plural_for_zero() {
+  assertEquals "plugins" "$(pluralize 0 plugin plugins)"
+}
+
+test_pluralize_returns_plural_for_many() {
+  assertEquals "plugins" "$(pluralize 42 plugin plugins)"
+}
+
+#
+# run_quiet
+#
+
+test_run_quiet_suppresses_stdout_on_success() {
+  out=$(run_quiet sh -c 'echo loud; exit 0')
+  assertEquals "" "$out"
+}
+
+test_run_quiet_suppresses_stderr_on_success() {
+  err=$(run_quiet sh -c 'echo noise >&2; exit 0' 2>&1 >/dev/null)
+  assertEquals "" "$err"
+}
+
+test_run_quiet_replays_output_on_failure() {
+  err=$(run_quiet sh -c 'echo line1; echo line2 >&2; exit 7' 2>&1 >/dev/null)
+  assertContains "$err" "line1"
+  assertContains "$err" "line2"
+}
+
+test_run_quiet_preserves_exit_code() {
+  run_quiet sh -c 'exit 42' 2>/dev/null
+  assertEquals 42 $?
+}
+
+test_run_quiet_is_loud_when_debug_set() {
+  out=$(DEBUG=1 run_quiet sh -c 'echo loud; exit 0')
+  assertEquals "loud" "$out"
 }
 
 

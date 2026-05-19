@@ -24,9 +24,7 @@ set_git_global_config() {
     fi
   fi
   git config --global "$key" "$target"
-  echo "****************************"
-  echo "$label configured."
-  echo "****************************"
+  say_ok "$label configured"
 }
 
 # Check if git is installed
@@ -40,16 +38,12 @@ install_git_program() {
   (
     set -e
     if is_git_installed; then
-      echo "****************************"
-      echo "git already installed."
-      echo "****************************"
+      say_ok "git already installed"
       return 0
     fi
 
     install_from_pm git
-    echo "****************************"
-    echo "git installed."
-    echo "****************************"
+    say_ok "git installed"
   )
 }
 
