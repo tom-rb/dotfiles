@@ -19,6 +19,17 @@ CapsLock::ESC
 ; [Win] [8] writes • (bullet point)
 #8::Send •
 
+; Suppress the normal Windows + W (widgets)
+#w::return
+
+; [Win] [w] [→↓←↑] writes the arrow character
+#If GetKeyState("w", "P")
+#Right::Send →
+#Down::Send ↓
+#Left::Send ←
+#Up::Send ↑
+#If
+
 ; [Win] [Shift] [Tab] writes \t
 #+Tab::
 	Clipboard := A_Tab
