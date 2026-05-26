@@ -26,6 +26,21 @@ RUN sudo yum -y install git
 FROM with-git AS with-zsh
 RUN sudo yum -y install zsh
 
-# With tmux installed
+# With tmux installed.
+# amazonlinux:2's package tmux is 1.8, which is older than the dotfiles' minimum
+# (3.1b) — install_tmux_program would refuse and the wizard would bail. Build a
+# modern tmux from source so this stage exercises the "tmux already installed"
+# path the tests intend.
 FROM with-zsh AS with-tmux
-RUN sudo yum -y install tmux
+ARG TMUX_VERSION=3.4
+USER root
+RUN yum -y install gcc make bison wget tar gzip libevent-devel ncurses-devel \
+  && cd /tmp \
+  && wget -q "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz" \
+  && tar xf "tmux-${TMUX_VERSION}.tar.gz" \
+  && cd "tmux-${TMUX_VERSION}" \
+  && ./configure >/dev/null \
+  && make -j"$(nproc)" >/dev/null \
+  && make install >/dev/null \
+  && cd /tmp && rm -rf "tmux-${TMUX_VERSION}" "tmux-${TMUX_VERSION}.tar.gz"
+USER amy
