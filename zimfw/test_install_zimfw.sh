@@ -21,11 +21,20 @@ tearDown() {
   cleanupTestDir
 }
 
-# Convenience: simulate a completed install_zsh
+# Convenience: simulate a completed install_zsh — including the base and
+# overrides managed blocks in $ZDOTDIR/.zshrc that zimfw's anchor depends on.
 _simulate_install_zsh() {
   touch "$HOME/.zshenv"
   mkdir -p "$XDG_CONFIG_HOME/zsh"
-  touch "$XDG_CONFIG_HOME/zsh/.zshrc"
+  cat > "$XDG_CONFIG_HOME/zsh/.zshrc" <<-'EOF'
+		# >>> dotfiles:zsh:base >>>
+		source "$DOTFILES/zsh/zshrc-base"
+		# <<< dotfiles:zsh:base <<<
+
+		# >>> dotfiles:zsh:overrides >>>
+		source "$DOTFILES/zsh/zshrc-overrides"
+		# <<< dotfiles:zsh:overrides <<<
+EOF
 }
 
 #
@@ -53,7 +62,7 @@ test_preconditions_die_if_zshenv_missing() {
   assertContains "Should mention .zshenv" "$output" ".zshenv"
 }
 
-test_preconditions_die_if_zshrc_stub_missing() {
+test_preconditions_die_if_zshrc_missing() {
   touch "$HOME/.zshenv"
   createSpy -u -r "$SHUNIT_TRUE" command_exists
 
@@ -117,7 +126,7 @@ test_zshenv_block_writes_skip_global_compinit() {
 # install_zimfw_zshrc_block
 #
 
-test_zshrc_block_appends_marker_block() {
+test_zshrc_block_writes_managed_block() {
   _simulate_install_zsh
 
   quietly install_zimfw_zshrc_block
@@ -129,6 +138,30 @@ test_zshrc_block_appends_marker_block() {
   # shellcheck disable=SC2016
   assertContains "Should source zshrc-zim" \
     "$contents" 'source "$DOTFILES/zimfw/zshrc-zim"'
+}
+
+test_zshrc_block_lands_between_zsh_base_and_overrides() {
+  _simulate_install_zsh
+
+  quietly install_zimfw_zshrc_block
+
+  zshrc="$XDG_CONFIG_HOME/zsh/.zshrc"
+  base_line=$(grep -n "# >>> dotfiles:zsh:base >>>" "$zshrc" | cut -d: -f1)
+  zim_line=$(grep -n "# >>> dotfiles:zimfw >>>" "$zshrc" | cut -d: -f1)
+  overrides_line=$(grep -n "# >>> dotfiles:zsh:overrides >>>" "$zshrc" | cut -d: -f1)
+  assertTrue "zimfw block should come after zsh:base"   "[ $base_line -lt $zim_line ]"
+  assertTrue "zimfw block should come before zsh:overrides" "[ $zim_line -lt $overrides_line ]"
+}
+
+test_zshrc_block_dies_when_zsh_base_anchor_absent() {
+  # No _simulate_install_zsh — .zshrc lacks the anchor.
+  mkdir -p "$XDG_CONFIG_HOME/zsh"
+  echo "# hand-rolled" > "$XDG_CONFIG_HOME/zsh/.zshrc"
+
+  ( install_zimfw_zshrc_block ) >/dev/null 2>&1
+  rc=$?
+
+  assertNotEquals 0 "$rc"
 }
 
 #

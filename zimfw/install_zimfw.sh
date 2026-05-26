@@ -3,7 +3,7 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
-BLOCK_TAG="dotfiles:zimfw"
+ZIMFW_BLOCK_TAG="dotfiles:zimfw"
 
 # Pinned zimfw release. Bump deliberately, never to a moving branch.
 ZIMFW_URL='https://github.com/zimfw/zimfw/releases/download/v1.19.1/zimfw.zsh'
@@ -59,13 +59,15 @@ install_zimfw_zshenv_block() {
 		skip_global_compinit=1
 EOF
     )
-    install_managed_block "$zshenv" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshenv" "$ZIMFW_BLOCK_TAG" "$content"
 
     echo "$zshenv updated with zimfw block."
   )
 }
 
-# Append managed block to $ZDOTDIR/.zshrc sourcing zimfw/zshrc-zim.
+# Insert managed block into $ZDOTDIR/.zshrc sourcing zimfw/zshrc-zim, anchored
+# immediately after the dotfiles:zsh:base block so zsh's overrides layer keeps
+# winning conflicts against zimfw modules.
 install_zimfw_zshrc_block() {
   local zdotdir zshrc content
   (
@@ -77,7 +79,7 @@ install_zimfw_zshrc_block() {
 		source "$DOTFILES/zimfw/zshrc-zim"
 EOF
     )
-    install_managed_block "$zshrc" "$BLOCK_TAG" "$content"
+    install_managed_block --after "dotfiles:zsh:base" "$zshrc" "$ZIMFW_BLOCK_TAG" "$content"
 
     echo "$zshrc updated with zimfw block."
   )
@@ -94,7 +96,7 @@ install_zimfw_zdotdir_stub() {
 
     contents=$(printf '# Managed by zimfw/install_zimfw.sh — edits inside this block will be overwritten.\nsource "%s"' "${2:?}")
 
-    install_managed_block "$target" "$BLOCK_TAG" "$contents"
+    install_managed_block "$target" "$ZIMFW_BLOCK_TAG" "$contents"
 
     echo "$target configured."
   )

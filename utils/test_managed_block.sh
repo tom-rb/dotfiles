@@ -117,6 +117,77 @@ source base
 }
 
 #
+# write_managed_block --after <anchor>
+#
+
+test_after_inserts_block_immediately_after_anchor_closing_fence() {
+  cat > "$TARGET" <<-EOF
+		# >>> dotfiles:zsh:base >>>
+		source base
+		# <<< dotfiles:zsh:base <<<
+
+		# >>> dotfiles:zsh:overrides >>>
+		source overrides
+		# <<< dotfiles:zsh:overrides <<<
+EOF
+
+  write_managed_block --after "dotfiles:zsh:base" "$TARGET" "dotfiles:zimfw" "source zim"
+
+  expected='# >>> dotfiles:zsh:base >>>
+source base
+# <<< dotfiles:zsh:base <<<
+
+# >>> dotfiles:zimfw >>>
+source zim
+# <<< dotfiles:zimfw <<<
+
+# >>> dotfiles:zsh:overrides >>>
+source overrides
+# <<< dotfiles:zsh:overrides <<<'
+  assertEquals "$expected" "$(cat "$TARGET")"
+}
+
+test_after_is_ignored_on_reinstall_block_position_preserved() {
+  # Block sits BEFORE the anchor — a misordered state. Re-running with
+  # --after must not relocate it; the rule is position-preserving.
+  cat > "$TARGET" <<-EOF
+		# >>> dotfiles:zimfw >>>
+		old zim
+		# <<< dotfiles:zimfw <<<
+
+		# >>> dotfiles:zsh:base >>>
+		source base
+		# <<< dotfiles:zsh:base <<<
+EOF
+
+  write_managed_block --after "dotfiles:zsh:base" "$TARGET" "dotfiles:zimfw" "new zim"
+
+  expected='# >>> dotfiles:zimfw >>>
+new zim
+# <<< dotfiles:zimfw <<<
+
+# >>> dotfiles:zsh:base >>>
+source base
+# <<< dotfiles:zsh:base <<<'
+  assertEquals "$expected" "$(cat "$TARGET")"
+}
+
+test_after_dies_when_anchor_absent_from_file() {
+  cat > "$TARGET" <<-EOF
+		# >>> dotfiles:something-else >>>
+		stuff
+		# <<< dotfiles:something-else <<<
+EOF
+  original=$(cat "$TARGET")
+
+  ( write_managed_block --after "dotfiles:zsh:base" "$TARGET" "dotfiles:zimfw" "source zim" ) >/dev/null 2>&1
+  rc=$?
+
+  assertNotEquals 0 "$rc"
+  assertEquals "$original" "$(cat "$TARGET")"
+}
+
+#
 # install_managed_block
 #
 
@@ -173,6 +244,35 @@ zimfw block
 # <<< dotfiles:zimfw <<<'
   assertEquals "$expected" "$(cat "$TARGET")"
   assertFalse "No backup should be created" "[ -f \"$TARGET.bkp\" ]"
+}
+
+test_install_managed_block_after_lands_block_after_anchor_on_quiet_path() {
+  cat > "$TARGET" <<-EOF
+		# >>> dotfiles:zsh:base >>>
+		source base
+		# <<< dotfiles:zsh:base <<<
+
+		# >>> dotfiles:zsh:overrides >>>
+		source overrides
+		# <<< dotfiles:zsh:overrides <<<
+EOF
+  createSpy -u choose
+
+  install_managed_block --after "dotfiles:zsh:base" "$TARGET" "dotfiles:zimfw" "source zim" >/dev/null
+
+  assertNeverCalled choose
+  expected='# >>> dotfiles:zsh:base >>>
+source base
+# <<< dotfiles:zsh:base <<<
+
+# >>> dotfiles:zimfw >>>
+source zim
+# <<< dotfiles:zimfw <<<
+
+# >>> dotfiles:zsh:overrides >>>
+source overrides
+# <<< dotfiles:zsh:overrides <<<'
+  assertEquals "$expected" "$(cat "$TARGET")"
 }
 
 test_install_managed_block_prepend_lands_block_above_existing_managed_block() {

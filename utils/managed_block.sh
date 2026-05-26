@@ -5,15 +5,21 @@
 # markers; callers pass only the content that goes between them.
 # Creates the file if missing.
 # -p / --prepend: place at the top of an existing non-empty file (default: append)
+# --after <anchor>: on first-time placement of this block, insert immediately
+#   after <anchor>'s closing fence. Dies if <anchor> is absent from the file.
+#   Mutually exclusive with --prepend.
 # $1: target file
 # $2: tag (e.g. dotfiles:zsh)
 # $3: content (between the markers, without trailing newline)
 write_managed_block() {
-  local file tag content start end prepend=0
-  if [ "$1" = "-p" ] || [ "$1" = "--prepend" ]; then
-    prepend=1
-    shift
-  fi
+  local file tag content start end prepend=0 anchor=''
+  while :; do
+    case "$1" in
+      -p|--prepend) prepend=1; shift ;;
+      --after)      anchor=${2:?}; shift 2 ;;
+      *)            break ;;
+    esac
+  done
   file=${1:?} tag=${2:?} content=${3?}
   start="# >>> $tag >>>"
   end="# <<< $tag <<<"
@@ -23,6 +29,15 @@ write_managed_block() {
       $0==s {print s; print c; print e; skip=1; next}
       skip && $0==e {skip=0; next}
       !skip
+    ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+  elif [ -n "$anchor" ]; then
+    local anchor_end="# <<< $anchor <<<"
+    if [ ! -f "$file" ] || ! grep -qF "$anchor_end" "$file"; then
+      die "Cannot place block '$tag' in $file: anchor '$anchor' not found."
+    fi
+    awk -v ae="$anchor_end" -v s="$start" -v e="$end" -v c="$content" '
+      {print}
+      $0==ae && !placed {print ""; print s; print c; print e; placed=1}
     ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
   elif [ -s "$file" ] && [ "$prepend" = 1 ]; then
     { printf '%s\n%s\n%s\n\n' "$start" "$content" "$end"; cat "$file"; } > "$file.tmp" \
@@ -83,17 +98,32 @@ managed_block_contains() {
 # this tag, prompt the user (backup / append / overwrite, default backup).
 # Quiet otherwise: missing file or block already present → straight upsert.
 # -p / --prepend: forwarded to write_managed_block on the quiet path
+# --after <anchor>: on first-time placement of this block, insert immediately
+#   after <anchor>'s closing fence. Mutually exclusive with --prepend.
 # $1: target file
 # $2: tag
 # $3: content
 install_managed_block() {
-  local file tag content start prepend=0 add_label
-  if [ "$1" = "-p" ] || [ "$1" = "--prepend" ]; then
-    prepend=1
-    shift
-  fi
+  local file tag content start prepend=0 anchor='' add_label
+  while :; do
+    case "$1" in
+      -p|--prepend) prepend=1; shift ;;
+      --after)      anchor=${2:?}; shift 2 ;;
+      *)            break ;;
+    esac
+  done
   file=${1:?} tag=${2:?} content=${3?}
   start="# >>> $tag >>>"
+  # Anchor is a hard precondition. Check before any user-facing prompt so a
+  # missing anchor never collapses into the backup/overwrite branches (which
+  # would silently land the block without honoring the ordering constraint).
+  # Exception: if this tag's block already lives in the file, we're on a
+  # position-preserving re-install and the anchor isn't consulted.
+  if [ -n "$anchor" ] \
+     && { [ ! -f "$file" ] || ! grep -qF "$start" "$file"; } \
+     && { [ ! -f "$file" ] || ! grep -qF "# <<< $anchor <<<" "$file"; }; then
+    die "Cannot place block '$tag' in $file: anchor '$anchor' not found."
+  fi
   # Quiet path: nothing the user wrote is at stake.
   # - file missing/empty (no content yet)
   # - this tag's block already there (idempotent re-run)
@@ -102,7 +132,9 @@ install_managed_block() {
   if [ ! -s "$file" ] \
      || grep -qF "$start" "$file" \
      || only_managed_blocks "$file"; then
-    if [ "$prepend" = 1 ]; then
+    if [ -n "$anchor" ]; then
+      write_managed_block --after "$anchor" "$file" "$tag" "$content"
+    elif [ "$prepend" = 1 ]; then
       write_managed_block --prepend "$file" "$tag" "$content"
     else
       write_managed_block "$file" "$tag" "$content"

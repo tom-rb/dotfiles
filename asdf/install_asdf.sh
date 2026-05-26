@@ -3,7 +3,7 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
-BLOCK_TAG="dotfiles:asdf"
+ASDF_BLOCK_TAG="dotfiles:asdf"
 
 ASDF_VERSION="v0.16.7"
 
@@ -80,7 +80,7 @@ install_asdf_zshenv() {
 			[[ -r "$ASDF_DATA_DIR/plugins/java/set-java-home.zsh" ]] && source "$ASDF_DATA_DIR/plugins/java/set-java-home.zsh"
 EOF
     )
-    install_managed_block "$zshenv" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshenv" "$ASDF_BLOCK_TAG" "$content"
 
     echo "****************************"
     echo "$zshenv configured for asdf."
@@ -108,7 +108,7 @@ EOF
   # Prepend: zim modules that add to fpath (e.g. `asdf`) must be declared
   # before `zmodule completion` runs compinit. zimrc-base is sourced from
   # the dotfiles:zimfw block, so this block must precede it.
-  install_managed_block --prepend "$zimrc" "$BLOCK_TAG" "$content"
+  install_managed_block --prepend "$zimrc" "$ASDF_BLOCK_TAG" "$content"
   echo "$zimrc updated with asdf zmodule."
 }
 

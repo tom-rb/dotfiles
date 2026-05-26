@@ -24,11 +24,15 @@ A configuration file in the user's home (or `$ZDOTDIR`, `$XDG_CONFIG_HOME`, etc.
 
 ## Managed block
 
-A fenced region inside an owned dotfile, marked by `# >>> <tag> >>>` … `# <<< <tag> <<<`, that the dotfiles repo owns and rewrites freely. Everything outside the fence belongs to the user and is never touched. `utils/managed_block.sh::write_managed_block` is the pure transform that upserts a block; `install_managed_block` is the interactive wrapper that handles first-time placement into a pre-existing file.
+A fenced region inside an owned dotfile, marked by `# >>> <tag> >>>` … `# <<< <tag> <<<`, that the dotfiles repo owns and rewrites freely. Everything outside the fence belongs to the user and is never touched. `utils/managed_block.sh::write_managed_block` is the pure transform that upserts a block; `install_managed_block` is the interactive wrapper that handles [[First-time placement]] into a pre-existing file. A block may declare a [[Block anchor]] to control where it lands on first-time placement.
 
 ## First-time placement
 
 The case where an owned dotfile already exists but has no managed block for the given tag — i.e. the user has hand-rolled content that predates this install. `install_managed_block` prompts (backup / append / overwrite, default backup) only here. Subsequent runs (block present, file absent/empty, or file containing only other managed blocks) are quiet.
+
+## Block anchor
+
+An optional ordering constraint on a [[Managed block]] naming another block that must precede it in the same file. Expressed at the install site as the `--after <tag>` flag to `install_managed_block` (and `write_managed_block`). Consulted **only on [[First-time placement]]**; if the dependent block already exists in the file, the position is preserved and the anchor is not re-checked. On first-time placement, if the anchor tag is absent the install dies — the anchor expresses a precondition, not a fallback. Knowledge flows from dependent to anchor (the dependent block names the anchor's tag), which conventionally means framework → base (e.g. `dotfiles:zimfw` anchors on `dotfiles:zsh:base`). The anchor is *not* persisted in the fence; it lives only in the install-time call.
 
 ## Inlined vs sourced runtime config
 

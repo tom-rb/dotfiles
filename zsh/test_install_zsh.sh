@@ -56,7 +56,7 @@ test_install_zsh_from_package_manager_when_not_installed() {
 # install_zsh_zshenv (deployed at $HOME/.zshenv)
 #
 
-test_zshenv_stub_is_installed() {
+test_zshenv_block_is_installed() {
   quietly install_zsh_zshenv
 
   assertTrue "Should have created \$HOME/.zshenv" "test -f $HOME/.zshenv"
@@ -79,7 +79,7 @@ test_zshenv_stub_is_installed() {
     "$contents" 'zshenv-base'
 }
 
-test_zshenv_stub_ends_with_a_newline() {
+test_zshenv_block_ends_with_a_newline() {
   quietly install_zsh_zshenv
 
   # $(...) strips trailing newlines, so an empty result means the last byte was \n
@@ -96,46 +96,46 @@ test_zshenv_block_has_start_and_end_markers() {
 }
 
 #
-# install_zsh_zshrc_stub (deployed at $ZDOTDIR/.zshrc with marker block)
+# install_zsh_zshrc_base (deployed at $ZDOTDIR/.zshrc with managed block)
 #
 
-test_zshrc_stub_is_created_with_marker_block() {
-  quietly install_zsh_zshrc_stub
+test_zshrc_is_created_with_marker_block() {
+  quietly install_zsh_zshrc_base
 
   zshrc="$XDG_CONFIG_HOME/zsh/.zshrc"
   assertTrue "Should have created \$ZDOTDIR/.zshrc" "test -f $zshrc"
 
   contents=$(cat "$zshrc")
-  assertContains "Should contain start marker" "$contents" "# >>> dotfiles:zsh >>>"
-  assertContains "Should contain end marker"   "$contents" "# <<< dotfiles:zsh <<<"
+  assertContains "Should contain start marker" "$contents" "# >>> dotfiles:zsh:base >>>"
+  assertContains "Should contain end marker"   "$contents" "# <<< dotfiles:zsh:base <<<"
   # shellcheck disable=SC2016
   assertContains "Should source repo base .zshrc" \
     "$contents" 'source "$DOTFILES/zsh/zshrc-base"'
 }
 
-test_zshrc_stub_creates_zdotdir_if_missing() {
-  quietly install_zsh_zshrc_stub
+test_zshrc_creates_zdotdir_if_missing() {
+  quietly install_zsh_zshrc_base
   assertTrue "Should create \$ZDOTDIR" "test -d $XDG_CONFIG_HOME/zsh"
 }
 
-test_zshrc_stub_creates_history_dir() {
-  quietly install_zsh_zshrc_stub
+test_zshrc_creates_history_dir() {
+  quietly install_zsh_zshrc_base
   assertTrue "Should create \$XDG_DATA_HOME/zsh for HISTFILE" \
     "test -d $XDG_DATA_HOME/zsh"
 }
 
-test_zshrc_stub_creates_cache_dir() {
+test_zshrc_creates_cache_dir() {
   XDG_CACHE_HOME=${SHUNIT_TMPDIR:?}/xdg-cache
 
-  quietly install_zsh_zshrc_stub
+  quietly install_zsh_zshrc_base
   assertTrue "Should create \$XDG_CACHE_HOME/zsh for zcompdump/zcompcache" \
     "test -d $XDG_CACHE_HOME/zsh"
 }
 
-test_zshrc_stub_prints_polite_note_when_home_zshrc_exists() {
+test_zshrc_prints_polite_note_when_home_zshrc_exists() {
   echo "# legacy ~/.zshrc" > "$HOME/.zshrc"
 
-  output=$(install_zsh_zshrc_stub)
+  output=$(install_zsh_zshrc_base)
 
   assertContains "Should warn about pre-existing \$HOME/.zshrc" \
     "$output" "\$HOME/.zshrc exists"
@@ -143,34 +143,68 @@ test_zshrc_stub_prints_polite_note_when_home_zshrc_exists() {
     "$output" "$XDG_CONFIG_HOME/zsh"
 }
 
-test_zshrc_stub_does_not_print_note_when_no_home_zshrc() {
-  output=$(install_zsh_zshrc_stub)
+test_zshrc_does_not_print_note_when_no_home_zshrc() {
+  output=$(install_zsh_zshrc_base)
   assertNotContains "Should be silent about \$HOME/.zshrc when absent" \
     "$output" "\$HOME/.zshrc exists"
+}
+
+#
+# install_zsh_zshrc_overrides
+#
+
+test_zshrc_creates_overrides_block_sourcing_zshrc_overrides() {
+  quietly install_zsh_zshrc_base
+  quietly install_zsh_zshrc_overrides
+
+  zshrc="$XDG_CONFIG_HOME/zsh/.zshrc"
+  contents=$(cat "$zshrc")
+  assertContains "Should contain overrides start marker" \
+    "$contents" "# >>> dotfiles:zsh:overrides >>>"
+  assertContains "Should contain overrides end marker" \
+    "$contents" "# <<< dotfiles:zsh:overrides <<<"
+  # shellcheck disable=SC2016
+  assertContains "Should source repo zshrc-overrides" \
+    "$contents" 'source "$DOTFILES/zsh/zshrc-overrides"'
+}
+
+test_zshrc_overrides_block_lands_after_base_block() {
+  quietly install_zsh_zshrc_base
+  quietly install_zsh_zshrc_overrides
+
+  zshrc="$XDG_CONFIG_HOME/zsh/.zshrc"
+  base_line=$(grep -n "# >>> dotfiles:zsh:base >>>" "$zshrc" | cut -d: -f1)
+  overrides_line=$(grep -n "# >>> dotfiles:zsh:overrides >>>" "$zshrc" | cut -d: -f1)
+  assertTrue "base block should come before overrides block" \
+    "[ $base_line -lt $overrides_line ]"
 }
 
 #
 # install_zsh_dotfiles (orchestrates both stubs)
 #
 
-test_dotfiles_installs_both_zshenv_and_zshrc_stub() {
+test_dotfiles_installs_zshenv_and_both_zshrc_blocks() {
   createSpy -u install_zsh_zshenv
-  createSpy -u install_zsh_zshrc_stub
+  createSpy -u install_zsh_zshrc_base
+  createSpy -u install_zsh_zshrc_overrides
 
   install_zsh_dotfiles
 
   assertCallCount install_zsh_zshenv 1
-  assertCallCount install_zsh_zshrc_stub 1
+  assertCallCount install_zsh_zshrc_base 1
+  assertCallCount install_zsh_zshrc_overrides 1
 }
 
-test_dotfiles_skips_zshrc_stub_when_zshenv_fails() {
+test_dotfiles_skips_zshrc_steps_when_zshenv_fails() {
   createSpy -u -r "$SHUNIT_FALSE" install_zsh_zshenv
-  createSpy -u install_zsh_zshrc_stub
+  createSpy -u install_zsh_zshrc_base
+  createSpy -u install_zsh_zshrc_overrides
 
   install_zsh_dotfiles
 
   assertCallCount install_zsh_zshenv 1
-  assertNeverCalled install_zsh_zshrc_stub
+  assertNeverCalled install_zsh_zshrc_base
+  assertNeverCalled install_zsh_zshrc_overrides
 }
 
 #

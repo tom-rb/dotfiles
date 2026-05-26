@@ -3,17 +3,17 @@
 #
 # User configuration sourced by interactive shells (base layer)
 #
-# Machine-local additions belong in $ZDOTDIR/.zshrc (the stub that sources
-# this file). Layered tools (e.g. zimfw) drop their own source line into the
-# stub via a marker block — see zimfw/install_zimfw.sh.
+# Loaded before any framework block (e.g. zimfw). Settings that should win
+# on conflict against framework defaults belong in zsh/zshrc-overrides,
+# which is sourced after the framework block via a separate marker block.
 #
 
 ###################
 # Dotfiles update #
 ###################
 
-# TODO: consider moving this to a separate file (e.g. zsh/dotfiles-update.zsh) and sourcing it from the stub,
-# so it's available in interactive shells but not executed by deploy.sh.
+# TODO: consider moving this to a separate file (e.g. zsh/dotfiles-update.zsh) and sourcing it from the
+# managed block, so it's available in interactive shells but not executed by deploy.sh.
 #echo "Updating configuration"
 #(cd ~/dotfiles && git pull && git submodule update --init --recursive)
 
@@ -103,152 +103,3 @@ HISTFILE="${XDG_DATA_HOME:?'XDG_DATA_HOME unset — were zsh dotfiles installed 
 
 # Remove older command from the history if a duplicate is to be added.
 setopt HIST_IGNORE_ALL_DUPS
-
-# Ignore certain commands from history (use zshaddhistory zsh hook)
-function _ignore_cmds_in_history() {
-  emulate -L zsh
-  # Ignore VSCode environment setup when calling zsh
-  if [[ "$1" =~ "(env )?sh /tmp/Microsoft"* ]]; then
-    return 1
-  fi
-}
-(( zshaddhistory_functions[(Ie)_ignore_cmds_in_history] )) || \
-  zshaddhistory_functions+=('_ignore_cmds_in_history')
-
-## Local history navigation
-
-# History navigation use local history (search is still global)
-# Thanks https://superuser.com/a/691603
-up-line-or-local-history() {
-  zle set-local-history 1
-  zle .up-line-or-history
-  zle set-local-history 0
-}
-zle -N up-line-or-local-history
-down-line-or-local-history() {
-  zle set-local-history 1
-  zle .down-line-or-history
-  zle set-local-history 0
-}
-zle -N down-line-or-local-history
-
-# Bind regular up/down navigation to local history
-zle -N up-line-or-history up-line-or-local-history
-zle -N down-line-or-history down-line-or-local-history
-
-# Navigate in global history with Ctrl+arrows
-bindkey "^[[1;5A" .up-line-or-history    # [CTRL] + Cursor up
-bindkey "^[[1;5B" .down-line-or-history  # [CTRL] + Cursor down
-
-#############
-# cd and ls #
-#############
-
-# Append -F (*/=>@| annotations) to regular ls (or already aliased one)
-if (( ${+aliases[ls]} )); then
-  alias ls="${aliases[ls]} -F"
-else
-  alias ls='ls -F'
-fi
-
-# Execute ls after cd (use chpwd zsh hook)
-function _list_if_not_sub_shell() {
-  ((! $ZSH_SUBSHELL)) && ls
-}
-(( chpwd_functions[(Ie)_list_if_not_sub_shell] )) || chpwd_functions+=('_list_if_not_sub_shell')
-
-###############
-# Keybindings #
-###############
-
-# Alt+k go up a folder
-function cd-up() {
-  cd .. >/dev/null
-  zle reset-prompt
-  zle -R
-}
-zle -N cd-up
-bindkey "^[k" cd-up
-
-# Alt+Enter to insert linebreaks in multiline command
-bindkey '^[^M' self-insert-unmeta
-
-# Alt+q to execute another command mid-edit the current one
-# http://zsh.sourceforge.net/Guide/zshguide04.html#l102
-bindkey '\eq' push-line-or-edit
-
-#######################
-# Application aliases #
-#######################
-
-# Remove some folders from grep by default; enable color so GREP_COLORS applies.
-if (( ${+aliases[grep]} )); then
-  alias grep="${aliases[grep]} --color=auto --exclude-dir=.git"
-else
-  alias grep='grep --color=auto --exclude-dir=.git'
-fi
-
-# tree with hidden files and color enabled, ignoring the `.git` directory, listing directories
-# first. Output piped into less preserving color and line numbers
-function tre() {
-  tree -aC -I '.git|node_modules|bower_components' --dirsfirst "$@" | less -FRNX;
-}
-
-# Find and kill stuck processes (high CPU, defunct, or test hangs).
-# Displays candidates and prompts for confirmation before killing.
-function kill-stuck() {
-  emulate -L zsh
-
-  echo "Searching for stuck processes..."
-
-  # Find high-CPU (>10%) processes or stuck test processes
-  local stuck_data
-  stuck_data=$(ps aux --sort=-%cpu | awk '$3 > 10 && $11 !~ /ps|kill|zsh|grep/ {print $2 ":" $3 ":" $4 ":" $11}' | head -10)
-
-  if [[ -z "$stuck_data" ]]; then
-    stuck_data=$(ps aux | grep -E 'test.*\.(sh|py)' | grep -v grep | awk '{print $2 ":" $3 ":" $4 ":" $11}')
-  fi
-
-  if [[ -z "$stuck_data" ]]; then
-    echo "No stuck processes found."
-    return 0
-  fi
-
-  local killed_count=0
-  while IFS=: read -r pid cpu mem cmd; do
-    echo
-    echo "PID: $pid | CPU: ${cpu}% | MEM: ${mem}% | CMD: $cmd"
-    echo -n "Kill this process? (y/N) "
-    read -r confirm < /dev/tty
-
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-      kill -9 "$pid"
-      echo "✓ Killed PID $pid"
-      ((killed_count++))
-    else
-      echo "Skipped PID $pid"
-    fi
-  done <<< "$stuck_data"
-
-  echo
-  echo "Summary: Killed $killed_count process(es)"
-}
-
-# Run a script whenever it changes (e.g. for watch unit tests) with time stats
-function watch-test() {
-  local script="$1"
-  [ ! -x "$script" ] && echo "Must provide an executable file."
-  # Executes the script a first time
-  time $script
-  # Internal watch executes script whenever modified time of sibling files has changed
-  watch -t -n0.2 "watch -t -n0.2 -g ls -l --full-time ${script%/*} > /dev/null && time $script"
-}
-
-# Create /etc/resolv.conf for WSL using DNS info from Windows
-function fixdns() {
-  local ps='/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe'
-  if command -v $ps >/dev/null; then
-    $ps "Get-DnsClientGlobalSetting | Select-Object -ExpandProperty SuffixSearchList" | tr -d '\r' | tr '\n' ' ' | sed "s/^/search /" | sed "s/ $/\n/" | sudo tee /etc/resolv.conf
-    $ps "Get-DnsClientServerAddress -AddressFamily ipv4 | Select-Object -ExpandProperty ServerAddresses" | sed 's/^/nameserver /' | tr -d '\r' | sudo tee -a /etc/resolv.conf
-  fi
-}

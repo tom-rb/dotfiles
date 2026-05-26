@@ -3,7 +3,7 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
-BLOCK_TAG="dotfiles:tmux"
+TMUX_BLOCK_TAG="dotfiles:tmux"
 
 # Pinned TPM release. Bump deliberately.
 TPM_VERSION='3.1.0'
@@ -158,7 +158,7 @@ install_tmux_dotfiles() {
 EOF
     )
 
-    install_managed_block "$tmux_conf" "$BLOCK_TAG" "$contents"
+    install_managed_block "$tmux_conf" "$TMUX_BLOCK_TAG" "$contents"
 
     echo "****************************"
     echo "$tmux_conf configured."
@@ -222,7 +222,7 @@ install_tmux_shell_bridge() {
 
     # Default the auto-enter prompt to the previous choice (YES if the block
     # already has the snippet, NO otherwise).
-    if managed_block_contains "$zshrc" "$BLOCK_TAG" 'tmux-enter'; then
+    if managed_block_contains "$zshrc" "$TMUX_BLOCK_TAG" 'tmux-enter'; then
       confirm    "Auto-launch tmux on new shells (with terminal-emulator detection)?" \
         && want_auto_enter=1 || want_auto_enter=0
     else
@@ -251,7 +251,7 @@ EOF
 		${auto_enter}
 EOF
     )
-    install_managed_block "$zshrc" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshrc" "$TMUX_BLOCK_TAG" "$content"
 
     echo "$zshrc updated with tmux bridge block."
   )

@@ -3,7 +3,9 @@
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
 
-BLOCK_TAG="dotfiles:zsh"
+ZSH_BLOCK_TAG="dotfiles:zsh"
+ZSH_BLOCK_TAG_BASE="dotfiles:zsh:base"
+ZSH_BLOCK_TAG_OVERRIDES="dotfiles:zsh:overrides"
 
 # Check if zsh is installed
 is_zsh_installed() {
@@ -58,7 +60,7 @@ install_zsh_zshenv() {
 		export ZDOTDIR=\${XDG_CONFIG_HOME}/$ZDOTDIR_SUBPATH
 EOF
     )
-    install_managed_block "$zshenv" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshenv" "$ZSH_BLOCK_TAG" "$content"
 
     echo "****************************"
     echo "$zshenv configured."
@@ -66,8 +68,10 @@ EOF
   )
 }
 
-# Render $ZDOTDIR/.zshrc stub with a managed block sourcing the repo base .zshrc.
-install_zsh_zshrc_stub() {
+# Render $ZDOTDIR/.zshrc with the base managed block sourcing zshrc-base.
+# Also prepares ZDOTDIR/data/cache dirs and prints the polite note about
+# any legacy $HOME/.zshrc, since this step is the first to touch $ZDOTDIR.
+install_zsh_zshrc_base() {
   local zdotdir zshrc content
   (
     set -e
@@ -89,18 +93,42 @@ EOF
       echo "      Consider moving its contents to $zshrc."
     fi
 
-    install_managed_block "$zshrc" "$BLOCK_TAG" "$content"
+    install_managed_block "$zshrc" "$ZSH_BLOCK_TAG_BASE" "$content"
 
     echo "****************************"
-    echo "$zshrc configured."
+    echo "$zshrc base block configured."
+    echo "****************************"
+  )
+}
+
+# Insert the overrides managed block into $ZDOTDIR/.zshrc, sourcing zshrc-overrides.
+# No anchor needed: on first install this block lands at the end (after base);
+# any framework block (e.g. zimfw) that gets installed later anchors itself on
+# dotfiles:zsh:base, so it slots in between — leaving overrides last.
+# Position-preserving on re-install.
+install_zsh_zshrc_overrides() {
+  local zdotdir zshrc content
+  (
+    set -e
+    zdotdir=$(get_zdotdir)
+    zshrc="$zdotdir/.zshrc"
+    content=$(cat <<-'EOF'
+		# Managed by zsh/install_zsh.sh — edits inside this block will be overwritten.
+		source "$DOTFILES/zsh/zshrc-overrides"
+EOF
+    )
+    install_managed_block "$zshrc" "$ZSH_BLOCK_TAG_OVERRIDES" "$content"
+
+    echo "****************************"
+    echo "$zshrc overrides block configured."
     echo "****************************"
   )
 }
 
 # Render $HOME/.zshenv with the inlined env block (XDG defaults + ZDOTDIR),
-# then render $ZDOTDIR/.zshrc stub with a marker block sourcing the repo base.
+# then render $ZDOTDIR/.zshrc with the base + overrides managed blocks.
 install_zsh_dotfiles() {
-  install_zsh_zshenv && install_zsh_zshrc_stub
+  install_zsh_zshenv && install_zsh_zshrc_base && install_zsh_zshrc_overrides
 }
 
 # Ensure chsh is available; install it from the PM if not.
