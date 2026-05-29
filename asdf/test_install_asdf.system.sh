@@ -47,7 +47,7 @@ it_installs_asdf_and_its_dotfiles() {
 it_skips_zimrc_block_when_zimfw_is_not_installed() {
   quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard
   assertTrue "Expected zsh wizard to exit 0" $?
-  output=$(install_asdf_wizard -y)
+  output=$(install_asdf_wizard -y 2>/dev/null)
 
   assertContains "Should announce the skip" "$output" "zimfw not installed"
 

@@ -52,7 +52,7 @@ install_asdf_program() {
     tarball="$bin_dir/asdf.tar.gz"
 
     mkdir -p "$bin_dir"
-    wget -O "$tarball" "$url"
+    wget -nv -O "$tarball" "$url"
     tar -xzf "$tarball" -C "$bin_dir" asdf
     rm -f "$tarball"
 

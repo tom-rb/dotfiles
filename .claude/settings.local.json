@@ -18,7 +18,8 @@
       "Bash(make unit *)",
       "Bash(make unit-amazonlinux-2 *)",
       "Bash(make unit-ubuntu *)",
-      "Bash(make system-ubuntu *)"
+      "Bash(make system-ubuntu *)",
+      "Bash(make system-amazonlinux-2 *)"
     ]
   }
 }
