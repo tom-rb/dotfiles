@@ -28,11 +28,12 @@ RUN sudo yum -y install zsh
 
 # With tmux installed.
 # amazonlinux:2's package tmux is 1.8, which is older than the dotfiles' minimum
-# (3.1b) — install_tmux_program would refuse and the wizard would bail. Build a
+# (3.5a) — install_tmux_program would refuse and the wizard would bail. Build a
 # modern tmux from source so this stage exercises the "tmux already installed"
-# path the tests intend.
+# path the tests intend. Keep this in sync with TMUX_DESIRED_VERSION in
+# tmux/install_tmux.sh so the pre-installed tmux satisfies the minimum.
 FROM with-zsh AS with-tmux
-ARG TMUX_VERSION=3.4
+ARG TMUX_VERSION=3.5a
 USER root
 RUN yum -y install gcc make bison wget tar gzip libevent-devel ncurses-devel \
   && cd /tmp \
