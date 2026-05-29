@@ -5,7 +5,8 @@
 
 TMUX_BLOCK_TAG="dotfiles:tmux"
 
-# Pinned TPM release. Bump deliberately.
+# Pinned Tmux and TPM release. Bump deliberately.
+TMUX_DESIRED_VERSION='3.5a'
 TPM_VERSION='3.1.0'
 TPM_REPO='https://github.com/tmux-plugins/tpm'
 
@@ -129,9 +130,9 @@ install_tmux_program() {
 }
 
 # No-arg step adapter for install_tmux_program so the wizard runner can call it
-# from the step list without arguments. The version constant lives here.
+# from the step list without arguments.
 install_tmux_program_step() {
-  install_tmux_program 3.1b
+  install_tmux_program $TMUX_DESIRED_VERSION
 }
 
 install_tmux_dotfiles() {

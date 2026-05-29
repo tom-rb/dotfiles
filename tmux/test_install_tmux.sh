@@ -258,7 +258,7 @@ test_install_tmux_program_step_forwards_pinned_version() {
 
   install_tmux_program_step
 
-  assertCalledOnceWith install_tmux_program 3.1b
+  assertCalledOnceWith install_tmux_program "$TMUX_DESIRED_VERSION"
 }
 
 #
