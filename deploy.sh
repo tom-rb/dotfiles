@@ -22,6 +22,9 @@ fi
 export DOTFILES
 
 . "$DOTFILES/utils/utils.sh"
+# activate_asdf: wires an installed-but-off-PATH asdf into this run's
+# environment so later module wizards (e.g. pi) can see it.
+. "$DOTFILES/asdf/activate.sh"
 
 # Packages required for basic operations
 basic_packages="wget tar gzip"
@@ -56,6 +59,7 @@ deploy_wizard() {
     fi
     if confirm "Install asdf?"; then
       start_module_wizard asdf
+      activate_asdf
     fi
   fi
 

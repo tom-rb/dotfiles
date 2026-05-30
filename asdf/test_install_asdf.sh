@@ -60,6 +60,51 @@ test_install_downloads_and_extracts_asdf_when_not_installed() {
 }
 
 #
+# activate_asdf (asdf/activate.sh)
+#
+
+test_activate_asdf_is_a_noop_when_asdf_is_absent() {
+  createSpy -u -r "$SHUNIT_FALSE" command_exists   # not on PATH, no binary on disk
+  before="$PATH"
+
+  activate_asdf
+
+  assertTrue "Should succeed as a no-op" $?
+  assertEquals "PATH must be untouched when asdf is absent" "$before" "$PATH"
+}
+
+test_activate_asdf_wires_bin_and_shims_when_binary_present() {
+  # asdf on disk but not yet on PATH — the exact deploy-time situation.
+  mkdir -p "$HOME/.local/bin"
+  printf '#!/bin/sh\n' > "$HOME/.local/bin/asdf"
+  chmod +x "$HOME/.local/bin/asdf"
+  createSpy -u -r "$SHUNIT_FALSE" command_exists
+
+  activate_asdf
+
+  assertContains "asdf bin dir should be on PATH" \
+    ":$PATH:" ":$HOME/.local/bin:"
+  assertContains "asdf shims dir should be on PATH" \
+    ":$PATH:" ":$XDG_DATA_HOME/asdf/shims:"
+  assertEquals "ASDF_DATA_DIR should point under XDG_DATA_HOME" \
+    "$XDG_DATA_HOME/asdf" "$ASDF_DATA_DIR"
+}
+
+test_activate_asdf_is_idempotent() {
+  mkdir -p "$HOME/.local/bin"
+  printf '#!/bin/sh\n' > "$HOME/.local/bin/asdf"
+  chmod +x "$HOME/.local/bin/asdf"
+  createSpy -u -r "$SHUNIT_FALSE" command_exists
+
+  activate_asdf
+  once="$PATH"
+  activate_asdf
+
+  assertEquals "Repeated activation must not duplicate PATH entries" \
+    "$once" "$PATH"
+}
+
+#
 # detect_asdf_arch
 #
 

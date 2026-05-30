@@ -62,6 +62,7 @@ _pm_packages_for() {
       yum:ncurses-headers)      resolved=ncurses-devel ;;
       apt-get:chsh)             resolved=passwd ;;
       yum:chsh)                 resolved=util-linux-user ;;
+      apt-get:libatomic)        resolved=libatomic1 ;;
       *)                        resolved=$name ;;
     esac
     out=${out:+$out }$resolved

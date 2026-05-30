@@ -28,12 +28,14 @@ test_deploy_wizard_installs_basic_packages() {
   createSpy -u -r "$SHUNIT_FALSE" command_exists
   createSpy -u install_from_pm
   createSpy -u start_module_wizard
+  createSpy -u activate_asdf
 
   message="$(yes | deploy_wizard)"
 
   assertContains "Expected continuation message" \
     "$message" "basic packages first"
   assertCallCount install_from_pm 1
+  assertCalledOnceWith activate_asdf
   assertCallCount start_module_wizard 6
   assertCalledWith start_module_wizard zsh
   assertCalledWith start_module_wizard zimfw
@@ -48,6 +50,7 @@ test_deploy_wizard_skips_basic_packages_if_installed() {
   createSpy -u -r "$SHUNIT_TRUE" command_exists
   createSpy -u install_from_pm
   createSpy -u start_module_wizard
+  createSpy -u activate_asdf
 
   message="$(yes | deploy_wizard)"
 

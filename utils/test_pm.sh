@@ -38,6 +38,15 @@ test_resolves_canonical_names_on_yum() {
   assertEquals "libevent-devel ncurses-devel util-linux-user" "$out"
 }
 
+test_resolves_libatomic_per_pm() {
+  createSpy -u -o 'apt-get' get_supported_pm
+  assertEquals "libatomic1" "$(_pm_packages_for libatomic)"
+
+  # On yum the package is already named libatomic, so it passes through.
+  createSpy -u -o 'yum' get_supported_pm
+  assertEquals "libatomic" "$(_pm_packages_for libatomic)"
+}
+
 test_unknown_names_pass_through() {
   createSpy -u -o 'apt-get' get_supported_pm
 

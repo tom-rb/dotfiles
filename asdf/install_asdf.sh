@@ -2,6 +2,8 @@
 
 # shellcheck source=../utils/utils.sh
 . "${DOTFILES:?}/utils/utils.sh"
+# shellcheck source=activate.sh
+. "${DOTFILES:?}/asdf/activate.sh"
 
 ASDF_BLOCK_TAG="dotfiles:asdf"
 
@@ -49,7 +51,7 @@ install_asdf_program() {
 
     arch=$(detect_asdf_arch)
     url="https://github.com/asdf-vm/asdf/releases/download/v${ASDF_VERSION}/asdf-v${ASDF_VERSION}-${arch}.tar.gz"
-    bin_dir="$HOME/.local/bin"
+    bin_dir="$(asdf_bin_dir)"
     tarball="$bin_dir/asdf.tar.gz"
 
     mkdir -p "$bin_dir"
@@ -73,12 +75,15 @@ install_asdf_zshenv() {
   (
     set -e
     zshenv="$HOME/.zshenv"
-    content=$(cat <<-'EOF'
+    # Unquoted heredoc: the path *segments* are interpolated now from the shared
+    # constants in activate.sh, while zsh-runtime vars stay escaped (\$) so zsh
+    # expands them at login.
+    content=$(cat <<-EOF
 			# Managed by asdf/install_asdf.sh — edits inside this block will be overwritten.
-			export ASDF_DATA_DIR="${XDG_DATA_HOME:?'XDG_DATA_HOME is not set, have you run the zsh setup?'}/asdf"
-			export PATH="$HOME/.local/bin:$PATH"
-			export PATH="$ASDF_DATA_DIR/shims:$PATH"
-			[[ -r "$ASDF_DATA_DIR/plugins/java/set-java-home.zsh" ]] && source "$ASDF_DATA_DIR/plugins/java/set-java-home.zsh"
+			export ASDF_DATA_DIR="\${XDG_DATA_HOME:?'XDG_DATA_HOME is not set, have you run the zsh setup?'}/$ASDF_DATA_SUBPATH"
+			export PATH="\$HOME/$ASDF_BIN_SUBPATH:\$PATH"
+			export PATH="\$ASDF_DATA_DIR/$ASDF_SHIMS_SUBPATH:\$PATH"
+			[[ -r "\$ASDF_DATA_DIR/plugins/java/set-java-home.zsh" ]] && source "\$ASDF_DATA_DIR/plugins/java/set-java-home.zsh"
 EOF
     )
     install_managed_block "$zshenv" "$ASDF_BLOCK_TAG" "$content"
