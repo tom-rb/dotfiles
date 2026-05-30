@@ -42,21 +42,6 @@ test_get_tmux_package_version_extracts_tmux_version() {
     "$(get_tmux_package_version)" "3.4"
 }
 
-test_get_tmux_release_version_extracts_version_from_redirect_header() {
-  createSpy -u -o '  Location: https://github.com/tmux/tmux/releases/tag/3.1' get_tmux_release_headers
-  assertEquals "3.1" "$(get_tmux_release_version)"
-
-  createSpy -u -o '  Location: https://github.com/tmux/tmux/releases/tag/3.1b' get_tmux_release_headers
-  assertEquals "3.1b" "$(get_tmux_release_version)"
-}
-
-test_get_tmux_release_version_returns_one_version_when_multiple_location_headers() {
-  createSpy -u -o "  Location: https://github.com/tmux/tmux/releases/tag/3.6a
-  Location: https://github.com/tmux/tmux/releases/tag/3.6a" get_tmux_release_headers
-
-  assertEquals "3.6a" "$(get_tmux_release_version)"
-}
-
 test_install_returns_true_if_tmux_is_installed_with_desired_version() {
   createSpy -u -r "$SHUNIT_TRUE" is_tmux_installed
   createSpy -o 'tmux 3.1b' tmux
@@ -134,16 +119,17 @@ test_install_tmux_from_package_manager_when_pm_version_is_higher() {
 test_install_tmux_from_source_in_custom_location() {
   createSpy -u -r "$SHUNIT_FALSE" is_tmux_installed
   createSpy -u -o '3.1b' get_tmux_package_version
-  createSpy mkdir
   createSpy -u install_tmux_from_source
+  # Path picking is covered in test_tui.sh (prompt_new_path); fake it here so
+  # this test only checks that install_tmux_program forwards the chosen
+  # location to the source build.
+  prompt_new_path() { eval "$2=/opt/custom"; }
 
-  # [n]ot install from package manager, [y]es in a custom location
-  output=$(echo 'n''y''custom/location/' | install_tmux_program 3.1b)
+  # [n]o to package manager, [y]es to a custom location
+  output=$(echo 'ny' | install_tmux_program 3.1b)
 
   assertTrue "Tmux installed from source should not be an error" $?
-  # It should trim trailing /
-  assertCalledOnceWith mkdir -p "custom/location"
-  assertCalledOnceWith install_tmux_from_source 3.1b "custom/location"
+  assertCalledOnceWith install_tmux_from_source 3.1b "/opt/custom"
   assertContains "Should return after key press with msg" \
     "$output" "3.1b installed"
 }

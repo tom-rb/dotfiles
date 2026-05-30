@@ -187,6 +187,62 @@ test_prompt_line_sets_empty_when_input_is_blank() {
   assertEquals "" "$answer"
 }
 
+#
+# prompt_new_path
+#
+
+test_prompt_new_path_creates_dir_and_sets_var() {
+  target="$SHUNIT_TMPDIR/newdir"
+  result=$(printf '%s\ny\n' "$target" \
+    | { prompt_new_path "Use %s?" result > /dev/null; echo "$result"; })
+  assertEquals "$target" "$result"
+  assertTrue "Directory should have been created" "[ -d '$target' ]"
+}
+
+test_prompt_new_path_strips_trailing_slash() {
+  target="$SHUNIT_TMPDIR/trailing"
+  result=$(printf '%s/\ny\n' "$target" \
+    | { prompt_new_path "Use %s?" result > /dev/null; echo "$result"; })
+  assertEquals "$target" "$result"
+}
+
+test_prompt_new_path_expands_shell_variables() {
+  base="$SHUNIT_TMPDIR/expand"
+  # shellcheck disable=SC2016 # literal $base on purpose: prompt_new_path's eval expands it
+  result=$(printf '$base/sub\ny\n' \
+    | { prompt_new_path "Use %s?" result > /dev/null; echo "$result"; })
+  assertEquals "$base/sub" "$result"
+}
+
+test_prompt_new_path_reprompts_when_path_exists() {
+  existing="$SHUNIT_TMPDIR/exists"
+  fresh="$SHUNIT_TMPDIR/fresh"
+  mkdir -p "$existing"
+  output=$(printf '%s\n%s\ny\n' "$existing" "$fresh" \
+    | { prompt_new_path "Use %s?" result; echo "RESULT=$result"; })
+  assertContains "Should reject the existing path" \
+    "$output" "The $existing already exists"
+  assertContains "Should settle on the fresh path" "$output" "RESULT=$fresh"
+}
+
+test_prompt_new_path_reprompts_when_declined() {
+  first="$SHUNIT_TMPDIR/first"
+  second="$SHUNIT_TMPDIR/second"
+  # 'first' line, then 'n' declines it, then 'second' line accepted with 'y'.
+  result=$(printf '%s\nn%s\ny\n' "$first" "$second" \
+    | { prompt_new_path "Use %s?" result > /dev/null; echo "$result"; })
+  assertEquals "$second" "$result"
+  assertFalse "Declined path should not be created" "[ -d '$first' ]"
+}
+
+test_prompt_new_path_renders_confirm_message_template() {
+  target="$SHUNIT_TMPDIR/tmpl"
+  output=$(printf '%s\ny\n' "$target" \
+    | prompt_new_path "Install under %s/bin/tmux?" result)
+  assertContains "Should interpolate the path into the template" \
+    "$output" "Install under $target/bin/tmux?"
+}
+
 
 # Run tests
 SHPY_PATH="$THISDIR/../tests/shpy"

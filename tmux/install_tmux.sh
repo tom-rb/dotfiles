@@ -20,18 +20,6 @@ get_tmux_package_version() {
     | sed -E 's/([0-9]\.[0-9][abc]?).*/\1/'
 }
 
-# Fetch server response headers for the tmux latest release redirect
-get_tmux_release_headers() {
-  wget --server-response --spider \
-    https://github.com/tmux/tmux/releases/latest 2>&1
-}
-
-# Get latest tmux version from github release
-get_tmux_release_version() {
-  get_tmux_release_headers \
-    | sed -nE '/^[[:space:]]*Location:/ { s_.*tag/([0-9]\.[0-9][abc]?).*_\1_p; q }'
-}
-
 install_tmux_build_dependencies() {
   install_from_pm \
     wget tar gzip gcc make libevent-headers ncurses-headers bison
@@ -99,27 +87,8 @@ install_tmux_program() {
 
     echo "tmux $tmux_desired_version will be installed from source."
 
-    # TODO: extract "custom path selection" to utils and test separately
     if confirm -n "Do you want to install it in a custom location?"; then
-      while : ; do
-        printf 'Give absolute path: '; read -r location
-        # Expand given variables, like $HOME or ~, and remove trailing '/'
-        eval location="${location%/}"
-
-        [ -z "$location" ] && continue
-        if [ -e "$location" ]; then
-          echo "The $location already exists"
-          continue
-        fi
-        if ! confirm "Install under $location/bin/tmux?"; then
-          continue
-        fi
-        if ! mkdir -p "$location"; then
-          echo "Cannot create $location folder"
-          continue
-        fi
-        break;
-      done
+      prompt_new_path "Install under %s/bin/tmux?" location
     fi
 
     install_tmux_from_source "$tmux_desired_version" "$location"

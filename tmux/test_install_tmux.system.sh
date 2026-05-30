@@ -20,18 +20,10 @@ it_reads_available_tmux_package_version() {
 }
 
 # @image: with-basics
-it_reads_current_tmux_release_version() {
-  version=$(get_tmux_release_version)
-  echo "$version" | grep -qE '^[0-9]\.[0-9][abc]?$'
-  assertTrue "Expected a tmux version, got <$version>" $?
-}
-
-# @image: with-basics
 it_installs_tmux_from_source_to_specified_location() {
-  version=$(get_tmux_release_version)
   prefix="$HOME/apps/tmux"
 
-  quietly install_tmux_from_source "$version" "$prefix"
+  quietly install_tmux_from_source "$TMUX_DESIRED_VERSION" "$prefix"
   assertTrue "Expected no error on installing tmux" $?
 
   command -v "$prefix/bin/tmux" >/dev/null

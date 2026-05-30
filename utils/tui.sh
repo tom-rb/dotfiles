@@ -85,3 +85,34 @@ prompt_line() {
   printf "%s" "${1:?}"
   read -r "${2:?}"
 }
+
+# Prompt repeatedly for an absolute path that does not yet exist, then create it.
+# Shell variables and ~ in the input are expanded (eval) and a trailing slash is
+# stripped. Re-prompts on empty input, an already-existing path, a declined
+# confirmation, or a failed mkdir; returns only once the directory exists.
+# $1: confirm message; a single %s is replaced with the entered path (printf)
+# $2: name of variable to set with the created path
+prompt_new_path() {
+  local _msg _var _path
+  _msg=${1:?} _var=${2:?}
+  while : ; do
+    printf 'Give absolute path: '; read -r _path
+    # Expand $HOME, ~, etc. and drop any trailing slash.
+    eval _path="${_path%/}"
+    [ -z "$_path" ] && continue
+    if [ -e "$_path" ]; then
+      echo "The $_path already exists"
+      continue
+    fi
+    # shellcheck disable=SC2059 # $_msg is a caller-supplied printf template
+    if ! confirm "$(printf "$_msg" "$_path")"; then
+      continue
+    fi
+    if ! mkdir -p "$_path"; then
+      echo "Cannot create $_path folder"
+      continue
+    fi
+    break
+  done
+  eval "$_var=\$_path"
+}
