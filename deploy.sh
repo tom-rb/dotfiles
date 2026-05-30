@@ -66,6 +66,10 @@ deploy_wizard() {
   if confirm "Install git?"; then
     start_module_wizard git
   fi
+
+  if confirm "Install pi?"; then
+    start_module_wizard pi
+  fi
 }
 
 # Run installation if not called with dotfiles_dont_run
