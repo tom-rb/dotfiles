@@ -31,10 +31,10 @@ all: unit-tests system-tests
 ## LINT
 ##
 
-# Run shellcheck against every tracked shell script (excludes old/)
+# Run shellcheck against every tracked shell script
 lint:
 	@docker run --rm -v "$$PWD:/app:ro" koalaman/shellcheck:stable \
-		$$(find . -name '*.sh' -not -path '*/old/*' | sed 's|^.|/app|') \
+		$$(find . -name '*.sh' | sed 's|^.|/app|') \
 		&& echo "OK"
 
 .PHONY: lint

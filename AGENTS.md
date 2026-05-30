@@ -51,7 +51,7 @@ make system-ubuntu FILE=zsh/test_install_zsh.system.sh TEST=it_checks_zsh_is_not
 ```sh
 make lint
 ```
-Runs shellcheck in Docker over every `*.sh` in the repo. Config in `.shellcheckrc`. `old/` folder is excluded.
+Runs shellcheck in Docker over every `*.sh` in the repo. Config in `.shellcheckrc`.
 
 ## Code Style
 
