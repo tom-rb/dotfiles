@@ -30,12 +30,14 @@ wizard_run() {
 
 # Dispatch helper for the --wizard flag at the bottom of installer scripts.
 # $1: name of the wizard function to invoke
-# $2+: the script's "$@"; invokes $1 when $2 = --wizard, no-ops otherwise
+# $2+: the script's "$@"; invokes $1 when $2 = --wizard, no-ops otherwise.
+# Args after --wizard are forwarded to the wizard, so `--wizard -y` reaches it.
 wizard_main() {
   local func_name="$1"
   shift
   if [ "$1" = "--wizard" ]; then
-    "$func_name"
+    shift
+    "$func_name" "$@"
   fi
 }
 

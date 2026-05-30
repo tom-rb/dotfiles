@@ -10,6 +10,7 @@ TMUX_DESIRED_VERSION='3.5a'
 TPM_VERSION='3.1.0'
 TPM_REPO='https://github.com/tmux-plugins/tpm'
 
+# Check if tmux is installed
 is_tmux_installed() {
   command_exists tmux
 }
@@ -46,7 +47,7 @@ install_tmux_from_source() {
   )
 }
 
-# Installs tmux using given version $1
+# Installs tmux, ensuring at least minimum version $1
 install_tmux_program() {
   local tmux_desired_version installed_version pm_version location
   tmux_desired_version=${1:?}
@@ -136,7 +137,7 @@ EOF
   )
 }
 
-# True if TPM is present at the expected location.
+# Check if TPM is installed
 is_tpm_installed() {
   test -x "$(get_tmux_plugins_dir)/tpm/tpm"
 }

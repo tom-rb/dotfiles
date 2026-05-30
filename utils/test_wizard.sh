@@ -88,6 +88,14 @@ test_wizard_main_invokes_function_when_arg_is_wizard() {
   assertEquals "called" "$(cat "$ORDER_FILE")"
 }
 
+test_wizard_main_forwards_args_after_wizard_to_function() {
+  my_wizard() { printf '%s\n' "$1" >> "$ORDER_FILE"; }
+
+  wizard_main my_wizard --wizard -y
+
+  assertEquals "-y" "$(cat "$ORDER_FILE")"
+}
+
 test_wizard_main_noops_when_arg_is_not_wizard() {
   my_wizard() { printf 'called\n' >> "$ORDER_FILE"; }
 

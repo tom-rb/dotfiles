@@ -128,7 +128,12 @@ EOF
 # Render $HOME/.zshenv with the inlined env block (XDG defaults + ZDOTDIR),
 # then render $ZDOTDIR/.zshrc with the base + overrides managed blocks.
 install_zsh_dotfiles() {
-  install_zsh_zshenv && install_zsh_zshrc_base && install_zsh_zshrc_overrides
+  (
+    set -e
+    install_zsh_zshenv
+    install_zsh_zshrc_base
+    install_zsh_zshrc_overrides
+  )
 }
 
 # Ensure chsh is available; install it from the PM if not.

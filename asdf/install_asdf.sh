@@ -5,7 +5,8 @@
 
 ASDF_BLOCK_TAG="dotfiles:asdf"
 
-ASDF_VERSION="v0.16.7"
+# Pinned asdf release. Bump deliberately.
+ASDF_VERSION="0.16.7"
 
 # Map the current host's `uname -s`/`uname -m` to the os-arch slug used in
 # asdf release tarball names (e.g. linux-amd64, darwin-arm64).
@@ -47,7 +48,7 @@ install_asdf_program() {
     fi
 
     arch=$(detect_asdf_arch)
-    url="https://github.com/asdf-vm/asdf/releases/download/${ASDF_VERSION}/asdf-${ASDF_VERSION}-${arch}.tar.gz"
+    url="https://github.com/asdf-vm/asdf/releases/download/v${ASDF_VERSION}/asdf-v${ASDF_VERSION}-${arch}.tar.gz"
     bin_dir="$HOME/.local/bin"
     tarball="$bin_dir/asdf.tar.gz"
 
@@ -93,33 +94,40 @@ EOF
 # (zimfw not installed) — the asdf binary + .zshenv block work standalone.
 install_asdf_zimrc() {
   local zdotdir zimrc content
-  zdotdir=$(get_zdotdir)
-  zimrc="$zdotdir/.zimrc"
-  if [ ! -f "$zimrc" ]; then
-    echo "zimfw not installed; skipping asdf completions."
-    return 0
-  fi
-  content=$(cat <<-'EOF'
+  (
+    set -e
+    zdotdir=$(get_zdotdir)
+    zimrc="$zdotdir/.zimrc"
+    if [ ! -f "$zimrc" ]; then
+      echo "zimfw not installed; skipping asdf completions."
+      return 0
+    fi
+    content=$(cat <<-'EOF'
 		# Managed by asdf/install_asdf.sh — edits inside this block will be overwritten.
 		# Completions for asdf-managed runtimes (must follow the completion module).
 		zmodule asdf
 EOF
+    )
+    # Prepend: zim modules that add to fpath (e.g. `asdf`) must be declared
+    # before `zmodule completion` runs compinit. zimrc-base is sourced from
+    # the dotfiles:zimfw block, so this block must precede it.
+    install_managed_block --prepend "$zimrc" "$ASDF_BLOCK_TAG" "$content"
+    echo "$zimrc updated with asdf zmodule."
   )
-  # Prepend: zim modules that add to fpath (e.g. `asdf`) must be declared
-  # before `zmodule completion` runs compinit. zimrc-base is sourced from
-  # the dotfiles:zimfw block, so this block must precede it.
-  install_managed_block --prepend "$zimrc" "$ASDF_BLOCK_TAG" "$content"
-  echo "$zimrc updated with asdf zmodule."
 }
 
 # Render the asdf dotfile block(s): the .zshenv exports, plus an optional
 # .zimrc block when zimfw is present.
 install_asdf_dotfiles() {
-  install_asdf_zshenv && install_asdf_zimrc
+  (
+    set -e
+    install_asdf_zshenv
+    install_asdf_zimrc
+  )
 }
 
 # Installs asdf and its dotfile block.
-# -y: accept default answers for all questions
+# -y: accepts default answer for all questions
 install_asdf_wizard() {
   wizard_run "$@" -- install_asdf_program install_asdf_dotfiles
 }

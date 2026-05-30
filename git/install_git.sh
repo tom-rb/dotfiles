@@ -94,4 +94,5 @@ install_git_wizard() {
   wizard_run "$@" -- install_git_program install_git_templates install_git_excludesfile install_git_default_branch configure_git_user
 }
 
+# Run installation if called with --wizard
 wizard_main install_git_wizard "$@"

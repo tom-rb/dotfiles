@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 #
-# Installs programs (zsh, tmux, vim) and configure them to use the respective dotfiles.
+# Installs programs (zsh, tmux, git, asdf, zimfw) and configures them to use the respective dotfiles.
 #
 # Many configurations come from several repos out there.
 #

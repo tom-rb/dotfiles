@@ -8,7 +8,7 @@ ZIMFW_BLOCK_TAG="dotfiles:zimfw"
 # Pinned zimfw release. Bump deliberately, never to a moving branch.
 ZIMFW_URL='https://github.com/zimfw/zimfw/releases/download/v1.19.1/zimfw.zsh'
 
-# True if zimfw.zsh is present in $ZIM_HOME
+# Check if zimfw is installed
 is_zimfw_installed() {
   test -s "$(get_zim_home)/zimfw.zsh"
 }
@@ -25,9 +25,12 @@ check_zsh_prerequisites() {
 # Download zimfw.zsh into $ZIM_HOME via wget
 download_zimfw() {
   local zim_home
-  zim_home=$(get_zim_home)
-  mkdir -p "$zim_home"
-  wget -nv -O "$zim_home/zimfw.zsh" "$ZIMFW_URL"
+  (
+    set -e
+    zim_home=$(get_zim_home)
+    mkdir -p "$zim_home"
+    wget -nv -O "$zim_home/zimfw.zsh" "$ZIMFW_URL"
+  )
 }
 
 # Download zimfw.zsh if not already present
@@ -116,8 +119,11 @@ install_zimfw_dotfiles() {
 # Run `zimfw install` to populate modules listed in .zimrc
 install_zimfw_modules() {
   local zim_home
-  zim_home=$(get_zim_home)
-  ZIM_HOME="$zim_home" zsh "$zim_home/zimfw.zsh" install
+  (
+    set -e
+    zim_home=$(get_zim_home)
+    ZIM_HOME="$zim_home" zsh "$zim_home/zimfw.zsh" install
+  )
 }
 
 # Coordinates the install: preconditions, framework, dotfiles, modules.
