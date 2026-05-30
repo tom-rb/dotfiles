@@ -47,6 +47,26 @@ test_wizard_run_short_circuits_on_first_failing_step() {
 fail" "$(cat "$ORDER_FILE")"
 }
 
+test_wizard_run_aborts_set_e_subshell_step_on_implicit_failure() {
+  step_set_e() { ( set -e; false; printf 'banner\n' >> "$ORDER_FILE"; ); }
+  step_next()  { printf 'next\n' >> "$ORDER_FILE"; }
+
+  wizard_run -- step_set_e step_next
+
+  assertFalse "step's success banner must not be reached" \
+    "[ -f \"$ORDER_FILE\" ]"
+}
+
+test_wizard_run_with_y_aborts_set_e_subshell_step_on_implicit_failure() {
+  step_set_e() { ( set -e; false; printf 'banner\n' >> "$ORDER_FILE"; ); }
+  step_next()  { printf 'next\n' >> "$ORDER_FILE"; }
+
+  wizard_run -y -- step_set_e step_next
+
+  assertFalse "step's success banner must not be reached" \
+    "[ -f \"$ORDER_FILE\" ]"
+}
+
 test_wizard_run_preserves_failing_step_exit_code() {
   step_code7() { return 7; }
 

@@ -11,6 +11,7 @@
 #   wizard_run "$@" -- step1 step2 step3
 wizard_run() {
   local use_yes=0
+  local status
   if [ "$1" = "-y" ]; then
     use_yes=1
     shift
@@ -18,13 +19,18 @@ wizard_run() {
   # Consume the -- separator
   shift
 
-  # Subshell uses `exit` (not `return`) because POSIX `return` from a subshell
-  # forked off a function is non-portable; the failing step's code propagates
-  # via the pipe's last-command status.
+  # Each step is invoked as a bare command, then its status is tested
+  # separately. Using `"$step" || ...` would put the step in an AND-OR list,
+  # which makes POSIX ignore `set -e` *inside* the step's subshell — silently
+  # swallowing implicit mid-body failures. A bare call re-arms the documented
+  # `( set -e; ... )` idiom for every step.
+  # The subshell uses `exit` (not `return`) because POSIX `return` from a
+  # subshell forked off a function is non-portable; the failing step's code
+  # propagates via the pipe's last-command status.
   if [ "$use_yes" = 1 ]; then
-    yes "" | { for step in "$@"; do "$step" || exit; done; }
+    yes "" | { for step in "$@"; do "$step"; status=$?; [ "$status" -eq 0 ] || exit "$status"; done; }
   else
-    for step in "$@"; do "$step" || return; done
+    for step in "$@"; do "$step"; status=$?; [ "$status" -eq 0 ] || return "$status"; done
   fi
 }
 
