@@ -1,4 +1,2 @@
-# asdf version manager (usually only me in the team with this)
-.tool-versions
 # local Claude Code configs
 **/.claude/settings.local.json

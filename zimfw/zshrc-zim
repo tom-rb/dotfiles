@@ -60,6 +60,22 @@ zstyle ':zim:completion' dumpfile "${XDG_CACHE_HOME}/zsh/zcompdump-${ZSH_VERSION
 # zsh's own completion cache (used by some completers)
 zstyle ':completion::complete:*' cache-path "${XDG_CACHE_HOME}/zsh/zcompcache"
 
+# Docker Desktop's WSL integration leaves /usr/share/zsh/vendor-completions/_docker
+# symlinked into /mnt/wsl/docker-desktop, which only exists while Docker Desktop runs.
+# zim's completion module bugs with this. Give the link something to resolve to.
+#
+# Removable once zim skips unresolvable links itself: the glob in its completion
+# module (modules/completion/init.zsh, `local -r zcomps=(${^fpath}/^([^_]*|*~|*.zwc)(N))`)
+# needs (N-.) rather than (N) — `-` follows the link and `.` keeps regular files only,
+# so dangling links drop out of the list instead of failing the zstat below it.
+() {
+  local link=/usr/share/zsh/vendor-completions/_docker
+  [[ -L ${link} && ! -e ${link} ]] || return 0
+  local stub=$(readlink ${link})
+  mkdir -p ${stub:h} && : >| ${stub} ||
+    print -u2 "zshrc-zim: couldn't stub ${link:t} — zsh completion will be disabled"
+}
+
 #
 # zsh-autosuggestions
 #
