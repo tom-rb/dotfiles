@@ -1,5 +1,10 @@
 FROM ubuntu AS base
 
+# The image ships neither whiptail nor perl's Term::ReadLine, so debconf noisily
+# falls through both frontends on every install. Pin the frontend in debconf's
+# own database to supress the fallback warnings.
+RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+
 RUN apt update && apt install -y sudo
 COPY tests/shunit2 /usr/bin/shunit2
 
