@@ -24,7 +24,7 @@ get_version_in_pm() {
       apt-cache policy "$pkg" \
       | sed -nE '/.*Candidate: (.*)/ { s//\1/p; q }';;
     yum)
-      quietly sudo yum makecache fast && sudo yum info "$pkg" \
+      quietly_stdout sudo yum makecache fast && sudo yum info "$pkg" \
       | sed -nE '/^Version\s*: (.*)/ { s//\1/p; q }';;
     *)
       >&2 echo "Couldn't find package manager";;
@@ -34,17 +34,18 @@ get_version_in_pm() {
 # Install the given canonical packages via the active PM.
 # Names are translated through _pm_packages_for; unknown names pass through
 # (so callers can mix curated and plain names: install_from_pm chsh git wget).
-# Installer chatter is hidden behind quietly; DEBUG=1 brings it back when an
-# install fails and the reason matters.
+# Installer chatter is hidden behind quietly_stdout, which leaves stderr alone
+# so sudo can still ask for a password and failures still say why; DEBUG=1
+# brings the rest back.
 install_from_pm() {
   # shellcheck disable=SC2046 # splitting on purpose
   set -- $(_pm_packages_for "$@")
   case $(get_supported_pm) in
     apt-get)
-      quietly sudo apt-get update &&
-      quietly sudo apt-get install -y "$@";;
+      quietly_stdout sudo apt-get update &&
+      quietly_stdout sudo apt-get install -y "$@";;
     yum)
-      quietly sudo yum -y install "$@";;
+      quietly_stdout sudo yum -y install "$@";;
     *)
       >&2 echo "Couldn't find package manager";;
   esac

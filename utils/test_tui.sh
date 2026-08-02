@@ -237,6 +237,15 @@ test_prompt_line_sets_empty_when_input_is_blank() {
   assertEquals "" "$answer"
 }
 
+test_prompt_line_aborts_when_input_is_exhausted() {
+  # A blank line is an answer; a closed stream is not, and recording it as one
+  # would hand the caller a value the user never typed.
+  output=$(printf '' | prompt_line "Name: " answer)
+  assertFalse "Should not report an empty answer at EOF" $?
+  assertContains "Should say why it aborted" "$output" "input ended"
+  assertContains "Should name the unanswered prompt" "$output" "Name: "
+}
+
 #
 # prompt_new_path
 #
@@ -283,6 +292,14 @@ test_prompt_new_path_reprompts_when_declined() {
     | { prompt_new_path "Use %s?" result > /dev/null; echo "$result"; })
   assertEquals "$second" "$result"
   assertFalse "Declined path should not be created" "[ -d '$first' ]"
+}
+
+test_prompt_new_path_aborts_when_input_is_exhausted() {
+  # Empty input re-prompts, and at EOF there is nothing left to block on, so
+  # before this was fatal the retry loop spun on the CPU forever.
+  output=$(printf '' | prompt_new_path "Use %s?" result)
+  assertFalse "Should not loop forever at EOF" $?
+  assertContains "Should say why it aborted" "$output" "input ended"
 }
 
 test_prompt_new_path_renders_confirm_message_template() {

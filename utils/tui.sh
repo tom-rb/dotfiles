@@ -98,24 +98,32 @@ choose() {
 
 # Prompt the user for a single line of input.
 # Leading and trailing whitespace are stripped (default IFS read behavior).
+# Dies when input is exhausted, rather than reporting a blank answer.
 # $1: prompt message
 # $2: name of variable to set with the response
 prompt_line() {
   printf "%s" "${1:?}"
-  read -r "${2:?}"
+  # A failed read means the input dried up, which is not the same as someone
+  # entering nothing: recording it as empty hands the caller a value the user
+  # never gave.
+  read -r "${2:?}" || die "Aborted: input ended while asking \"$1\""
 }
 
 # Prompt repeatedly for an absolute path that does not yet exist, then create it.
 # Shell variables and ~ in the input are expanded (eval) and a trailing slash is
 # stripped. Re-prompts on empty input, an already-existing path, a declined
 # confirmation, or a failed mkdir; returns only once the directory exists.
+# Dies when input is exhausted.
 # $1: confirm message; a single %s is replaced with the entered path (printf)
 # $2: name of variable to set with the created path
 prompt_new_path() {
   local _msg _var _path
   _msg=${1:?} _var=${2:?}
   while : ; do
-    printf 'Give absolute path: '; read -r _path
+    printf 'Give absolute path: '
+    # At EOF read leaves _path empty and the retry below has nothing left to
+    # block on, so without this the loop spins on the CPU forever.
+    read -r _path || die "Aborted: input ended while asking for a path"
     # Expand $HOME, ~, etc. and drop any trailing slash.
     eval _path="${_path%/}"
     [ -z "$_path" ] && continue

@@ -61,6 +61,32 @@ test_quietly_forwards_exit_status() {
   assertFalse "Should forward failure" $?
 }
 
+#
+# quietly_stdout
+#
+
+test_quietly_stdout_swallows_stdout_but_keeps_stderr() {
+  # sudo asks for its password on stderr, so swallowing it leaves the user
+  # staring at a frozen terminal while sudo waits for input.
+  output=$(quietly_stdout sh -c 'echo out; echo err >&2' 2>&1)
+  assertNotContains "Should hide stdout" "$output" "out"
+  assertContains "Should keep stderr" "$output" "err"
+}
+
+test_quietly_stdout_restores_output_under_debug() {
+  output=$(DEBUG=1 quietly_stdout sh -c 'echo out; echo err >&2' 2>&1)
+  assertContains "Should show stdout" "$output" "out"
+  assertContains "Should show stderr" "$output" "err"
+}
+
+test_quietly_stdout_forwards_exit_status() {
+  quietly_stdout true
+  assertTrue "Should forward success" $?
+
+  quietly_stdout false
+  assertFalse "Should forward failure" $?
+}
+
 test_check_a_command_exists() {
   command_exists cat
   assertTrue "Command cat should be found" $?
