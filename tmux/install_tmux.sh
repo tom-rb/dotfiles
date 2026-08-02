@@ -174,64 +174,10 @@ install_tpm_plugins() {
   )
 }
 
-# Install tmux bridge managed block into $ZDOTDIR/.zshrc, if present.
-# The block always sources tmux-cmds.sh. When the user opts in, the rich
-# auto-enter snippet (with terminal-emulator detection) is also injected.
-# Re-running preserves the previous auto-enter choice as the prompt default.
-install_tmux_shell_bridge() {
-  local zdotdir zshrc content auto_enter want_auto_enter
-  (
-    set -e
-    zdotdir=$(get_zdotdir)
-    zshrc="$zdotdir/.zshrc"
-
-    if [ ! -f "$zshrc" ]; then
-      echo "No $zshrc found — skipping tmux shell bridge."
-      echo "Hint: run zsh/install_zsh.sh --wizard first to get a managed stub."
-      return 0
-    fi
-
-    # Default the auto-enter prompt to the previous choice (YES if the block
-    # already has the snippet, NO otherwise).
-    if managed_block_contains "$zshrc" "$TMUX_BLOCK_TAG" 'tmux-enter'; then
-      confirm    "Auto-launch tmux on new shells (with terminal-emulator detection)?" \
-        && want_auto_enter=1 || want_auto_enter=0
-    else
-      confirm -n "Auto-launch tmux on new shells (with terminal-emulator detection)?" \
-        && want_auto_enter=1 || want_auto_enter=0
-    fi
-    if [ "$want_auto_enter" = 1 ]; then
-      auto_enter=$(cat <<-'EOF'
-		# Auto-enter tmux when a new terminal opens (specific emulators only)
-		if [ -z "$TMUX" ] && command -v tmux >/dev/null; then
-		  if [ -n "$WT_SESSION" ]; then # Windows Terminal defines this
-		    tmux-enter
-		  elif pstree -s $$ | grep -Eq "(gnome-terminal|wslbridge2?-back)"; then
-		    tmux-enter
-		  fi
-		fi
-EOF
-      )
-    else
-      auto_enter=
-    fi
-
-    content=$(cat <<-EOF
-		# Managed by tmux/install_tmux.sh — edits inside this block will be overwritten.
-		[ -f "\$DOTFILES/tmux/tmux-cmds.sh" ] && source "\$DOTFILES/tmux/tmux-cmds.sh"
-		${auto_enter}
-EOF
-    )
-    install_managed_block "$zshrc" "$TMUX_BLOCK_TAG" "$content"
-
-    echo "$zshrc updated with tmux bridge block."
-  )
-}
-
 # Installs tmux and its dotfiles with an expected version
 # -y: accepts default answer for all questions
 install_tmux_wizard() {
-  wizard_run "$@" -- install_tmux_program_step install_tmux_dotfiles install_tpm install_tpm_plugins install_tmux_shell_bridge
+  wizard_run "$@" -- install_tmux_program_step install_tmux_dotfiles install_tpm install_tpm_plugins
 }
 
 # Run installation if called with --wizard

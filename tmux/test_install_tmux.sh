@@ -256,7 +256,7 @@ test_wizard_delegates_step_list_to_wizard_run() {
   # shellcheck disable=SC2119
   install_tmux_wizard
 
-  assertCalledOnceWith wizard_run -- install_tmux_program_step install_tmux_dotfiles install_tpm install_tpm_plugins install_tmux_shell_bridge
+  assertCalledOnceWith wizard_run -- install_tmux_program_step install_tmux_dotfiles install_tpm install_tpm_plugins
 }
 
 #
@@ -289,72 +289,6 @@ test_tmux_dotfiles_wrapper_bakes_user_conf_and_theme_conf() {
   assertContains "Wrapper should set @theme_conf to repo theme.conf" \
     "$(cat "$wrapper")" \
     "set -g @theme_conf \"$DOTFILES/tmux/theme.conf\""
-}
-
-#
-# install_tmux_shell_bridge
-#
-
-test_shell_bridge_skips_when_zshrc_absent() {
-  output=$(install_tmux_shell_bridge)
-
-  assertTrue "Should succeed even without zshrc" $?
-  assertContains "Should print a hint pointing to install_zsh.sh" \
-    "$output" "install_zsh.sh"
-}
-
-test_shell_bridge_writes_marker_block_when_zshrc_exists() {
-  mkdir -p "$HOME/.config/zsh"
-  : > "$HOME/.config/zsh/.zshrc"
-
-  echo n | quietly install_tmux_shell_bridge   # decline auto-enter
-
-  zshrc_contents=$(cat "$HOME/.config/zsh/.zshrc")
-  assertContains "Should have start marker" "$zshrc_contents" '# >>> dotfiles:tmux >>>'
-  assertContains "Should have end marker"   "$zshrc_contents" '# <<< dotfiles:tmux <<<'
-  # shellcheck disable=SC2016
-  assertContains "Should source tmux-cmds.sh" \
-    "$zshrc_contents" 'source "$DOTFILES/tmux/tmux-cmds.sh"'
-  assertNotContains "Should not include auto-enter when declined" \
-    "$zshrc_contents" 'tmux-enter'
-}
-
-test_shell_bridge_injects_auto_enter_when_opted_in() {
-  mkdir -p "$HOME/.config/zsh"
-  : > "$HOME/.config/zsh/.zshrc"
-
-  echo y | quietly install_tmux_shell_bridge   # accept auto-enter
-
-  zshrc_contents=$(cat "$HOME/.config/zsh/.zshrc")
-  assertContains "Should include auto-enter call" \
-    "$zshrc_contents" 'tmux-enter'
-  assertContains "Should include terminal-emulator detection" \
-    "$zshrc_contents" 'WT_SESSION'
-}
-
-test_shell_bridge_defaults_prompt_to_previous_auto_enter_choice() {
-  mkdir -p "$HOME/.config/zsh"
-  : > "$HOME/.config/zsh/.zshrc"
-
-  # First install with auto-enter ON
-  echo y | quietly install_tmux_shell_bridge
-  assertContains "Initial block should have auto-enter" \
-    "$(cat "$HOME/.config/zsh/.zshrc")" 'tmux-enter'
-
-  # Re-run accepting default (empty input -> default). Previous=YES => default=YES.
-  echo '' | quietly install_tmux_shell_bridge
-  assertContains "Re-run with empty answer should keep auto-enter (default preserved)" \
-    "$(cat "$HOME/.config/zsh/.zshrc")" 'tmux-enter'
-
-  # Now explicitly turn it off
-  echo n | quietly install_tmux_shell_bridge
-  assertNotContains "After declining, auto-enter should be removed" \
-    "$(cat "$HOME/.config/zsh/.zshrc")" 'tmux-enter'
-
-  # Re-run accepting default. Previous=NO => default=NO.
-  echo '' | quietly install_tmux_shell_bridge
-  assertNotContains "Re-run with empty answer should keep no-auto-enter" \
-    "$(cat "$HOME/.config/zsh/.zshrc")" 'tmux-enter'
 }
 
 #
