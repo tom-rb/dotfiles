@@ -21,6 +21,8 @@ help:
 	@echo ""
 	@echo "Options:"
 	@echo "   DEBUG=1                Show verbose outputs during builds and tests"
+	@echo "   PTY=0                  Run system tests on piped stdin, not a terminal"
+	@echo "   PTY_SETTLE_SECONDS=N   Wait longer before each scripted keystroke"
 
 # Run all tests on all images (units + systems)
 all: unit-tests system-tests

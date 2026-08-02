@@ -17,7 +17,7 @@ it_checks_asdf_is_not_installed() {
 it_installs_asdf_and_its_dotfiles() {
   # The asdf zshenv block references $XDG_DATA_HOME, defined by the zsh
   # installer's earlier block in the same file.
-  quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard
+  quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard -y
   assertTrue "Expected zsh wizard to exit 0" $?
   quietly install_asdf_wizard -y
   assertTrue "Expected asdf wizard to exit 0" $?
@@ -45,7 +45,7 @@ it_installs_asdf_and_its_dotfiles() {
 
 # @image: with-zsh
 it_skips_zimrc_block_when_zimfw_is_not_installed() {
-  quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard
+  quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard -y
   assertTrue "Expected zsh wizard to exit 0" $?
   output=$(install_asdf_wizard -y 2>/dev/null)
 
@@ -58,7 +58,7 @@ it_skips_zimrc_block_when_zimfw_is_not_installed() {
 
 # @image: with-zsh
 it_adds_zmodule_asdf_to_zimrc_when_zimfw_is_installed() {
-  quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard
+  quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard -y
   assertTrue "Expected zsh wizard to exit 0" $?
   quietly sh "$DOTFILES/zimfw/install_zimfw.sh" --wizard
   assertTrue "Expected zimfw wizard to exit 0" $?

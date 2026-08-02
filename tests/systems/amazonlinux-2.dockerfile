@@ -1,7 +1,8 @@
 FROM amazonlinux:2 AS base
 
-# Install shadow-utils to have useradd
-RUN yum -y install sudo shadow-utils
+# shadow-utils provides useradd; util-linux provides script, which the test
+# harness uses to give tests a pseudo-terminal. Ubuntu ships script already.
+RUN yum -y install sudo shadow-utils util-linux
 COPY tests/shunit2 /usr/bin/shunit2
 
 # Create non-root user and allow sudo without passwords for certain commands
