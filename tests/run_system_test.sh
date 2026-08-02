@@ -7,6 +7,11 @@ set -o nounset
 THISDIR="$(p="/$0"; p=${p%/*}; p=${p#/}; p=${p:-.}; CDPATH='' cd -- "$p" >/dev/null && pwd -P)"
 readonly THISDIR
 
+# Run tests against a pseudo-terminal by default, so raw-mode code is exercised
+# rather than skipped. PTY=0 gives the test piped stdin instead, which is what a
+# scripted, non-interactive run looks like.
+: "${PTY:=1}"
+
 #
 # Test case discovery function
 #
@@ -39,13 +44,22 @@ get_test_image_annotation() {
 #
 
 run_test_in_docker() {
-  local image="${1:?}" file="${2:?}" case="${3:?}"
+  local image="${1:?}" file="${2:?}" case="${3:?}" command
+  command="${file} -- ${case}"
+  # Give the test a pseudo-terminal, so anything guarded by [ -t 0 ] runs the
+  # same path a human gets. docker's own -t cannot do this: the pipeline below
+  # needs docker's stdout to stay a pipe, and -t refuses without a terminal on
+  # the host side too.
+  [ "${PTY}" = "0" ] || command="script -qec '${command}' /dev/null"
   # Run test case (negation used in last pipeline command),
   ! (
     docker run --rm -v "${THISDIR}/..:/app:ro" -w /app \
       -e DOTFILES=/app ${DEBUG:+-e DEBUG=1} \
-      "${image}" sh -c "${file} -- ${case}"
+      ${PTY_SETTLE_SECONDS:+-e PTY_SETTLE_SECONDS="${PTY_SETTLE_SECONDS}"} \
+      "${image}" sh -c "${command}"
   ) |
+    # drop the CR half of a pty's \r\n, which the filter below would not match,
+    tr -d '\r' |
     # filter verbose lines unless DEBUG is set, then echo output,
     if [ "${DEBUG:-}" != "1" ]; then sed "/^$\|^Ran .* test.$/ d"; else cat; fi |
     tee /dev/stderr |

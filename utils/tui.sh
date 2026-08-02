@@ -1,20 +1,33 @@
 #!/usr/bin/env sh
 
+# Ctrl-D as a literal byte. A terminal in raw mode (-icanon) hands it over as
+# ordinary input instead of closing the stream, so read_char has to recognise
+# it to spot exhausted input the way a pipe's EOF does.
+EOT_CHAR=$(printf '\004')
+
 # Read one char from terminal input (or piped stdin)
 # If $1 is not empty, echoing the char is turned off
+# Returns 1 and echoes nothing when input is exhausted (EOF)
 # https://stackoverflow.com/a/30022297/4783169
 # shellcheck disable=SC2120
 read_char() {
+  local c
   # TODO: block -isig chars too; restore only what was enabled before
   # Only apply stty changes if FD 0 is open (stdin is from tty)
   [ -t 0 ] && stty -icanon -echo
-  if [ -z "$1" ]; then
-    dd bs=1 count=1 2>/dev/null
-  else
-    # Only read a char (for a "waiting for input" effect)
-    dd bs=1 count=1 1>/dev/null 2>&1
-  fi
+  # The X sentinel outlives the trailing-newline stripping of $(...), which is
+  # what makes a newline keypress distinguishable from a dried-up stdin.
+  c=$(dd bs=1 count=1 2>/dev/null; printf X)
   [ -t 0 ] && stty icanon echo
+  c=${c%X}
+  # Empty means a closed pipe, EOT means a raw-mode terminal: both are the end
+  # of the input, as opposed to a newline, which is a keypress meaning "default"
+  if [ -z "$c" ] || [ "$c" = "$EOT_CHAR" ]; then
+    return 1
+  fi
+  # With $1 set, only wait for the keypress (for a "waiting for input" effect)
+  [ -z "$1" ] && printf '%s' "$c"
+  return 0
 }
 
 # Ask for user confirmation with a keystroke
@@ -35,7 +48,10 @@ confirm() {
   fi
   printf "%s" "$message"
   while : ; do
-    c=$(read_char)
+    if ! c=$(read_char); then
+      echo
+      die "Aborted: input ended while asking \"$message\""
+    fi
     case "$c" in
       [nN]) echo "$c"; return 1;;
       [yY]) echo "$c"; return 0;;
@@ -67,7 +83,10 @@ choose() {
     echo "q) Quit"
     # Get answer TODO: ctrl+c should cancel, not return 2
     while : ; do
-      c=$(read_char)
+      if ! c=$(read_char); then
+        echo
+        die "Aborted: input ended while choosing an option"
+      fi
       case "$c" in
         [1-$opt_i]) echo "$c"; return "$c" ;;
         q)   echo 'Cancelled'; return 0 ;;
@@ -79,24 +98,32 @@ choose() {
 
 # Prompt the user for a single line of input.
 # Leading and trailing whitespace are stripped (default IFS read behavior).
+# Dies when input is exhausted, rather than reporting a blank answer.
 # $1: prompt message
 # $2: name of variable to set with the response
 prompt_line() {
   printf "%s" "${1:?}"
-  read -r "${2:?}"
+  # A failed read means the input dried up, which is not the same as someone
+  # entering nothing: recording it as empty hands the caller a value the user
+  # never gave.
+  read -r "${2:?}" || die "Aborted: input ended while asking \"$1\""
 }
 
 # Prompt repeatedly for an absolute path that does not yet exist, then create it.
 # Shell variables and ~ in the input are expanded (eval) and a trailing slash is
 # stripped. Re-prompts on empty input, an already-existing path, a declined
 # confirmation, or a failed mkdir; returns only once the directory exists.
+# Dies when input is exhausted.
 # $1: confirm message; a single %s is replaced with the entered path (printf)
 # $2: name of variable to set with the created path
 prompt_new_path() {
   local _msg _var _path
   _msg=${1:?} _var=${2:?}
   while : ; do
-    printf 'Give absolute path: '; read -r _path
+    printf 'Give absolute path: '
+    # At EOF read leaves _path empty and the retry below has nothing left to
+    # block on, so without this the loop spins on the CPU forever.
+    read -r _path || die "Aborted: input ended while asking for a path"
     # Expand $HOME, ~, etc. and drop any trailing slash.
     eval _path="${_path%/}"
     [ -z "$_path" ] && continue

@@ -11,6 +11,29 @@ command_exists() {
   command -v "${1:?}" >/dev/null
 }
 
+# Run $@ suppressing all output, unless DEBUG=1
+quietly() {
+  if [ "${DEBUG:-}" = "1" ]; then
+    "$@"
+  else
+    "$@" >/dev/null 2>&1
+  fi
+}
+
+# Run $@ suppressing only its stdout, unless DEBUG=1.
+# For commands that may need to talk to the user: sudo writes its password
+# prompt to stderr but reads the reply from the terminal, so hiding stderr
+# leaves it blocked on input with nothing on screen to explain why. Package
+# managers put their chatter on stdout and their diagnostics on stderr, so
+# this still removes the noise it is meant to.
+quietly_stdout() {
+  if [ "${DEBUG:-}" = "1" ]; then
+    "$@"
+  else
+    "$@" >/dev/null
+  fi
+}
+
 #
 # File utils
 #
