@@ -33,6 +33,33 @@ test_read_char_silent_from_pipe() {
   assertEquals "" "$char"
 }
 
+test_read_char_reports_eof_as_failure() {
+  char=$(printf '' | read_char)
+  assertFalse "Exhausted input should fail" $?
+  assertEquals "" "$char"
+}
+
+test_read_char_reports_eof_as_failure_when_silent() {
+  printf '' | read_char silent
+  assertFalse "Exhausted input should fail in silent mode too" $?
+}
+
+test_read_char_reports_ctrl_d_as_end_of_input() {
+  # What a raw-mode terminal sends instead of closing the stream; without this
+  # the wizard would take it for an invalid keypress and re-prompt forever.
+  char=$(printf '\004' | read_char)
+  assertFalse "Ctrl-D should be reported as failure" $?
+  assertEquals "" "$char"
+}
+
+test_read_char_treats_newline_as_input_not_eof() {
+  # Both a newline keypress and EOF echo nothing, so only the return code can
+  # tell them apart. This is what keeps Enter meaning "take the default".
+  char=$(printf '\n' | read_char)
+  assertTrue "A newline is a keypress, not EOF" $?
+  assertEquals "" "$char"
+}
+
 #
 # confirm
 #
@@ -108,6 +135,15 @@ test_confirm_write_y_for_enter() {
   assertEquals "y" "${message##*[!y]}"
 }
 
+test_confirm_aborts_when_input_is_exhausted() {
+  # Silently answering the default here would mean an under-fed scripted run
+  # accepts every remaining prompt, so exhausted input has to be fatal.
+  output=$(printf '' | confirm 'Install zsh?')
+  assertFalse "Should not consent at EOF" $?
+  assertContains "Should say why it aborted" "$output" "input ended"
+  assertContains "Should name the unanswered prompt" "$output" "Install zsh?"
+}
+
 #
 # choose
 #
@@ -152,6 +188,20 @@ test_choose_with_default_still_cancels_on_q() {
   output=$(echo q | choose -d 1 first second)
   assertEquals 0 $?
   assertContains "$output" "Cancelled"
+}
+
+test_choose_aborts_when_input_is_exhausted() {
+  # Without a default this used to busy-loop forever on exhausted input.
+  output=$(printf '' | choose first second)
+  assertFalse "Should not loop forever at EOF" $?
+  assertContains "Should say why it aborted" "$output" "input ended"
+}
+
+test_choose_aborts_at_eof_even_with_a_default() {
+  # A default answers Enter, not a stdin that has run out.
+  output=$(printf '' | choose -d 1 first second)
+  assertFalse "Should not fall back to the default at EOF" $?
+  assertContains "Should say why it aborted" "$output" "input ended"
 }
 
 test_choose_dont_print_anything_on_invalid_answer() {

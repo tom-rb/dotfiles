@@ -11,6 +11,15 @@ command_exists() {
   command -v "${1:?}" >/dev/null
 }
 
+# Run $@ suppressing all output, unless DEBUG=1
+quietly() {
+  if [ "${DEBUG:-}" = "1" ]; then
+    "$@"
+  else
+    "$@" >/dev/null 2>&1
+  fi
+}
+
 #
 # File utils
 #

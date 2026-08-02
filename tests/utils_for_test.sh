@@ -5,15 +5,6 @@ get_abs_path() {
   CDPATH='' cd -- "$1" >/dev/null && pwd -P
 }
 
-# Run $@ suppressing all output, unless DEBUG=1
-quietly() {
-  if [ "${DEBUG:-}" = "1" ]; then
-    "$@"
-  else
-    "$@" >/dev/null 2>&1
-  fi
-}
-
 # Clean contents of temporary test dir SHUNIT_TMPDIR
 cleanupTestDir() {
   # Only clean tmp dir if something is there

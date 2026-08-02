@@ -1,20 +1,33 @@
 #!/usr/bin/env sh
 
+# Ctrl-D as a literal byte. A terminal in raw mode (-icanon) hands it over as
+# ordinary input instead of closing the stream, so read_char has to recognise
+# it to spot exhausted input the way a pipe's EOF does.
+EOT_CHAR=$(printf '\004')
+
 # Read one char from terminal input (or piped stdin)
 # If $1 is not empty, echoing the char is turned off
+# Returns 1 and echoes nothing when input is exhausted (EOF)
 # https://stackoverflow.com/a/30022297/4783169
 # shellcheck disable=SC2120
 read_char() {
+  local c
   # TODO: block -isig chars too; restore only what was enabled before
   # Only apply stty changes if FD 0 is open (stdin is from tty)
   [ -t 0 ] && stty -icanon -echo
-  if [ -z "$1" ]; then
-    dd bs=1 count=1 2>/dev/null
-  else
-    # Only read a char (for a "waiting for input" effect)
-    dd bs=1 count=1 1>/dev/null 2>&1
-  fi
+  # The X sentinel outlives the trailing-newline stripping of $(...), which is
+  # what makes a newline keypress distinguishable from a dried-up stdin.
+  c=$(dd bs=1 count=1 2>/dev/null; printf X)
   [ -t 0 ] && stty icanon echo
+  c=${c%X}
+  # Empty means a closed pipe, EOT means a raw-mode terminal: both are the end
+  # of the input, as opposed to a newline, which is a keypress meaning "default"
+  if [ -z "$c" ] || [ "$c" = "$EOT_CHAR" ]; then
+    return 1
+  fi
+  # With $1 set, only wait for the keypress (for a "waiting for input" effect)
+  [ -z "$1" ] && printf '%s' "$c"
+  return 0
 }
 
 # Ask for user confirmation with a keystroke
@@ -35,7 +48,10 @@ confirm() {
   fi
   printf "%s" "$message"
   while : ; do
-    c=$(read_char)
+    if ! c=$(read_char); then
+      echo
+      die "Aborted: input ended while asking \"$message\""
+    fi
     case "$c" in
       [nN]) echo "$c"; return 1;;
       [yY]) echo "$c"; return 0;;
@@ -67,7 +83,10 @@ choose() {
     echo "q) Quit"
     # Get answer TODO: ctrl+c should cancel, not return 2
     while : ; do
-      c=$(read_char)
+      if ! c=$(read_char); then
+        echo
+        die "Aborted: input ended while choosing an option"
+      fi
       case "$c" in
         [1-$opt_i]) echo "$c"; return "$c" ;;
         q)   echo 'Cancelled'; return 0 ;;

@@ -38,6 +38,29 @@ test_die_with_custom_message_and_code() {
   assertEquals "Custom code" "$message"
 }
 
+#
+# quietly
+#
+
+test_quietly_swallows_stdout_and_stderr() {
+  output=$(quietly sh -c 'echo out; echo err >&2' 2>&1)
+  assertEquals "" "$output"
+}
+
+test_quietly_restores_output_under_debug() {
+  output=$(DEBUG=1 quietly sh -c 'echo out; echo err >&2' 2>&1)
+  assertContains "Should show stdout" "$output" "out"
+  assertContains "Should show stderr" "$output" "err"
+}
+
+test_quietly_forwards_exit_status() {
+  quietly true
+  assertTrue "Should forward success" $?
+
+  quietly false
+  assertFalse "Should forward failure" $?
+}
+
 test_check_a_command_exists() {
   command_exists cat
   assertTrue "Command cat should be found" $?

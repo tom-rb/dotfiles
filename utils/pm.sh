@@ -24,7 +24,7 @@ get_version_in_pm() {
       apt-cache policy "$pkg" \
       | sed -nE '/.*Candidate: (.*)/ { s//\1/p; q }';;
     yum)
-      sudo yum makecache fast && sudo yum info "$pkg" \
+      quietly sudo yum makecache fast && sudo yum info "$pkg" \
       | sed -nE '/^Version\s*: (.*)/ { s//\1/p; q }';;
     *)
       >&2 echo "Couldn't find package manager";;
@@ -34,15 +34,17 @@ get_version_in_pm() {
 # Install the given canonical packages via the active PM.
 # Names are translated through _pm_packages_for; unknown names pass through
 # (so callers can mix curated and plain names: install_from_pm chsh git wget).
+# Installer chatter is hidden behind quietly; DEBUG=1 brings it back when an
+# install fails and the reason matters.
 install_from_pm() {
   # shellcheck disable=SC2046 # splitting on purpose
   set -- $(_pm_packages_for "$@")
   case $(get_supported_pm) in
     apt-get)
-      sudo apt-get update &&
-      sudo apt-get install -y "$@";;
+      quietly sudo apt-get update &&
+      quietly sudo apt-get install -y "$@";;
     yum)
-      sudo yum -y install "$@";;
+      quietly sudo yum -y install "$@";;
     *)
       >&2 echo "Couldn't find package manager";;
   esac
