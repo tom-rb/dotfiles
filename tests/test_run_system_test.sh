@@ -18,6 +18,9 @@ setUp() {
   ORIGINAL_PATH="$PATH"
   printf 'it_alpha() { :; }\nit_beta() { :; }\n' > "$FIXTURE_A"
   printf 'it_gamma() { :; }\n' > "$FIXTURE_B"
+  # The runner refuses a test file it could not execute, so the fixtures need
+  # the bit a real test file has.
+  chmod +x "$FIXTURE_A" "$FIXTURE_B"
 }
 
 tearDown() {
@@ -28,6 +31,7 @@ tearDown() {
 # Put a stub `docker` on PATH so the runner's pipeline can be exercised without
 # starting a container.
 # $1: (optional) extra line to print, e.g. FAILED
+# $2: (optional) exit status for the stub, default 0
 _given_a_fake_docker() {
   mkdir -p "$BIN_DIR"
   cat > "$BIN_DIR/docker" <<EOF
@@ -35,6 +39,9 @@ _given_a_fake_docker() {
 # The runner hands the case name to the container as \`<file> -- <case>\`.
 printf 'case %s ran\n' "\$(printf '%s\n' "\$*" | sed -nE 's/.*-- ([A-Za-z0-9_]+).*/\1/p')"
 printf '%s\n' '${1-}'
+# shunit2's closing summary, which the runner takes as proof a run happened.
+printf 'Ran 1 test.\n'
+exit ${2-0}
 EOF
   chmod +x "$BIN_DIR/docker"
   PATH="$BIN_DIR:$PATH"
@@ -114,6 +121,108 @@ test_run_system_test_fails_when_a_case_reports_a_failure() {
   "$RUNNER" ubuntu "$FIXTURE_A" >/dev/null 2>&1
 
   assertFalse "A FAILED line must fail the run" $?
+}
+
+#
+# A run that dies before shunit2 prints its summary leaves no FAILED to scan
+# for. Scanning stdout was once the only signal, so every case below used to
+# read as a pass: nothing ran, nothing was verified, and the suite was green.
+#
+
+test_run_system_test_fails_when_the_container_exits_non_zero_without_failed() {
+  _given_a_fake_docker '' 1
+
+  "$RUNNER" ubuntu "$FIXTURE_A" >/dev/null 2>&1
+
+  assertFalse "A non-zero container must fail the run on its own" $?
+}
+
+test_run_system_test_fails_when_the_command_cannot_be_executed() {
+  # 126 is what a test file without its executable bit surfaces as.
+  _given_a_fake_docker '' 126
+
+  "$RUNNER" ubuntu "$FIXTURE_A" >/dev/null 2>&1
+
+  assertFalse "An unexecutable command must fail the run" $?
+}
+
+test_run_system_test_names_the_image_when_the_run_never_started() {
+  _given_a_fake_docker '' 125
+
+  output=$("$RUNNER" ubuntu "$FIXTURE_A" 2>&1)
+
+  assertContains "A refused run must name the file it was for" \
+    "$output" "$FIXTURE_A"
+  assertContains "A refused run must name the image it wanted" \
+    "$output" "ubuntu-test:base"
+  assertContains "A refused run must give docker's status" "$output" "125"
+}
+
+test_run_system_test_still_passes_a_clean_run() {
+  _given_a_fake_docker '' 0
+
+  "$RUNNER" ubuntu "$FIXTURE_A" >/dev/null 2>&1
+
+  assertTrue "A zero exit with no FAILED is still a pass" $?
+}
+
+# Put a stub `docker` on PATH that exits cleanly having stopped partway, with
+# no shunit2 summary to show for it — what amazonlinux-2's `script` does to
+# some cases today.
+_given_a_fake_docker_that_stops_halfway() {
+  mkdir -p "$BIN_DIR"
+  cat > "$BIN_DIR/docker" <<'EOF'
+#!/usr/bin/env sh
+printf 'case started\n'
+exit 0
+EOF
+  chmod +x "$BIN_DIR/docker"
+  PATH="$BIN_DIR:$PATH"
+}
+
+test_run_system_test_fails_when_the_run_never_reported_a_result() {
+  _given_a_fake_docker_that_stops_halfway
+
+  output=$("$RUNNER" ubuntu "$FIXTURE_A" 2>&1)
+  status=$?
+
+  assertFalse "A clean exit with no summary is not a pass" $status
+  assertContains "The message must say no result was reported" \
+    "$output" "stopped before shunit2 reported a result"
+}
+
+test_run_system_test_keeps_the_shunit2_summary_out_of_the_output() {
+  _given_a_fake_docker
+
+  output=$("$RUNNER" ubuntu "$FIXTURE_A" 2>&1)
+
+  assertNotContains "The summary is a signal, not something to print" \
+    "$output" "Ran 1 test."
+  assertContains "The case's own output must survive" "$output" "case it_alpha ran"
+}
+
+test_run_system_test_refuses_a_test_file_without_its_executable_bit() {
+  _given_a_fake_docker
+  chmod -x "$FIXTURE_A"
+
+  output=$("$RUNNER" ubuntu "$FIXTURE_A" 2>&1)
+  status=$?
+
+  assertFalse "A file that cannot run must fail the run" $status
+  assertContains "The message must name the missing bit, not docker" \
+    "$output" "not executable"
+  assertContains "The message must name the file" "$output" "$FIXTURE_A"
+}
+
+test_run_system_test_refuses_a_test_file_that_does_not_exist() {
+  _given_a_fake_docker
+
+  output=$("$RUNNER" ubuntu "$SHUNIT_TMPDIR/test_absent.system.sh" 2>&1)
+  status=$?
+
+  assertFalse "A missing file must fail the run" $status
+  assertContains "The message must say the file is missing" \
+    "$output" "No such test file"
 }
 
 # Run tests

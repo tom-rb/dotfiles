@@ -26,6 +26,15 @@ if [ $# -lt 1 ]; then
   exit 1
 fi
 
+# Refuse a test file that cannot be executed. The loop below invokes each file
+# directly, so a missing executable bit would surface as a "Permission denied"
+# from the shell rather than anything naming the file.
+for test_file in "$@"; do
+  [ -f "$test_file" ] || { printf 'No such test file: %s\n' "$test_file" >&2; exit 1; }
+  [ -x "$test_file" ] ||
+    { printf 'Test file is not executable: %s\n' "$test_file" >&2; exit 1; }
+done
+
 #
 # Run tests
 #
