@@ -15,15 +15,27 @@ is_tmux_installed() {
   command_exists tmux
 }
 
+# Version of the tmux on PATH (`tmux 3.6a` -> 3.6a).
+get_tmux_version() {
+  tmux -V | cut -d' ' -f2
+}
+
+# The ✓ wording for a package-manager install.
+_tmux_installed_msg() {
+  echo "tmux $(get_tmux_version) installed"
+}
+
 # Get latest available tmux version from package manager
 get_tmux_package_version() {
   get_version_in_pm tmux \
     | sed -E 's/([0-9]\.[0-9][abc]?).*/\1/'
 }
 
+# Install the toolchain and headers a from-source tmux build needs.
 install_tmux_build_dependencies() {
-  install_from_pm \
-    wget tar gzip gcc make libevent-headers ncurses-headers bison
+  install_from_pm --as 'build dependencies' \
+    --die "Couldn't install the tmux build dependencies" \
+    -- wget tar gzip gcc make libevent-headers ncurses-headers bison
 }
 
 # Install version $1 from source, (optional) install at $2 location
@@ -36,66 +48,71 @@ install_tmux_from_source() {
     set -e
     cd "$HOME"
     # TODO: checksum
-    wget "https://github.com/tmux/tmux/releases/download/${version_tmux}/${tmux_tar_gz}"
+    # -q hides wget's own diagnostics too, so say why the step failed here.
+    wget -q "https://github.com/tmux/tmux/releases/download/${version_tmux}/${tmux_tar_gz}" \
+      || die "Couldn't download tmux ${version_tmux}"
     tar xf "${tmux_tar_gz}" && rm -f "${tmux_tar_gz}"
-    (
-      cd "tmux-${version_tmux}"
-      ./configure --prefix="${install_prefix}" && make -j4
-      sudo make install
-    )
+    tui_task "building tmux ${version_tmux} from source (a few minutes)…" \
+      --ok "tmux ${version_tmux} installed" \
+      --die "Couldn't build tmux ${version_tmux} from source" \
+      -- _build_tmux_from_source "${version_tmux}" "${install_prefix}"
     rm -rf "tmux-${version_tmux}"
+  )
+}
+
+# Configure, compile and install tmux from its extracted source directory.
+# $1: version being built  $2: install prefix
+_build_tmux_from_source() {
+  (
+    cd "tmux-$1"
+    ./configure --prefix="$2" && make -j4
+    sudo make install
   )
 }
 
 # Installs tmux, ensuring at least minimum version $1
 install_tmux_program() {
-  local tmux_desired_version installed_version pm_version location
+  local tmux_desired_version installed_version pm_version pm location
   tmux_desired_version=${1:?}
-  # Sub-shell for scoping set -e
   (
     set -e
-    # $tmux_desired_version is the minimum acceptable version. Anything >= it
-    # (installed or available from the package manager) is accepted as-is.
     if is_tmux_installed; then
-      installed_version=$(tmux -V | cut -d' ' -f2)
+      installed_version=$(get_tmux_version)
       if version_ge "$installed_version" "$tmux_desired_version"; then
-        echo "****************************"
-        echo "tmux $installed_version installed (>= required $tmux_desired_version)."
-        echo "****************************"
+        tui_skip "tmux $installed_version already installed (≥ required $tmux_desired_version)"
         return 0
       fi
-      echo "tmux installed version:    $installed_version"
-      echo "Dotfiles minimum version:  $tmux_desired_version"
-      echo "Some features may not work with the older tmux."
+      tui_warn "Some features may not work with the older tmux."
+      tui_detail "tmux installed version:    $installed_version"
+      tui_detail "Dotfiles minimum version:  $tmux_desired_version"
       if confirm -n "Install dotfiles anyway?"; then
         return 0
       fi
+      tui_skip "tmux dotfiles not installed"
       return 1
     fi
 
     pm_version=$(get_tmux_package_version)
+    pm=$(get_supported_pm)
 
     if [ -n "$pm_version" ] && version_ge "$pm_version" "$tmux_desired_version"; then
-      echo "tmux $pm_version is available from package manager (>= required $tmux_desired_version)"
-      if confirm "Do you want to install from it?"; then
-        install_from_pm tmux
-        echo "****************************"
-        echo "tmux $pm_version installed."
-        echo "****************************"
+      tui_skip "tmux $pm_version available from $pm (≥ required $tmux_desired_version)"
+      if confirm "Install tmux from $pm?"; then
+        install_from_pm --ok-cmd _tmux_installed_msg \
+          --die "Couldn't install tmux $pm_version" \
+          -- tmux
         return 0
       fi
     fi
 
-    echo "tmux $tmux_desired_version will be installed from source."
+    tui_skip "tmux $tmux_desired_version will be installed from source"
 
-    if confirm -n "Do you want to install it in a custom location?"; then
+    if confirm -n "Install tmux in a custom location?"; then
       prompt_new_path "Install under %s/bin/tmux?" location
     fi
 
+    # Reports its own step and result — the build is where the version is known.
     install_tmux_from_source "$tmux_desired_version" "$location"
-    echo "****************************"
-    echo "tmux $tmux_desired_version installed."
-    echo "****************************"
   )
 }
 
@@ -107,13 +124,12 @@ install_tmux_program_step() {
 
 install_tmux_dotfiles() {
   local config_dir tmux_conf contents plugins_dir
-  # Sub-shell for scoping set -e
   (
     set -e
     config_dir="$(xdg_config_home)/tmux"
     plugins_dir="$(get_tmux_plugins_dir)"
-    mkdir -v -p "$config_dir"
-    mkdir -v -p "$plugins_dir"
+    mkdir -p "$config_dir"
+    mkdir -p "$plugins_dir"
     tmux_conf="$config_dir/tmux.conf"
 
     # Use tmux source-file command to include dotfiles repo tmux.conf
@@ -129,11 +145,8 @@ install_tmux_dotfiles() {
 EOF
     )
 
-    install_managed_block "$tmux_conf" "$TMUX_BLOCK_TAG" "$contents"
-
-    echo "****************************"
-    echo "$tmux_conf configured."
-    echo "****************************"
+    install_managed_block --as "$(tui_path "$tmux_conf")" \
+      "$tmux_conf" "$TMUX_BLOCK_TAG" "$contents"
   )
 }
 
@@ -150,18 +163,16 @@ install_tpm() {
   (
     set -e
     if is_tpm_installed; then
-      echo "****************************"
-      echo "TPM ${TPM_VERSION} already installed."
-      echo "****************************"
+      tui_skip "TPM ${TPM_VERSION} already installed"
       return 0
     fi
-    install_from_pm git
+    install_from_pm --die "Couldn't install git" -- git
     plugins_dir=$(get_tmux_plugins_dir)
     mkdir -p "$plugins_dir"
-    git clone --depth=1 --branch "v${TPM_VERSION}" -c advice.detachedHead=false "$TPM_REPO" "$plugins_dir/tpm"
-    echo "****************************"
-    echo "TPM ${TPM_VERSION} installed."
-    echo "****************************"
+    tui_task "cloning TPM ${TPM_VERSION}…" \
+      --ok "TPM ${TPM_VERSION} installed" \
+      --die "Couldn't clone TPM ${TPM_VERSION} from $TPM_REPO" \
+      -- git clone --quiet --depth=1 --branch "v${TPM_VERSION}" -c advice.detachedHead=false "$TPM_REPO" "$plugins_dir/tpm"
   )
 }
 
@@ -170,7 +181,10 @@ install_tpm() {
 install_tpm_plugins() {
   (
     set -e
-    "$(get_tmux_plugins_dir)/tpm/bin/install_plugins"
+    tui_task "installing tmux plugins…" \
+      --ok "tmux plugins installed" \
+      --die "Couldn't install the tmux plugins" \
+      -- "$(get_tmux_plugins_dir)/tpm/bin/install_plugins"
   )
 }
 

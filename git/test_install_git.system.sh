@@ -58,17 +58,20 @@ it_installs_git_configures_templates_and_hook_takes_effect() {
     "$(cd "$repo" && git log -1 --pretty=%B)" \
     "[ABC-123] my message"
 
-  # core.excludesfile should make patterns in .gitignore.global apply repo-wide
+  # core.excludesfile should make patterns in .gitignore.global apply repo-wide.
+  # Keep this file in sync with .gitignore.global — the point is that whatever
+  # that file ignores is ignored here, not that any one pattern is in it.
   (
     cd "$repo"
-    echo "ruby 3.3.0" > .tool-versions
+    mkdir -p .claude
+    echo '{}' > .claude/settings.local.json
     echo tracked > tracked.txt
   )
   status_output=$(cd "$repo" && git status --porcelain)
   assertContains "untracked non-ignored file should appear in status" \
     "$status_output" "tracked.txt"
-  assertNotContains "globally-ignored .tool-versions should be hidden" \
-    "$status_output" ".tool-versions"
+  assertNotContains "globally-ignored .claude/settings.local.json should be hidden" \
+    "$status_output" "settings.local.json"
 }
 
 # shellcheck source=../tests/shunit2

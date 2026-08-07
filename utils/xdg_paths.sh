@@ -4,7 +4,7 @@
 #
 # Path segments are exposed as variables so both the sh-side helpers below
 # AND the zsh code that install_zsh_zshenv inlines into $HOME/.zshenv pull
-# from the same constants — no "keep these in sync" lockstep.
+# from the same constants.
 
 XDG_CONFIG_DEFAULT_SUBPATH=.config
 XDG_DATA_DEFAULT_SUBPATH=.local/share

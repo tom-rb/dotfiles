@@ -29,27 +29,37 @@ tearDown() {
 # install_zsh_program
 #
 
+test_get_zsh_version_parses_the_version_line() {
+  createSpy -u -o "zsh 5.9 (x86_64-ubuntu-linux-gnu)" zsh
+
+  assertEquals "5.9" "$(get_zsh_version)"
+}
+
 test_install_returns_true_if_zsh_is_already_installed() {
   createSpy -u -r "$SHUNIT_TRUE" is_zsh_installed
+  createSpy -u -o "5.9" get_zsh_version
   createSpy -u install_from_pm
 
   output=$(install_zsh_program)
 
   assertTrue "zsh already installed should not be an error" $?
   assertContains "Should report already installed" \
-    "$output" "zsh already installed"
+    "$output" "zsh 5.9 already installed"
   assertNeverCalled install_from_pm
 }
 
 test_install_zsh_from_package_manager_when_not_installed() {
   createSpy -u -r "$SHUNIT_FALSE" is_zsh_installed
-  createSpy -u install_from_pm
+  createSpy -u -o 'apt-get' get_supported_pm
+  createSpy -u _install_from_pm
+  createSpy -u -o "5.9" get_zsh_version
 
   output=$(install_zsh_program)
 
   assertTrue "zsh installed from package manager should not be an error" $?
-  assertCalledOnceWith install_from_pm zsh
-  assertContains "Should report installed" "$output" "zsh installed"
+  assertCalledOnceWith _install_from_pm zsh
+  assertContains "Should report the version that landed" \
+    "$output" "✓ zsh 5.9 installed"
 }
 
 #
@@ -229,12 +239,14 @@ test_ensure_chsh_installs_chsh_canonical_via_pm() {
   ensure_chsh_available
 
   assertTrue "Should succeed after install" $?
-  assertCalledOnceWith install_from_pm chsh
+  assertCalledOnceWith install_from_pm \
+    --warn "Couldn't install chsh from package manager" -- chsh
 }
 
 test_ensure_chsh_warns_and_returns_zero_when_install_fails() {
   createSpy -u -r "$SHUNIT_FALSE" command_exists
-  createSpy -u -r "$SHUNIT_FALSE" install_from_pm
+  createSpy -u -o 'apt-get' get_supported_pm
+  createSpy -u -r "$SHUNIT_FALSE" _install_from_pm
 
   output=$(ensure_chsh_available)
 

@@ -35,6 +35,8 @@ make system-ubuntu FILE=zsh/test_install_zsh.system.sh TEST=it_checks_zsh_is_not
 
 `DEBUG=1` enables verbose docker output. Run `make help` for the full target list.
 
+System runs are slow and downloads real files — run them fully only at the end of big changes and read the result off the terminal or a redirect; piping to `tail` reports the pipe's exit status instead of `make`'s, which invites a needless re-run.
+
 **Test file conventions:**
 - Unit test functions are named `test_<description>()`
 - System test functions are named `it_<description>()`

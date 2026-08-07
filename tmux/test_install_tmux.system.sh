@@ -45,8 +45,6 @@ it_installs_tmux_and_its_dotfiles() {
   assertContains "$output" "/tmux/theme.conf"
 }
 
-# Regression: tmux must resolve its plugin manager path even when the login
-# shell does not export XDG_DATA_HOME (i.e. when install_zsh never ran).
 # @image: with-tmux
 it_resolves_tmux_plugin_manager_path_without_xdg_data_home_in_env() {
   unset XDG_DATA_HOME

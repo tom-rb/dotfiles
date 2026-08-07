@@ -21,27 +21,39 @@ tearDown() {
 # install_git_program
 #
 
+test_get_git_version_parses_the_version_line() {
+  createSpy -u -o "git version 2.51.0" git
+
+  assertEquals "2.51.0" "$(get_git_version)"
+}
+
 test_install_returns_true_if_git_is_already_installed() {
   createSpy -u -r "$SHUNIT_TRUE" is_git_installed
+  createSpy -u -o "2.51.0" get_git_version
   createSpy -u install_from_pm
 
   output=$(install_git_program)
 
   assertTrue "git already installed should not be an error" $?
   assertContains "Should report already installed" \
-    "$output" "git already installed"
+    "$output" "git 2.51.0 already installed"
   assertNeverCalled install_from_pm
 }
 
+# Spying one level down, on the install itself, so the real install_from_pm
+# reports the Task and the forwarded --ok-cmd words the ✓.
 test_install_git_from_package_manager_when_not_installed() {
   createSpy -u -r "$SHUNIT_FALSE" is_git_installed
-  createSpy -u install_from_pm
+  createSpy -u -o "2.51.0" get_git_version
+  createSpy -u -o 'apt-get' get_supported_pm
+  createSpy -u _install_from_pm
 
   output=$(install_git_program)
 
   assertTrue "git installed from package manager should not be an error" $?
-  assertCalledOnceWith install_from_pm git
-  assertContains "Should report installed" "$output" "git installed"
+  assertCalledOnceWith _install_from_pm git
+  assertContains "Should report the version that landed" \
+    "$output" "✓ git 2.51.0 installed"
 }
 
 #
@@ -146,8 +158,8 @@ test_configure_user_offers_change_for_existing_values_default_no() {
   output=$(printf '\n\n' | configure_git_user)
 
   assertCallCount git 2
-  assertContains "Should display existing user.name" "$output" "[Alice]"
-  assertContains "Should display existing user.email" "$output" "[bob@example.com]"
+  assertContains "Should display existing user.name" "$output" "(now: Alice)"
+  assertContains "Should display existing user.email" "$output" "(now: bob@example.com)"
 }
 
 test_configure_user_sets_values_when_unset_and_user_accepts() {

@@ -105,7 +105,7 @@ it_installs_pi_via_asdf_managed_node() {
   output=$(install_pi_program)
   assertTrue "Re-running install_pi_program should succeed" $?
   assertContains "Should report already installed on re-run" \
-    "$output" "pi already installed"
+    "$output" "pi ${PI_VERSION} already installed"
 }
 
 # shellcheck source=../tests/shunit2

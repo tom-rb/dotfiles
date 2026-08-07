@@ -17,29 +17,34 @@ get_zsh_path() {
   command -v zsh
 }
 
+# Version of the zsh on PATH (`zsh 5.9 (x86_64-ubuntu-linux-gnu)` -> 5.9).
+get_zsh_version() {
+  zsh --version | cut -d' ' -f2
+}
+
+# The ✓ wording for the package-manager install.
+_zsh_installed_msg() {
+  echo "zsh $(get_zsh_version) installed"
+}
+
 # Installs zsh from the system package manager
 install_zsh_program() {
-  # Sub-shell for scoping set -e
   (
     set -e
     if is_zsh_installed; then
-      echo "****************************"
-      echo "zsh already installed."
-      echo "****************************"
+      tui_skip "zsh $(get_zsh_version) already installed"
       return 0
     fi
 
-    install_from_pm zsh
-    echo "****************************"
-    echo "zsh installed."
-    echo "****************************"
+    install_from_pm --ok-cmd _zsh_installed_msg \
+      --die "Couldn't install zsh" \
+      -- zsh
   )
 }
 
 # Render $HOME/.zshenv with a managed block that inlines the read-sequence doc
 # from zshenv-doc plus the XDG/ZDOTDIR exports. Inlined (not sourced) so zsh
-# startup avoids an extra file read; the tradeoff is that edits to defaults
-# only take effect after re-running this installer.
+# startup avoids an extra file read.
 install_zsh_zshenv() {
   local zshenv doc content
   (
@@ -60,11 +65,8 @@ install_zsh_zshenv() {
 		export ZDOTDIR=\${XDG_CONFIG_HOME}/$ZDOTDIR_SUBPATH
 EOF
     )
-    install_managed_block "$zshenv" "$ZSH_BLOCK_TAG" "$content"
-
-    echo "****************************"
-    echo "$zshenv configured."
-    echo "****************************"
+    install_managed_block --as "$(tui_path "$zshenv")" \
+      "$zshenv" "$ZSH_BLOCK_TAG" "$content"
   )
 }
 
@@ -89,22 +91,17 @@ EOF
 
     # Polite note about pre-existing $HOME/.zshrc (ZDOTDIR moved here)
     if [ -e "$HOME/.zshrc" ] && [ "$zdotdir" != "$HOME" ]; then
-      echo "Note: \$HOME/.zshrc exists but ZDOTDIR is now $zdotdir."
-      echo "      Consider moving its contents to $zshrc."
+      tui_warn "\$HOME/.zshrc exists but ZDOTDIR is now $(tui_path "$zdotdir")"
+      tui_detail "Consider moving its contents to $(tui_path "$zshrc")"
     fi
 
-    install_managed_block "$zshrc" "$ZSH_BLOCK_TAG_BASE" "$content"
-
-    echo "****************************"
-    echo "$zshrc base block configured."
-    echo "****************************"
+    install_managed_block --as "$(tui_path "$zshrc") (base)" \
+      "$zshrc" "$ZSH_BLOCK_TAG_BASE" "$content"
   )
 }
 
 # Insert the overrides managed block into $ZDOTDIR/.zshrc, sourcing zshrc-overrides.
-# No anchor needed: on first install this block lands at the end (after base);
-# any framework block (e.g. zimfw) that gets installed later anchors itself on
-# dotfiles:zsh:base, so it slots in between — leaving overrides last.
+# No anchor needed: on first install this block lands at the end (after base).
 # Position-preserving on re-install.
 install_zsh_zshrc_overrides() {
   local zdotdir zshrc content
@@ -117,16 +114,12 @@ install_zsh_zshrc_overrides() {
 		source "$DOTFILES/zsh/zshrc-overrides"
 EOF
     )
-    install_managed_block "$zshrc" "$ZSH_BLOCK_TAG_OVERRIDES" "$content"
-
-    echo "****************************"
-    echo "$zshrc overrides block configured."
-    echo "****************************"
+    install_managed_block --as "$(tui_path "$zshrc") (overrides)" \
+      "$zshrc" "$ZSH_BLOCK_TAG_OVERRIDES" "$content"
   )
 }
 
-# Render $HOME/.zshenv with the inlined env block (XDG defaults + ZDOTDIR),
-# then render $ZDOTDIR/.zshrc with the base + overrides managed blocks.
+# Render $HOME/.zshenv and $ZDOTDIR/.zshrc with the base + overrides managed blocks.
 install_zsh_dotfiles() {
   (
     set -e
@@ -142,10 +135,9 @@ ensure_chsh_available() {
   if command_exists chsh; then
     return 0
   fi
-  install_from_pm chsh || {
-    echo "Couldn't install chsh from package manager."
-    return 0
-  }
+  install_from_pm --warn "Couldn't install chsh from package manager" \
+    -- chsh \
+    || return 0
 }
 
 # Current login shell for the running user, from /etc/passwd
@@ -162,22 +154,20 @@ set_zsh_as_default_shell() {
   current=$(get_current_default_shell)
 
   if [ "$current" = "$zsh_path" ]; then
-    echo "zsh is already the default shell."
+    tui_skip "zsh is already the default shell"
     return 0
   fi
 
-  if ! confirm "Set zsh as your default shell?"; then
+  if ! confirm "Set zsh as the default shell?"; then
     return 0
   fi
 
   if ! sudo chsh -s "$zsh_path" "$(id -un)"; then
-    echo "Couldn't change default shell. Run manually: chsh -s $zsh_path"
+    tui_warn "Couldn't change default shell. Run manually: chsh -s $zsh_path"
     return 0
   fi
 
-  echo "****************************"
-  echo "Default shell set to zsh."
-  echo "****************************"
+  tui_ok "default shell set to zsh"
 }
 
 # Installs zsh and its dotfiles, then offers to set it as default shell

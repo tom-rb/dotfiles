@@ -16,16 +16,22 @@
 PTY_SETTLE_SECONDS="${PTY_SETTLE_SECONDS:-1}"
 
 # Whole seconds a command may run before it is killed. Without this a subject
-# that never returns blocks the entire suite with no output at all, since the
-# session is captured to a file rather than streamed.
+# that never returns blocks the entire suite.
 PTY_TIMEOUT_SECONDS="${PTY_TIMEOUT_SECONDS:-30}"
 
 # Strip what the terminal adds but assertions should not have to know about:
-# the CR half of the pty's \r\n, and any escape sequences.
+# the CR half of the pty's \r\n, and any escape sequences — unless
+# PTY_KEEP_ESCAPES=1, which hands back the session untouched (SGR codes and
+# every \r, including the mid-line ones a program writes on purpose) for
+# tests asserting on color codes or in-place line rewrites.
 _pty_normalize() {
   local esc
   esc=$(printf '\033')
-  tr -d '\r' | sed "s/$esc\[[0-9;]*[a-zA-Z]//g"
+  if [ "${PTY_KEEP_ESCAPES:-}" = 1 ]; then
+    cat
+  else
+    tr -d '\r' | sed "s/$esc\[[0-9;]*[a-zA-Z]//g"
+  fi
 }
 
 # Run a command under a pseudo-terminal, feeding it keystrokes one at a time.
@@ -50,12 +56,9 @@ pty_run() {
     trap 'kill $pid $watchdog 2>/dev/null; rm -rf "$dir"' EXIT INT TERM
     mkfifo "$dir/fifo" || exit 1
 
-    # The session is captured from script's stdout rather than a typescript
-    # file: -q keeps the "Script started/done" banner off stdout, but always
-    # writes it to the file, where it would also glue itself onto output
-    # lacking a trailing newline. /dev/null is the typescript for that reason.
-    # script dispatches through $SHELL, so pin it: these scripts are sh-only
-    # but a developer's login shell is often not.
+    # The session is captured from script's stdout. `script` dispatches through
+    # $SHELL, so pin it: these scripts are sh-only but a developer's login shell
+    # is often not. -q keeps the "Script started/done" banner off stdout.
     # The reader has to start first: opening a fifo for writing blocks until a
     # reader is present, so a writer-first order deadlocks.
     SHELL=/bin/sh script -qec "$*" /dev/null <"$dir/fifo" >"$dir/capture" 2>&1 &

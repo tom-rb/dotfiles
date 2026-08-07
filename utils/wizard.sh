@@ -4,7 +4,7 @@
 # Wizard runner
 #
 
-# Execute a step list as an &&-chain, short-circuiting on first failure.
+# Execute a step list short-circuiting on first failure.
 # -y: pipe `yes ""` into the chain so interactive prompts accept defaults;
 #     without -y, stdin is left untouched.
 # Steps are passed after a literal -- separator to avoid collision with flags:
@@ -19,11 +19,7 @@ wizard_run() {
   # Consume the -- separator
   shift
 
-  # Each step is invoked as a bare command, then its status is tested
-  # separately. Using `"$step" || ...` would put the step in an AND-OR list,
-  # which makes POSIX ignore `set -e` *inside* the step's subshell — silently
-  # swallowing implicit mid-body failures. A bare call re-arms the documented
-  # `( set -e; ... )` idiom for every step.
+  # Each step is invoked as a bare command, then its status is tested separately.
   # The subshell uses `exit` (not `return`) because POSIX `return` from a
   # subshell forked off a function is non-portable; the failing step's code
   # propagates via the pipe's last-command status.

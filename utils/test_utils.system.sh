@@ -23,7 +23,7 @@ it_installs_a_package_using_package_manager() {
   command_exists htop
   assertFalse "Htop was not expected to be already installed" $?
 
-  quietly install_from_pm htop
+  quietly install_from_pm --fail "Couldn't install htop" -- htop
 
   command_exists htop
   assertTrue "Htop should be installed" $?

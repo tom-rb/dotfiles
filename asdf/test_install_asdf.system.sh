@@ -43,6 +43,22 @@ it_installs_asdf_and_its_dotfiles() {
     "$output" "0.16.7"
 }
 
+# @image: with-asdf
+it_does_not_redownload_asdf_when_installed_but_off_path() {
+  # asdf is installed at ~/.local/bin but off PATH (see the with-asdf stage) —
+  # the exact situation a re-run of deploy.sh hits in a plain sh session,
+  # before activate_asdf has run.
+  assertFalse "asdf must not be on PATH for this test" "command_exists asdf"
+  assertTrue "Expect asdf binary at \$HOME/.local/bin/asdf" \
+    "test -x $HOME/.local/bin/asdf"
+
+  output=$(install_asdf_wizard -y)
+
+  assertTrue "Re-running the asdf wizard should succeed" $?
+  assertContains "Should report already installed instead of re-downloading" \
+    "$output" "asdf ${ASDF_VERSION} already installed"
+}
+
 # @image: with-zsh
 it_skips_zimrc_block_when_zimfw_is_not_installed() {
   quietly sh "$DOTFILES/zsh/install_zsh.sh" --wizard -y

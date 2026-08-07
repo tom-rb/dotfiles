@@ -18,6 +18,14 @@ One function in a wizard's chain — typically a program install, a dotfile rend
 
 `utils/wizard.sh` — the shared machinery behind every wizard. Exposes two helpers: `wizard_run` (executes a step list, handles `-y` by piping `yes` into the chain) and `wizard_main` (the `--wizard` dispatch at the bottom of each installer script). Cross-module orchestration in `deploy.sh` uses `start_module_wizard <name>`, which shells out to the module's install script under a fresh `sh -- ` so a `die` in one module doesn't terminate the surrounding `deploy_wizard`.
 
+## Task
+
+One line of terminal output representing a unit of work: an open state ("→ installing zsh…") rewritten in place by exactly one [[Outcome]]. `tui_task` opens a task, runs a command, and closes it — callers never close a task themselves. Several tasks make up one [[Wizard step]].
+
+## Outcome
+
+How a [[Task]] ends: ok (✓), skip (•), warn (!) or fail (✗). Chosen by `tui_task` from the command's exit status and the `--ok` / `--die` / `--fail` / `--warn` wording it was given.
+
 ## Owned dotfile
 
 A configuration file in the user's home (or `$ZDOTDIR`, `$XDG_CONFIG_HOME`, etc.) that the user owns but the dotfiles repo wants to write into. The user may have hand-rolled content there from before they installed the dotfiles — overwriting it blindly is hostile.

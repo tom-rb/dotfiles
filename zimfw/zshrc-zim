@@ -2,7 +2,6 @@
 # shellcheck disable=SC1071
 #
 # Zimfw layer sourced after zsh/zshrc-base.
-# Wired in by install_zimfw.sh via a marker block in $ZDOTDIR/.zshrc.
 #
 
 # Location of the zimfw framework script and its module cache

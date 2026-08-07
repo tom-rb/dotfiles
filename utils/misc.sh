@@ -1,11 +1,5 @@
 #!/usr/bin/env sh
 
-# Echo $1 and exit 1, or optionally with specified $2 code
-die() {
-  echo "${1:-Aborted.}"
-  exit "${2:-1}"
-}
-
 # Check if command $1 exists
 command_exists() {
   command -v "${1:?}" >/dev/null
@@ -21,11 +15,6 @@ quietly() {
 }
 
 # Run $@ suppressing only its stdout, unless DEBUG=1.
-# For commands that may need to talk to the user: sudo writes its password
-# prompt to stderr but reads the reply from the terminal, so hiding stderr
-# leaves it blocked on input with nothing on screen to explain why. Package
-# managers put their chatter on stdout and their diagnostics on stderr, so
-# this still removes the noise it is meant to.
 quietly_stdout() {
   if [ "${DEBUG:-}" = "1" ]; then
     "$@"
@@ -57,4 +46,27 @@ backup_file() {
 # Handles dotted versions with optional suffix letters (e.g. 3.1 < 3.1a < 3.1b < 3.2).
 version_ge() {
   [ "$(printf '%s\n%s\n' "${1:?}" "${2:?}" | sort -V | head -n1)" = "$2" ]
+}
+
+#
+# Prose utilities
+#
+
+# Render a space-separated list as an English enumeration:
+# "zsh", "zsh and tmux", "zsh, tmux and git".
+# $1: space-separated words
+english_list() {
+  local out word count i
+  out='' count=0 i=0
+  for word in $1; do count=$((count + 1)); done
+  for word in $1; do
+    i=$((i + 1))
+    if [ "$i" -eq 1 ]
+      then out=$word
+    elif [ "$i" -eq "$count" ]
+      then out="$out and $word"
+      else out="$out, $word"
+    fi
+  done
+  printf '%s\n' "$out"
 }

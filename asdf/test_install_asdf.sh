@@ -25,11 +25,72 @@ tearDown() {
 }
 
 #
+# is_asdf_installed
+#
+
+test_is_asdf_installed_true_when_binary_on_path() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+
+  is_asdf_installed
+
+  assertTrue "Should report installed when command_exists finds asdf" $?
+}
+
+test_is_asdf_installed_true_when_binary_on_disk_but_off_path() {
+  createSpy -u -r "$SHUNIT_FALSE" command_exists
+  mkdir -p "$HOME/.local/bin"
+  printf '#!/bin/sh\n' > "$HOME/.local/bin/asdf"
+  chmod +x "$HOME/.local/bin/asdf"
+
+  is_asdf_installed
+
+  assertTrue "Should report installed when the binary exists on disk" $?
+}
+
+test_is_asdf_installed_false_when_neither_holds() {
+  createSpy -u -r "$SHUNIT_FALSE" command_exists
+
+  is_asdf_installed
+
+  assertFalse "Should report not installed" $?
+}
+
+#
 # install_asdf_program
 #
 
+test_get_asdf_version_parses_the_version_line() {
+  createSpy -u -o "asdf version v0.16.7" asdf
+
+  assertEquals "0.16.7" "$(get_asdf_version)"
+}
+
+test_get_asdf_version_reads_the_binary_when_asdf_is_off_path() {
+  # The deploy-time case: asdf sits in ~/.local/bin but PATH does not have it,
+  # so a bare `asdf --version` would find nothing.
+  mkdir -p "$HOME/.local/bin"
+  printf '#!/bin/sh\necho "asdf version v0.16.7"\n' > "$HOME/.local/bin/asdf"
+  chmod +x "$HOME/.local/bin/asdf"
+
+  assertEquals "0.16.7" "$(get_asdf_version)"
+}
+
+test_get_asdf_version_is_empty_when_no_binary_answers() {
+  # Empty PATH so the machine's own asdf cannot answer, and the isolated $HOME
+  # has no binary either.
+  assertEquals "" "$(PATH=/nonexistent get_asdf_version)"
+}
+
+test_get_asdf_version_parses_the_older_bare_version_line() {
+  # The shell-era asdf answered with a bare `v0.14.0-<hash>` and no "version".
+  createSpy -u -o "v0.14.0-681b8ec" asdf
+
+  assertEquals "0.14.0-681b8ec" "$(get_asdf_version)"
+}
+
 test_install_returns_true_if_asdf_is_already_installed() {
   createSpy -u -r "$SHUNIT_TRUE" is_asdf_installed
+  createSpy -u -o "0.16.7" get_asdf_version
   createSpy -u wget
   createSpy -u tar
 
@@ -37,7 +98,7 @@ test_install_returns_true_if_asdf_is_already_installed() {
 
   assertTrue "asdf already installed should not be an error" $?
   assertContains "Should report already installed" \
-    "$output" "asdf already installed"
+    "$output" "asdf 0.16.7 already installed"
   assertNeverCalled wget
   assertNeverCalled tar
 }
@@ -45,6 +106,7 @@ test_install_returns_true_if_asdf_is_already_installed() {
 test_install_downloads_and_extracts_asdf_when_not_installed() {
   createSpy -u -r "$SHUNIT_FALSE" is_asdf_installed
   createSpy -u -o "linux-amd64" detect_asdf_arch
+  createSpy -u -o "0.16.7" get_asdf_version
   createSpy -u wget
   createSpy -u tar
 
@@ -53,10 +115,10 @@ test_install_downloads_and_extracts_asdf_when_not_installed() {
   assertTrue "asdf install should not be an error" $?
   assertCalledOnceWith detect_asdf_arch
   # URL pattern: https://github.com/asdf-vm/asdf/releases/download/<ver>/asdf-<ver>-<os>-<arch>.tar.gz
-  assertCalledWith wget -nv -O "$HOME/.local/bin/asdf.tar.gz" \
+  assertCalledWith wget -q -O "$HOME/.local/bin/asdf.tar.gz" \
     "https://github.com/asdf-vm/asdf/releases/download/v0.16.7/asdf-v0.16.7-linux-amd64.tar.gz"
   assertCalledWith tar -xzf "$HOME/.local/bin/asdf.tar.gz" -C "$HOME/.local/bin" asdf
-  assertContains "Should report installed" "$output" "asdf installed"
+  assertContains "Should report installed" "$output" "asdf 0.16.7 installed"
 }
 
 #

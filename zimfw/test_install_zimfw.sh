@@ -81,6 +81,28 @@ test_preconditions_pass_when_all_present() {
 }
 
 #
+# get_zimfw_version
+#
+
+test_get_zimfw_version_reads_the_version_out_of_the_script() {
+  zim_home=$(get_zim_home)
+  mkdir -p "$zim_home"
+  printf "%s\n" \
+    "  local -r _zconfig=\${ZIM_CONFIG_FILE:-x} _zversion='1.19.1'" \
+    > "$zim_home/zimfw.zsh"
+
+  assertEquals "1.19.1" "$(get_zimfw_version)"
+}
+
+test_get_zimfw_version_is_empty_when_the_shape_changes() {
+  zim_home=$(get_zim_home)
+  mkdir -p "$zim_home"
+  printf 'nothing version-shaped here\n' > "$zim_home/zimfw.zsh"
+
+  assertEquals "" "$(get_zimfw_version)"
+}
+
+#
 # install_zimfw_program
 #
 
@@ -215,9 +237,57 @@ test_zdotdir_stub_user_can_cancel() {
   # shellcheck disable=SC2016
   output=$(echo q | install_zimfw_zdotdir_stub .zimrc '$DOTFILES/zimfw/zimrc-base')
 
-  assertContains "Should show cancellation" "$output" "not configured"
+  assertContains "Should show cancellation" "$output" "left unchanged"
   assertEquals "Original content preserved" \
     "# existing zimrc" "$(cat "$target")"
+}
+
+#
+# install_zimfw_modules
+#
+
+test_install_zimfw_modules_runs_zimfw_install_via_zsh() {
+  zim_home=$(get_zim_home)
+  mkdir -p "$zim_home"
+  createSpy -u zsh
+
+  install_zimfw_modules
+
+  assertTrue "Should succeed when zimfw install succeeds" $?
+  assertCalledOnceWith zsh "$zim_home/zimfw.zsh" install
+}
+
+test_install_zimfw_modules_propagates_failure() {
+  zim_home=$(get_zim_home)
+  mkdir -p "$zim_home"
+  createSpy -u -r "$SHUNIT_FALSE" zsh
+
+  install_zimfw_modules
+  rc=$?
+
+  assertFalse "Should propagate a failed zimfw install" "$rc"
+}
+
+test_install_zimfw_modules_hides_output_without_debug() {
+  zim_home=$(get_zim_home)
+  mkdir -p "$zim_home"
+  createSpy -u -o 'zimfw module bullet' zsh
+
+  output=$(install_zimfw_modules)
+
+  assertNotContains "Should hide zsh's own stdout by default" \
+    "$output" "zimfw module bullet"
+}
+
+test_install_zimfw_modules_shows_output_with_debug() {
+  zim_home=$(get_zim_home)
+  mkdir -p "$zim_home"
+  createSpy -u -o 'zimfw module bullet' zsh
+
+  output=$(DEBUG=1 install_zimfw_modules)
+
+  assertContains "Should show indented zsh output under DEBUG=1" \
+    "$output" "zimfw module bullet"
 }
 
 #

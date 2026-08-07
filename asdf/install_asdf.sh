@@ -32,20 +32,27 @@ detect_asdf_arch() {
 
 # Check if asdf is installed
 is_asdf_installed() {
-  command_exists asdf
+  command_exists asdf || [ -x "$(asdf_bin_dir)/asdf" ]
+}
+
+# Version of the installed asdf (`asdf version v0.16.7` -> 0.16.7).
+get_asdf_version() {
+  local bin
+  bin=$(command -v asdf) || bin="$(asdf_bin_dir)/asdf"
+  [ -x "$bin" ] || return 0
+  "$bin" --version 2>/dev/null | awk '{print $NF}' | sed 's/^v//'
 }
 
 # Installs asdf by downloading the official release tarball into
 # $HOME/.local/bin. PM install is intentionally skipped — see
 # docs/adr/0002-install-asdf-from-tarball.md.
 install_asdf_program() {
-  local arch url bin_dir tarball
+  local arch url bin_dir tarball version
   (
     set -e
     if is_asdf_installed; then
-      echo "****************************"
-      echo "asdf already installed."
-      echo "****************************"
+      version=$(get_asdf_version)
+      tui_skip "asdf${version:+ $version} already installed"
       return 0
     fi
 
@@ -54,14 +61,15 @@ install_asdf_program() {
     bin_dir="$(asdf_bin_dir)"
     tarball="$bin_dir/asdf.tar.gz"
 
+    tui_step "downloading asdf ${ASDF_VERSION}…"
     mkdir -p "$bin_dir"
-    wget -nv -O "$tarball" "$url"
-    tar -xzf "$tarball" -C "$bin_dir" asdf
+    # -q hides wget's own diagnostics too, so say why the download failed here.
+    wget -q -O "$tarball" "$url" || die "Couldn't download asdf ${ASDF_VERSION} from $url"
+    tar -xzf "$tarball" -C "$bin_dir" asdf || die "Couldn't unpack asdf ${ASDF_VERSION}"
     rm -f "$tarball"
 
-    echo "****************************"
-    echo "asdf installed."
-    echo "****************************"
+    version=$(get_asdf_version)
+    tui_ok "asdf${version:+ $version} installed"
   )
 }
 
@@ -86,11 +94,8 @@ install_asdf_zshenv() {
 			[[ -r "\$ASDF_DATA_DIR/plugins/java/set-java-home.zsh" ]] && source "\$ASDF_DATA_DIR/plugins/java/set-java-home.zsh"
 EOF
     )
-    install_managed_block "$zshenv" "$ASDF_BLOCK_TAG" "$content"
-
-    echo "****************************"
-    echo "$zshenv configured for asdf."
-    echo "****************************"
+    install_managed_block --as "$(tui_path "$zshenv") (asdf block)" \
+      "$zshenv" "$ASDF_BLOCK_TAG" "$content"
   )
 }
 
@@ -104,7 +109,7 @@ install_asdf_zimrc() {
     zdotdir=$(get_zdotdir)
     zimrc="$zdotdir/.zimrc"
     if [ ! -f "$zimrc" ]; then
-      echo "zimfw not installed; skipping asdf completions."
+      tui_skip "zimfw not installed; skipping asdf completions"
       return 0
     fi
     content=$(cat <<-'EOF'
@@ -116,8 +121,8 @@ EOF
     # Prepend: zim modules that add to fpath (e.g. `asdf`) must be declared
     # before `zmodule completion` runs compinit. zimrc-base is sourced from
     # the dotfiles:zimfw block, so this block must precede it.
-    install_managed_block --prepend "$zimrc" "$ASDF_BLOCK_TAG" "$content"
-    echo "$zimrc updated with asdf zmodule."
+    install_managed_block --prepend --as "$(tui_path "$zimrc") (asdf zmodule)" \
+      "$zimrc" "$ASDF_BLOCK_TAG" "$content"
   )
 }
 

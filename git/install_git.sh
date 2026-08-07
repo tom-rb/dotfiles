@@ -13,20 +13,18 @@ set_git_global_config() {
   key=${1:?} target=${2:?} label=${3:-$1}
   current=$(git config --global --get "$key" || true)
   if [ "$current" = "$target" ]; then
-    echo "$label already configured."
+    tui_skip "$label already configured"
     return 0
   fi
   if [ -n "$current" ]; then
-    echo "$key is already set to: $current"
+    tui_detail "$key is already set to: $current"
     if ! confirm -n "Overwrite with $target?"; then
-      echo "$label not configured."
+      tui_skip "$label not configured"
       return 0
     fi
   fi
   git config --global "$key" "$target"
-  echo "****************************"
-  echo "$label configured."
-  echo "****************************"
+  tui_ok "$label configured"
 }
 
 # Check if git is installed
@@ -34,22 +32,28 @@ is_git_installed() {
   command_exists git
 }
 
+# Version of the git on PATH (`git version 2.51.0` -> 2.51.0).
+get_git_version() {
+  git --version | cut -d' ' -f3
+}
+
+# The ✓ wording for the package-manager install.
+_git_installed_msg() {
+  echo "git $(get_git_version) installed"
+}
+
 # Installs git from the system package manager
 install_git_program() {
-  # Sub-shell for scoping set -e
   (
     set -e
     if is_git_installed; then
-      echo "****************************"
-      echo "git already installed."
-      echo "****************************"
+      tui_skip "git $(get_git_version) already installed"
       return 0
     fi
 
-    install_from_pm git
-    echo "****************************"
-    echo "git installed."
-    echo "****************************"
+    install_from_pm --ok-cmd _git_installed_msg \
+      --die "Couldn't install git" \
+      -- git
   )
 }
 
@@ -71,17 +75,17 @@ install_git_default_branch() {
 }
 
 # Offer to set git user.name and user.email globally.
-# Shows existing value in brackets; default answer is N when set, Y when empty.
+# Shows any existing value in the question; default answer is N when set, Y when empty.
 configure_git_user() {
   local key current new
   for key in user.name user.email; do
     current=$(git config --global --get "$key" || true)
     if [ -n "$current" ]; then
-      confirm -n "Change git $key now? [$current]" || continue
+      confirm -n "Change git $key (now: $current)?" || continue
     else
-      confirm "Set git $key now?" || continue
+      confirm "Set git $key?" || continue
     fi
-    prompt_line "  $key: " new
+    prompt_line "" new
     if [ -n "$new" ]; then
       git config --global "$key" "$new"
     fi

@@ -19,23 +19,15 @@ tearDown() {
 
 
 #
-# die / command_exists
+# command_exists
 #
 
-test_die_with_default_message_and_code() {
-  message=$(die)
-  assertEquals 1 $?
-  assertEquals "Aborted." "$message"
-}
+test_check_a_command_exists() {
+  command_exists cat
+  assertTrue "Command cat should be found" $?
 
-test_die_with_custom_message_and_code() {
-  message=$(die Bye)
-  assertEquals 1 $?
-  assertEquals "Bye" "$message"
-
-  message=$(die 'Custom code' 129)
-  assertEquals 129 $?
-  assertEquals "Custom code" "$message"
+  command_exists no_such_command
+  assertFalse "Command no_such_command should not be found" $?
 }
 
 #
@@ -85,14 +77,6 @@ test_quietly_stdout_forwards_exit_status() {
 
   quietly_stdout false
   assertFalse "Should forward failure" $?
-}
-
-test_check_a_command_exists() {
-  command_exists cat
-  assertTrue "Command cat should be found" $?
-
-  command_exists no_such_command
-  assertFalse "Command no_such_command should not be found" $?
 }
 
 #
@@ -161,6 +145,22 @@ test_version_ge_letter_suffix_difference() {
   assertFalse "3.1a >= 3.1b" "version_ge 3.1a 3.1b"
   assertFalse "3.1  >= 3.1a" "version_ge 3.1 3.1a"
   assertFalse "3.6  >= 3.6a" "version_ge 3.6 3.6a"
+}
+
+#
+# english_list
+#
+
+test_english_list_renders_one_name_bare() {
+  assertEquals "zsh" "$(english_list "zsh")"
+}
+
+test_english_list_joins_two_names_with_and() {
+  assertEquals "zsh and tmux" "$(english_list "zsh tmux")"
+}
+
+test_english_list_commas_all_but_the_last_name() {
+  assertEquals "zsh, tmux and git" "$(english_list "zsh tmux git")"
 }
 
 

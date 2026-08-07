@@ -42,6 +42,12 @@ test_get_tmux_package_version_extracts_tmux_version() {
     "$(get_tmux_package_version)" "3.4"
 }
 
+test_get_tmux_version_parses_the_version_line() {
+  createSpy -o 'tmux 3.6a' tmux
+
+  assertEquals "3.6a" "$(get_tmux_version)"
+}
+
 test_install_returns_true_if_tmux_is_installed_with_desired_version() {
   createSpy -u -r "$SHUNIT_TRUE" is_tmux_installed
   createSpy -o 'tmux 3.1b' tmux
@@ -50,7 +56,7 @@ test_install_returns_true_if_tmux_is_installed_with_desired_version() {
 
   assertTrue "Tmux already installed should not be an error" $?
   assertContains "Should return immediately with msg" \
-    "$output" "3.1b installed"
+    "$output" "tmux 3.1b already installed"
 }
 
 test_install_returns_true_if_installed_version_is_higher_than_desired() {
@@ -61,7 +67,7 @@ test_install_returns_true_if_installed_version_is_higher_than_desired() {
 
   assertTrue "Newer installed tmux should be accepted" $?
   assertContains "Should report the actual installed version" \
-    "$output" "3.4 installed"
+    "$output" "tmux 3.4 already installed"
 }
 
 test_install_proceeds_with_dotfiles_when_installed_is_below_min_and_user_accepts() {
@@ -86,43 +92,48 @@ test_install_aborts_when_installed_is_below_min_and_user_declines() {
   assertFalse "Should return non-zero when user declines" $?
   assertContains "Should warn about the older version" \
     "$output" "installed version:    3.0"
+  assertContains "Should say why the module stopped" \
+    "$output" "• tmux dotfiles not installed"
 }
 
 test_install_tmux_from_package_manager_when_version_matches() {
   createSpy -u -r "$SHUNIT_FALSE" is_tmux_installed
   createSpy -u -o '3.1b' get_tmux_package_version
+  createSpy -u -o '3.1b' get_tmux_version
   createSpy -u read_char
-  createSpy -u install_from_pm
+  # One level down, so the real install_from_pm reports the Task and the
+  # forwarded --ok-cmd words the ✓ off the (spied) binary.
+  createSpy -u -o 'apt-get' get_supported_pm
+  createSpy -u _install_from_pm
 
   output=$(install_tmux_program 3.1b)
 
   assertTrue "Tmux installed from package manager should not be an error" $?
   assertContains "Should return after key press with msg" \
-    "$output" "3.1b installed"
+    "$output" "✓ tmux 3.1b installed"
   assertCallCount read_char 1
 }
 
 test_install_tmux_from_package_manager_when_pm_version_is_higher() {
   createSpy -u -r "$SHUNIT_FALSE" is_tmux_installed
   createSpy -u -o '3.4' get_tmux_package_version
+  createSpy -u -o '3.4' get_tmux_version
   createSpy -u read_char
   createSpy -u install_from_pm
 
   output=$(install_tmux_program 3.1b)
 
   assertTrue "Higher PM version should be accepted and installed" $?
-  assertContains "Should report the actual PM version installed" \
-    "$output" "3.4 installed"
-  assertCalledOnceWith install_from_pm tmux
+  # The Task line and its ✓ belong to install_from_pm — see utils/test_pm.sh.
+  # Here only the vocabulary it was handed matters.
+  assertCalledOnceWith install_from_pm --ok-cmd _tmux_installed_msg \
+    --die "Couldn't install tmux 3.4" -- tmux
 }
 
 test_install_tmux_from_source_in_custom_location() {
   createSpy -u -r "$SHUNIT_FALSE" is_tmux_installed
   createSpy -u -o '3.1b' get_tmux_package_version
   createSpy -u install_tmux_from_source
-  # Path picking is covered in test_tui.sh (prompt_new_path); fake it here so
-  # this test only checks that install_tmux_program forwards the chosen
-  # location to the source build.
   prompt_new_path() { eval "$2=/opt/custom"; }
 
   # [n]o to package manager, [y]es to a custom location
@@ -130,8 +141,11 @@ test_install_tmux_from_source_in_custom_location() {
 
   assertTrue "Tmux installed from source should not be an error" $?
   assertCalledOnceWith install_tmux_from_source 3.1b "/opt/custom"
-  assertContains "Should return after key press with msg" \
-    "$output" "3.1b installed"
+  # The result line belongs to install_tmux_from_source, next to the step it
+  # closes — a custom prefix leaves the new tmux off PATH, so a caller reading
+  # `tmux -V` here would report an empty version.
+  assertNotContains "Should leave the result to the build" \
+    "$output" "tmux 3.1b installed"
 }
 
 test_tmux_dotfiles_are_installed() {
@@ -231,10 +245,68 @@ test_with_existing_tmux_dotfiles_user_can_cancel() {
   output=$(echo q | install_tmux_dotfiles) # choose quit
 
   assertContains "Expected cancellation message" \
-    "$output" "tmux.conf not configured!"
+    "$output" "tmux.conf left unchanged"
 
   assertEquals "Should include only original contents of conf file" \
     "# Some existing config" "$(cat "$HOME"/.config/tmux/tmux.conf)"
+}
+
+# install_tmux_build_dependencies
+
+test_install_tmux_build_dependencies_asks_to_be_reported_as_a_step() {
+  createSpy -u install_from_pm
+
+  install_tmux_build_dependencies
+
+  assertTrue "Should succeed when the packages install" $?
+  # The step line and its ✓ belong to install_from_pm — see utils/test_pm.sh.
+  assertCalledWith install_from_pm --as "build dependencies" \
+    --die "Couldn't install the tmux build dependencies" \
+    -- wget tar gzip gcc make libevent-headers ncurses-headers bison
+}
+
+# Spying one level down, on the install itself, so the real install_from_pm
+# runs and the forwarded --die is what ends this.
+test_install_tmux_build_dependencies_dies_when_the_packages_fail() {
+  createSpy -u -o 'apt-get' get_supported_pm
+  createSpy -u -r "$SHUNIT_FALSE" _install_from_pm
+
+  output=$( (install_tmux_build_dependencies) 2>&1)
+
+  assertFalse "Should not carry on into a build with no toolchain" $?
+  assertContains "Should say what failed" "$output" "Couldn't install the tmux build dependencies"
+}
+
+# install_tmux_from_source
+
+test_install_tmux_from_source_wraps_the_build_in_one_task() {
+  createSpy -u install_tmux_build_dependencies
+  createSpy -u wget
+  createSpy -u tar
+  createSpy -u rm
+  createSpy -u _build_tmux_from_source
+
+  output=$(install_tmux_from_source "3.5a" "/opt/x")
+
+  assertTrue "Should succeed when the build step succeeds" $?
+  assertCalledOnceWith _build_tmux_from_source "3.5a" "/opt/x"
+  # The version reported is the one just built: a custom prefix keeps that tmux
+  # off PATH, so `tmux -V` would answer for a different binary or none at all.
+  assertContains "Should close its own task with the built version" \
+    "$output" "✓ tmux 3.5a installed"
+}
+
+test_install_tmux_from_source_propagates_build_failure() {
+  createSpy -u install_tmux_build_dependencies
+  createSpy -u wget
+  createSpy -u tar
+  createSpy -u rm
+  createSpy -u -r "$SHUNIT_FALSE" _build_tmux_from_source
+
+  install_tmux_from_source "3.5a" "/opt/x"
+  rc=$?
+
+  assertFalse "Should propagate a failed build" "$rc"
 }
 
 # install_tmux_program_step
@@ -266,9 +338,6 @@ test_wizard_delegates_step_list_to_wizard_run() {
 test_tmux_dotfiles_wrapper_bakes_absolute_tmux_plugin_manager_path() {
   quietly install_tmux_dotfiles
 
-  # The wrapper must set TMUX_PLUGIN_MANAGER_PATH to an absolute path so the
-  # repo tmux.conf does not depend on XDG_DATA_HOME being exported by the
-  # login shell at tmux start.
   assertContains "Wrapper should set TMUX_PLUGIN_MANAGER_PATH" \
     "$(cat "$HOME"/.config/tmux/tmux.conf)" \
     "set-environment -g TMUX_PLUGIN_MANAGER_PATH \"$HOME/.local/share/tmux/plugins\""
@@ -337,10 +406,10 @@ test_install_tpm_clones_pinned_version() {
 
   assertTrue "install_tpm should succeed" $rc
   # git is ensured before the clone
-  assertCalledOnceWith install_from_pm git
+  assertCalledOnceWith install_from_pm --die "Couldn't install git" -- git
   # Pinned version is cloned shallowly into plugins/tpm
   assertCalledOnceWith git \
-    clone --depth=1 --branch "v${TPM_VERSION}" \
+    clone --quiet --depth=1 --branch "v${TPM_VERSION}" \
     -c advice.detachedHead=false "$TPM_REPO" "$plugins_dir/tpm"
 }
 
@@ -354,11 +423,41 @@ echo "install_plugins called"
 EOF
   chmod +x "$plugins_dir/tpm/bin/install_plugins"
 
-  output=$(install_tpm_plugins)
+  output=$(DEBUG=1 install_tpm_plugins)
 
   assertTrue "install_tpm_plugins should succeed" $?
-  assertContains "Should actually run install_plugins" \
+  assertContains "Should actually run install_plugins, visible under DEBUG=1" \
     "$output" "install_plugins called"
+}
+
+test_install_tpm_plugins_hides_output_without_debug() {
+  plugins_dir="$HOME/.local/share/tmux/plugins"
+  mkdir -p "$plugins_dir/tpm/bin"
+  cat > "$plugins_dir/tpm/bin/install_plugins" <<'EOF'
+#!/bin/sh
+echo "install_plugins called"
+EOF
+  chmod +x "$plugins_dir/tpm/bin/install_plugins"
+
+  output=$(install_tpm_plugins)
+
+  assertNotContains "Should hide install_plugins stdout by default" \
+    "$output" "install_plugins called"
+}
+
+test_install_tpm_plugins_propagates_failure() {
+  plugins_dir="$HOME/.local/share/tmux/plugins"
+  mkdir -p "$plugins_dir/tpm/bin"
+  cat > "$plugins_dir/tpm/bin/install_plugins" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+  chmod +x "$plugins_dir/tpm/bin/install_plugins"
+
+  install_tpm_plugins
+  rc=$?
+
+  assertNotEquals "Should propagate install_plugins failure" 0 "$rc"
 }
 
 # Run tests

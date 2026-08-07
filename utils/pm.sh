@@ -31,13 +31,44 @@ get_version_in_pm() {
   esac
 }
 
-# Install the given canonical packages via the active PM.
-# Names are translated through _pm_packages_for; unknown names pass through
-# (so callers can mix curated and plain names: install_from_pm chsh git wget).
-# Installer chatter is hidden behind quietly_stdout, which leaves stderr alone
-# so sudo can still ask for a password and failures still say why; DEBUG=1
-# brings the rest back.
+# Install the given canonical packages via the active PM, using a TUI task
+# to communicate progress. Installer chatter is hidden behind quietly_stdout,
+# which leaves stderr to report failures; DEBUG=1 brings the rest back.
+# --as <noun>: name the Task after <noun> instead of the canonical package name.
+# --ok-cmd FUNC: override the ✓ wording with FUNC's stdout, e.g. for a version
+#   only readable once the packages have landed.
+# --die/--fail/--warn REASON: how the Task closes when the PM says no. One of
+#   them is required.
+# $1+ (after an optional --): canonical package names
+# Returns the PM's exit status — whether that is fatal is the caller's call.
 install_from_pm() {
+  local noun='' ok_cmd='' outcome='' reason='' message
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --as)     noun=${2:?}; shift 2 ;;
+      --ok-cmd) ok_cmd=${2:?}; shift 2 ;;
+      --die|--fail|--warn)
+        [ -n "$outcome" ] && die 'install_from_pm: --die, --fail and --warn are exclusive'
+        outcome=$1 reason=${2:?}; shift 2 ;;
+      --) shift; break ;;
+      *)  break ;;
+    esac
+  done
+  [ -n "$outcome" ] || die 'install_from_pm: needs one of --die, --fail or --warn'
+
+  # The canonical names as the caller wrote them, not _pm_packages_for's translation.
+  [ -n "$noun" ] || noun="$*"
+
+  message="installing $noun ($(get_supported_pm))…"
+  if [ -n "$ok_cmd" ]; then
+    tui_task "$message" --ok-cmd "$ok_cmd" "$outcome" "$reason" -- _install_from_pm "$@"
+  else
+    tui_task "$message" --ok "$noun installed" "$outcome" "$reason" -- _install_from_pm "$@"
+  fi
+}
+
+# The install itself, with no reporting around it.
+_install_from_pm() {
   # shellcheck disable=SC2046 # splitting on purpose
   set -- $(_pm_packages_for "$@")
   case $(get_supported_pm) in
@@ -47,7 +78,8 @@ install_from_pm() {
     yum)
       quietly_stdout sudo yum -y install "$@";;
     *)
-      >&2 echo "Couldn't find package manager";;
+      >&2 echo "Couldn't find package manager"
+      return 1;;
   esac
 }
 

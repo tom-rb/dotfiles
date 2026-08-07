@@ -66,26 +66,42 @@ test_ensure_node_dies_when_asdf_install_is_declined() {
   assertNeverCalled asdf
 }
 
-test_ensure_node_installs_via_pm_when_user_confirms() {
-  # node absent, no asdf, supported package manager, user accepts.
+# The package-manager branch of ensure_node_installed: node absent, no asdf,
+# apt-get available. Spies confirm as accepting; a test that needs it declined
+# re-declares that one spy.
+_given_no_node_and_a_supported_pm() {
   command_exists() { return 1; }
   createSpy -u -r "$SHUNIT_TRUE" check_supported_pm
   createSpy -u -o "apt-get" get_supported_pm
   createSpy -u -r "$SHUNIT_TRUE" confirm
+}
+
+test_ensure_node_installs_via_pm_when_user_confirms() {
+  _given_no_node_and_a_supported_pm
   createSpy -u install_from_pm
   createSpy -u ensure_node_runtime_libs
 
   quietly ensure_node_installed
   assertTrue "Should succeed on the package-manager path" $?
 
-  assertCalledOnceWith install_from_pm nodejs npm
+  assertCalledOnceWith install_from_pm --as node \
+    --die "Couldn't install node from apt-get" -- nodejs npm
   assertCalledOnceWith ensure_node_runtime_libs
 }
 
+test_ensure_node_dies_when_the_pm_install_fails() {
+  _given_no_node_and_a_supported_pm
+  createSpy -u -r "$SHUNIT_FALSE" _install_from_pm
+
+  output=$( (ensure_node_installed) 2>&1 )
+
+  assertFalse "Should not walk past a failed node install" $?
+  assertContains "Should name the package manager it tried" \
+    "$output" "Couldn't install node from apt-get"
+}
+
 test_ensure_node_dies_when_pm_install_is_declined() {
-  command_exists() { return 1; }
-  createSpy -u -r "$SHUNIT_TRUE" check_supported_pm
-  createSpy -u -o "apt-get" get_supported_pm
+  _given_no_node_and_a_supported_pm
   createSpy -u -r "$SHUNIT_FALSE" confirm
   createSpy -u install_from_pm
 
@@ -129,7 +145,22 @@ test_node_runtime_libs_installs_libatomic_when_node_cannot_load() {
 
   ensure_node_runtime_libs
 
-  assertCalledOnceWith install_from_pm libatomic
+  assertCalledOnceWith install_from_pm \
+    --die "Couldn't install libatomic" -- libatomic
+}
+
+# node is already known to be unable to load its libraries here, so a PM that
+# cannot supply them leaves nothing to fall back to.
+test_node_runtime_libs_dies_when_libatomic_cannot_be_installed() {
+  createSpy -u -r "$SHUNIT_FALSE" node
+  createSpy -u -r "$SHUNIT_TRUE" check_supported_pm
+  createSpy -u -o 'apt-get' get_supported_pm
+  createSpy -u -r "$SHUNIT_FALSE" _install_from_pm
+
+  output=$( (ensure_node_runtime_libs) 2>&1 )
+
+  assertFalse "Should not report a runtime it could not repair" $?
+  assertContains "Should say what failed" "$output" "Couldn't install libatomic"
 }
 
 test_node_runtime_libs_noop_when_no_package_manager() {
@@ -147,8 +178,15 @@ test_node_runtime_libs_noop_when_no_package_manager() {
 # install_pi_program
 #
 
+test_get_pi_version_reads_the_bare_version_line() {
+  createSpy -u -o "0.79.1" pi
+
+  assertEquals "0.79.1" "$(get_pi_version)"
+}
+
 test_install_pi_program_short_circuits_when_already_installed() {
   createSpy -u -r "$SHUNIT_TRUE" is_pi_installed
+  createSpy -u -o "0.78.0" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u npm
 
@@ -156,13 +194,14 @@ test_install_pi_program_short_circuits_when_already_installed() {
 
   assertTrue "Already-installed should not be an error" $?
   assertContains "Should report already installed" \
-    "$output" "pi already installed"
+    "$output" "pi 0.78.0 already installed"
   assertNeverCalled ensure_node_installed
   assertNeverCalled npm
 }
 
 test_install_pi_program_installs_pinned_package_globally() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
+  createSpy -u -o "0.78.0" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u npm
   command_exists() { return 1; }   # asdf absent
@@ -170,14 +209,58 @@ test_install_pi_program_installs_pinned_package_globally() {
   output=$(install_pi_program)
 
   assertTrue "Install should not be an error" $?
-  assertCalledOnceWith npm install -g --ignore-scripts \
+  assertCalledOnceWith npm install -g --loglevel=error --ignore-scripts \
     "@earendil-works/pi-coding-agent@${PI_VERSION}"
-  assertContains "Should report the pinned version installed" \
-    "$output" "pi ${PI_VERSION} installed"
+  assertContains "Should report the installed version" \
+    "$output" "pi 0.78.0 installed"
+}
+
+test_install_pi_program_hides_npm_output_without_debug() {
+  createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
+  createSpy -u -o "0.78.0" get_pi_version
+  createSpy -u ensure_node_installed
+  createSpy -u -o 'npm install tree' npm
+  command_exists() { return 1; }   # asdf absent
+
+  output=$(install_pi_program)
+
+  assertNotContains "Should hide npm's own stdout by default" \
+    "$output" "npm install tree"
+}
+
+test_install_pi_program_shows_npm_output_with_debug() {
+  createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
+  createSpy -u -o "0.78.0" get_pi_version
+  createSpy -u ensure_node_installed
+  createSpy -u -o 'npm install tree' npm
+  command_exists() { return 1; }   # asdf absent
+
+  output=$(DEBUG=1 install_pi_program)
+
+  assertContains "Should show indented npm output under DEBUG=1" \
+    "$output" "npm install tree"
+}
+
+test_install_pi_program_reports_the_version_before_the_reshim() {
+  createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
+  # An asdf-managed npm drops the binary outside PATH, so `pi --version`
+  # answers with nothing until the reshim below has run.
+  createSpy -u -o '' get_pi_version
+  createSpy -u ensure_node_installed
+  createSpy -u npm
+  command_exists() { [ "$1" = asdf ]; }   # asdf present
+  createSpy -u asdf
+
+  output=$(install_pi_program)
+
+  assertTrue "Install should not be an error" $?
+  assertContains "Should report the pinned version regardless" \
+    "$output" "✓ pi ${PI_VERSION} installed"
 }
 
 test_install_pi_program_reshims_when_node_is_asdf_managed() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
+  createSpy -u -o "0.78.0" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u npm
   command_exists() { [ "$1" = asdf ]; }   # asdf present
@@ -191,6 +274,7 @@ test_install_pi_program_reshims_when_node_is_asdf_managed() {
 
 test_install_pi_program_skips_reshim_when_asdf_absent() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
+  createSpy -u -o "0.78.0" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u npm
   command_exists() { return 1; }   # asdf absent
@@ -203,6 +287,7 @@ test_install_pi_program_skips_reshim_when_asdf_absent() {
 
 test_install_pi_program_fails_when_npm_install_fails() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
+  createSpy -u -o "0.78.0" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u -r "$SHUNIT_FALSE" npm   # npm exits non-zero
   command_exists() { return 1; }   # asdf absent
@@ -252,11 +337,9 @@ test_wizard_skips_skills_when_program_step_fails() {
   assertNeverCalled install_pi_skills
 }
 
-# Regression: a failing npm install used to slip through wizard_run because the
-# `step || ...` call site disables `set -e` inside install_pi_program's
-# subshell, so it reported success and the wizard went on to install skills.
 test_wizard_does_not_install_skills_when_npm_install_fails() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
+  createSpy -u -o "0.78.0" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u -r "$SHUNIT_FALSE" npm
   command_exists() { return 1; }   # asdf absent

@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 #
-# Installs programs (zsh, tmux, git, asdf, zimfw) and configures them to use the respective dotfiles.
+# Installs programs and configures them to use the respective dotfiles.
 #
 # Many configurations come from several repos out there.
 #
@@ -22,12 +22,19 @@ fi
 export DOTFILES
 
 . "$DOTFILES/utils/utils.sh"
-# activate_asdf: wires an installed-but-off-PATH asdf into this run's
-# environment so later module wizards (e.g. pi) can see it.
 . "$DOTFILES/asdf/activate.sh"
 
 # Packages required for basic operations
 basic_packages="wget tar gzip"
+
+# Modules the wizard offers, in the order they are asked. A module's position
+# here is the counter in its section header.
+deploy_modules="zsh zimfw asdf tmux git pi"
+
+# Modules that ran but did not finish — a failed step, or one the user
+# cancelled. Names collect here so the epilogue can name them and the run can
+# exit non-zero. Reset at the top of every deploy_wizard.
+_DEPLOY_INCOMPLETE=''
 
 check_basic_packages() {
   for cmd in $basic_packages; do
@@ -36,44 +43,96 @@ check_basic_packages() {
 }
 
 install_basic_packages() {
-  # shellcheck disable=SC2086 # splitting on purpose
-  install_from_pm $basic_packages
+  # shellcheck disable=SC2086 # word splitting on purpose
+  install_from_pm --as 'basic packages' \
+    --die "Couldn't install basic packages" \
+    -- $basic_packages
+}
+
+# Announce module $1 with its position in deploy_modules, run its wizard, and
+# record it when it does not finish.
+# $1: module name
+# Returns the module wizard's exit status.
+run_module() {
+  local name index total m status
+  name=${1:?} index=0 total=0
+  for m in $deploy_modules; do
+    total=$((total + 1))
+    [ "$m" = "$name" ] && index=$total
+  done
+  tui_section "$name" "$index" "$total"
+  start_module_wizard "$name"
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    _DEPLOY_INCOMPLETE="${_DEPLOY_INCOMPLETE}${_DEPLOY_INCOMPLETE:+ }$name"
+    # The module has already said what went wrong; this line names the module
+    # it went wrong in, and is the only marker when a step failed silently.
+    tui_fail "$name did not complete"
+  fi
+  return "$status"
+}
+
+# Closing line for a run that reached the end.
+# Returns 1 when anything was left incomplete.
+deploy_epilogue() {
+  local restart
+  if command_exists zsh; then
+    # shellcheck disable=SC2016 # the backticks are literal, quoting a command
+    restart='Restart your shell with `exec zsh` to pick up the changes.'
+  else
+    restart='Restart your shell to pick up the changes.'
+  fi
+
+  echo
+  if [ -z "$_DEPLOY_INCOMPLETE" ]; then
+    tui_ok "Done. $restart"
+    return 0
+  fi
+  tui_warn "Done, but $(english_list "$_DEPLOY_INCOMPLETE") did not complete."
+  tui_detail 'Re-run with DEBUG=1 for full output.'
+  tui_detail "$restart"
+  return 1
 }
 
 deploy_wizard() {
-  if ! check_supported_pm; then
-    echo "Sorry, this OS is not supported."
-    return 1
-  fi
+  _DEPLOY_INCOMPLETE=''
+
+  check_supported_pm || die "Sorry, this OS is not supported."
 
   if ! check_basic_packages; then
-    printf "Lets install basic packages first: %s (press any key)" "$basic_packages"
-    read_char silent
-    install_basic_packages || die "Couldn't install basic packages"
+    press_any_key "Basic packages needed: $basic_packages"
+    install_basic_packages
   fi
 
-  if confirm "Install zsh?"; then
-    start_module_wizard zsh
+  # Put an already-installed-but-off-PATH asdf on PATH for the whole run, so
+  # is_asdf_installed (and later modules like pi) see it regardless of which
+  # questions get answered below.
+  activate_asdf
+
+  # zimfw and asdf both depend on zsh dotfiles.
+  if confirm "Install zsh?" && run_module zsh; then
     if confirm "Install zimfw (zsh framework)?"; then
-      start_module_wizard zimfw
+      run_module zimfw
     fi
     if confirm "Install asdf?"; then
-      start_module_wizard asdf
+      run_module asdf
       activate_asdf
     fi
   fi
 
   if confirm "Install tmux?"; then
-    start_module_wizard tmux
+    run_module tmux
   fi
 
-  if confirm "Install git?"; then
-    start_module_wizard git
+  if confirm "Install git (and default configs)?"; then
+    run_module git
   fi
 
   if confirm "Install pi?"; then
-    start_module_wizard pi
+    run_module pi
   fi
+
+  deploy_epilogue
 }
 
 # Run installation if not called with dotfiles_dont_run

@@ -188,6 +188,92 @@ EOF
 }
 
 #
+# missing closing fence
+#
+
+test_dies_when_closing_fence_is_absent() {
+  cat > "$TARGET" <<-EOF
+		export EDITOR=vim
+		# >>> dotfiles:zsh >>>
+		source base
+		alias ll='ls -l'
+	EOF
+  original=$(cat "$TARGET")
+
+  ( write_managed_block "$TARGET" "dotfiles:zsh" "source base" ) >/dev/null 2>&1
+  rc=$?
+
+  assertNotEquals 0 "$rc"
+  assertEquals "$original" "$(cat "$TARGET")"
+}
+
+test_dies_when_closing_fence_is_corrupted() {
+  cat > "$TARGET" <<-EOF
+		# >>> dotfiles:zsh >>>
+		source base
+		# <<< dotfiles:zsh <
+		alias ll='ls -l'
+	EOF
+  original=$(cat "$TARGET")
+
+  ( write_managed_block "$TARGET" "dotfiles:zsh" "source base" ) >/dev/null 2>&1
+  rc=$?
+
+  assertNotEquals 0 "$rc"
+  assertEquals "$original" "$(cat "$TARGET")"
+}
+
+test_missing_closing_fence_does_not_consume_a_later_blocks_content() {
+  cat > "$TARGET" <<-EOF
+		# >>> dotfiles:zsh >>>
+		source base
+		# >>> dotfiles:zimfw >>>
+		source zim
+		# <<< dotfiles:zimfw <<<
+	EOF
+  original=$(cat "$TARGET")
+
+  ( write_managed_block "$TARGET" "dotfiles:zsh" "source base" ) >/dev/null 2>&1
+  rc=$?
+
+  assertNotEquals 0 "$rc"
+  assertEquals "$original" "$(cat "$TARGET")"
+}
+
+test_install_managed_block_dies_when_closing_fence_is_absent() {
+  createSpy -u choose
+  cat > "$TARGET" <<-EOF
+		export EDITOR=vim
+		# >>> dotfiles:zsh >>>
+		source base
+		alias ll='ls -l'
+	EOF
+  original=$(cat "$TARGET")
+
+  ( install_managed_block "$TARGET" "dotfiles:zsh" "source base" ) >/dev/null 2>&1
+  rc=$?
+
+  assertNotEquals 0 "$rc"
+  assertNeverCalled choose
+  assertEquals "$original" "$(cat "$TARGET")"
+}
+
+test_install_managed_block_dies_rather_than_reporting_half_fenced_block_unchanged() {
+  createSpy -u choose
+  cat > "$TARGET" <<-EOF
+		# >>> dotfiles:zsh >>>
+		source base
+	EOF
+  original=$(cat "$TARGET")
+
+  ( install_managed_block "$TARGET" "dotfiles:zsh" "source base" ) >/dev/null 2>&1
+  rc=$?
+
+  assertNotEquals 0 "$rc"
+  assertEquals "$original" "$(cat "$TARGET")"
+}
+
+#
 # install_managed_block
 #
 
@@ -371,6 +457,76 @@ test_install_managed_block_first_time_cancel_leaves_file_alone() {
   assertEquals 1 "$rc"
   assertEquals "user line" "$(cat "$TARGET")"
   assertFalse "No backup should be created" "[ -f \"$TARGET.bkp\" ]"
+}
+
+test_install_managed_block_skips_the_write_when_the_block_is_identical() {
+  install_managed_block "$TARGET" "dotfiles:zsh" "block" >/dev/null
+  createSpy -u write_managed_block
+
+  install_managed_block "$TARGET" "dotfiles:zsh" "block" >/dev/null
+
+  assertNeverCalled write_managed_block
+}
+
+test_install_managed_block_reports_an_identical_block_as_unchanged() {
+  install_managed_block "$TARGET" "dotfiles:zsh" "block" >/dev/null
+
+  output=$(install_managed_block --as "shell config" "$TARGET" "dotfiles:zsh" "block")
+
+  assertContains "Rewriting the same bytes is not a change" \
+    "$output" "• shell config unchanged"
+}
+
+test_install_managed_block_reports_a_first_write_as_updated() {
+  output=$(install_managed_block --as "shell config" "$TARGET" "dotfiles:zsh" "block")
+
+  assertContains "A first write is a change" "$output" "✓ shell config updated"
+}
+
+test_install_managed_block_reports_new_content_as_updated() {
+  install_managed_block "$TARGET" "dotfiles:zsh" "block" >/dev/null
+
+  output=$(install_managed_block --as "shell config" "$TARGET" "dotfiles:zsh" "other block")
+
+  assertContains "New content is a change" "$output" "✓ shell config updated"
+}
+
+test_install_managed_block_says_nothing_without_a_label() {
+  output=$(install_managed_block "$TARGET" "dotfiles:zsh" "block")
+
+  assertEquals "Reporting is opt-in via --as" "" "$output"
+}
+
+test_install_managed_block_first_time_cancel_reports_the_file_untouched() {
+  printf 'user line\n' > "$TARGET"
+
+  output=$(echo q | install_managed_block "$TARGET" "dotfiles:zsh" "block")
+
+  assertContains "Cancelling is a choice, not a failure" \
+    "$output" "• $TARGET left unchanged"
+}
+
+test_install_managed_block_first_time_previews_the_file_indented() {
+  printf 'user line\n' > "$TARGET"
+
+  output=$(echo q | install_managed_block "$TARGET" "dotfiles:zsh" "block")
+
+  assertContains "Should say whose content it is" \
+    "$output" "! $TARGET already exists and has content of its own:"
+  assertContains "Should indent the preview" "$output" "    user line"
+  assertNotContains "No trailer when the whole file is shown" \
+    "$output" "showing the last"
+}
+
+test_install_managed_block_first_time_preview_shows_only_the_last_lines() {
+  printf 'l1\nl2\nl3\nl4\nl5\nl6\nl7\n' > "$TARGET"
+
+  output=$(echo q | install_managed_block "$TARGET" "dotfiles:zsh" "block")
+
+  assertContains "Should show the tail" "$output" "    l7"
+  assertNotContains "Should stop at five lines" "$output" "    l2"
+  assertContains "Should say how much was left out" \
+    "$output" "showing the last 5 of 7 lines"
 }
 
 

@@ -34,12 +34,6 @@ get_test_image_annotation() {
 }
 
 #
-# Test helpers
-#
-
-
-
-#
 # Run tests
 #
 
@@ -61,10 +55,14 @@ run_test_in_docker() {
     # drop the CR half of a pty's \r\n, which the filter below would not match,
     tr -d '\r' |
     # filter verbose lines unless DEBUG is set, then echo output,
-    if [ "${DEBUG:-}" != "1" ]; then sed "/^$\|^Ran .* test.$/ d"; else cat; fi |
-    tee /dev/stderr |
-    # and return 1 if test failed (by negating successful grep search)
-    grep -q FAILED
+    # including the bare `^@` sudo writes to the terminal once per
+    # authentication whenever its stdin is a tty — which is what the pty above
+    # hands it. Two characters, not a NUL, so `tr -d` cannot take it, and
+    # anchored so a line that merely contains `^@` survives.
+    if [ "${DEBUG:-}" != "1" ]; then sed "/^$\|^\^@$\|^Ran .* test.$/ d"; else cat; fi |
+    # echo the output and return 1 if the test failed.
+    # `>&2` duplicates the runner's own stderr rather than reopening it.
+    awk '{print; fflush()} /FAILED/ {failed=1} END {exit !failed}' >&2
 }
 
 #
