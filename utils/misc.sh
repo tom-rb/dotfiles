@@ -29,13 +29,14 @@ quietly_stdout() {
 
 # Copy $1 file in the same location adding .bkp
 # Use bkp1, bkp2, etc if backup exists.
+# Echoes the path of the copy it made.
 backup_file() {
   local file n
   file=${1:?} n=
   while [ -e "$file.bkp$n" ]; do
     n=$((n + 1))
   done
-  cp "$file" "${file}.bkp$n"
+  cp "$file" "${file}.bkp$n" && printf '%s\n' "${file}.bkp$n"
 }
 
 #

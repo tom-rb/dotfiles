@@ -25,3 +25,7 @@ get_zim_home() { echo "${ZIM_HOME:-$(xdg_config_home)/$ZIM_HOME_SUBPATH}"; }
 
 # Tmux plugin manager directory (TPM + each @plugin clone)
 get_tmux_plugins_dir() { echo "$(xdg_data_home)/$TMUX_PLUGINS_SUBPATH"; }
+
+# Claude Code's config directory. Claude Code ignores XDG and reads
+# $HOME/.claude, unless CLAUDE_CONFIG_DIR gives another path.
+get_claude_config_dir() { echo "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; }

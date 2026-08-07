@@ -1,0 +1,45 @@
+{
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "python3 '$DOTFILES/claude/statusline.py'"
+  },
+  "permissions": {
+    "deny": [
+      "ReportFindings",
+      "Artifact",
+      "DesignSync",
+      "EnterPlanMode",
+      "ExitPlanMode",
+      "SendMessage",
+      "SendUserFile",
+      "PushNotification",
+      "RemoteTrigger",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "NotebookEdit",
+      "ShareOnboardingGuide",
+      "mcp__ide__executeCode",
+      "mcp__ide__getDiagnostics"
+    ]
+  },
+  "disableArtifact": true,
+  "disableClaudeAiConnectors": true,
+  "disableWorkflows": true,
+  "includeGitInstructions": false,
+  "awaySummaryEnabled": false,
+  "autoMemoryEnabled": false,
+  "spinnerTipsEnabled": false,
+  "switchModelsOnFlag": false,
+  "disableRemoteControl": false,
+  "remoteControlAtStartup": false,
+  "agentPushNotifEnabled": false,
+  "inputNeededNotifEnabled": true,
+  "theme": "dark",
+  "tui": "fullscreen"
+}

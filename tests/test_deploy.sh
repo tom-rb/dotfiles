@@ -41,13 +41,14 @@ test_deploy_wizard_installs_basic_packages() {
     --die "Couldn't install basic packages" -- wget tar gzip
   # Once unconditionally at startup, once more after a fresh asdf install.
   assertCallCount activate_asdf 2
-  assertCallCount start_module_wizard 6
+  assertCallCount start_module_wizard 7
   assertCalledWith start_module_wizard zsh
   assertCalledWith start_module_wizard zimfw
   assertCalledWith start_module_wizard asdf
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
   assertCalledWith start_module_wizard pi
+  assertCalledWith start_module_wizard claude
 }
 
 test_deploy_wizard_skips_basic_packages_if_installed() {
@@ -62,13 +63,14 @@ test_deploy_wizard_skips_basic_packages_if_installed() {
   assertNotContains "Continuation message not expected" \
     "$message" "Basic packages needed:"
   assertCallCount install_from_pm 0
-  assertCallCount start_module_wizard 6
+  assertCallCount start_module_wizard 7
   assertCalledWith start_module_wizard zsh
   assertCalledWith start_module_wizard zimfw
   assertCalledWith start_module_wizard asdf
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
   assertCalledWith start_module_wizard pi
+  assertCalledWith start_module_wizard claude
 }
 
 test_deploy_wizard_skips_zimfw_when_zsh_declined() {
@@ -77,12 +79,13 @@ test_deploy_wizard_skips_zimfw_when_zsh_declined() {
   createSpy -u start_module_wizard
 
   # Decline zsh; accept the rest. confirm reads one byte per call.
-  printf 'n\ny\ny\ny\n' | deploy_wizard >/dev/null
+  printf 'n\ny\ny\ny\ny\n' | deploy_wizard >/dev/null
 
-  assertCallCount start_module_wizard 3
+  assertCallCount start_module_wizard 4
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
   assertCalledWith start_module_wizard pi
+  assertCalledWith start_module_wizard claude
 }
 
 test_deploy_wizard_calls_activate_asdf_even_when_zsh_declined() {
@@ -92,7 +95,7 @@ test_deploy_wizard_calls_activate_asdf_even_when_zsh_declined() {
   createSpy -u activate_asdf
 
   # Decline zsh; accept the rest. confirm reads one byte per call.
-  printf 'n\ny\ny\ny\n' | deploy_wizard >/dev/null
+  printf 'n\ny\ny\ny\ny\n' | deploy_wizard >/dev/null
 
   assertCalledOnceWith activate_asdf
 }
@@ -105,8 +108,8 @@ test_deploy_wizard_numbers_module_sections() {
 
   message="$(yes | deploy_wizard)"
 
-  assertContains "Expected first module section" "$message" "▸ zsh  (1/6)"
-  assertContains "Expected last module section" "$message" "▸ pi  (6/6)"
+  assertContains "Expected first module section" "$message" "▸ zsh  (1/7)"
+  assertContains "Expected last module section" "$message" "▸ claude  (7/7)"
 }
 
 test_deploy_wizard_keeps_module_numbers_when_zsh_declined() {
@@ -115,10 +118,10 @@ test_deploy_wizard_keeps_module_numbers_when_zsh_declined() {
   createSpy -u start_module_wizard
 
   # Decline zsh; accept the rest. confirm reads one byte per call.
-  message="$(printf 'n\ny\ny\ny\n' | deploy_wizard)"
+  message="$(printf 'n\ny\ny\ny\ny\n' | deploy_wizard)"
 
   # zimfw and asdf were never offered, but tmux keeps its own position.
-  assertContains "Expected tmux to keep its position" "$message" "▸ tmux  (4/6)"
+  assertContains "Expected tmux to keep its position" "$message" "▸ tmux  (4/7)"
   assertNotContains "zimfw was not offered" "$message" "▸ zimfw"
 }
 
@@ -182,11 +185,12 @@ test_deploy_wizard_skips_zsh_dependents_when_zsh_does_not_complete() {
   assertNotContains "asdf depends on zsh" "$message" "▸ asdf"
   # The modules that don't are still offered. assertCalledWith walks the calls
   # in order, so zsh's own call is claimed first.
-  assertCallCount start_module_wizard 4
+  assertCallCount start_module_wizard 5
   assertCalledWith start_module_wizard zsh
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
   assertCalledWith start_module_wizard pi
+  assertCalledWith start_module_wizard claude
 }
 
 test_deploy_wizard_keeps_going_after_an_independent_module_fails() {
@@ -202,13 +206,14 @@ test_deploy_wizard_keeps_going_after_an_independent_module_fails() {
     "$message" "✗ tmux did not complete"
   # assertCalledWith walks the calls in order, so the three before tmux are
   # claimed first.
-  assertCallCount start_module_wizard 6
+  assertCallCount start_module_wizard 7
   assertCalledWith start_module_wizard zsh
   assertCalledWith start_module_wizard zimfw
   assertCalledWith start_module_wizard asdf
   assertCalledWith start_module_wizard tmux
   assertCalledWith start_module_wizard git
   assertCalledWith start_module_wizard pi
+  assertCalledWith start_module_wizard claude
 }
 
 test_deploy_wizard_epilogue_names_every_module_that_did_not_complete() {

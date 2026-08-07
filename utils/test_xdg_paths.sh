@@ -13,7 +13,7 @@ setUp() {
   . "$THISDIR/xdg_paths.sh"
   HOME=${SHUNIT_TMPDIR:?}/home
   mkdir -p "$HOME"
-  unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME ZDOTDIR ZIM_HOME
+  unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME ZDOTDIR ZIM_HOME CLAUDE_CONFIG_DIR
 }
 
 tearDown() {
@@ -86,6 +86,22 @@ test_get_tmux_plugins_dir_defaults_to_xdg_data_tmux_plugins() {
 test_get_tmux_plugins_dir_follows_xdg_data_home_override() {
   XDG_DATA_HOME=/custom/data
   assertEquals "/custom/data/tmux/plugins" "$(get_tmux_plugins_dir)"
+}
+
+test_get_claude_config_dir_defaults_to_dot_claude() {
+  assertEquals "$HOME/.claude" "$(get_claude_config_dir)"
+}
+
+test_get_claude_config_dir_honors_claude_config_dir_env() {
+  CLAUDE_CONFIG_DIR=/custom/claude
+  assertEquals "/custom/claude" "$(get_claude_config_dir)"
+}
+
+# Claude Code reads $HOME/.claude and ignores XDG, so this resolver must not
+# follow XDG_CONFIG_HOME.
+test_get_claude_config_dir_ignores_xdg_config_home() {
+  XDG_CONFIG_HOME=/custom/cfg
+  assertEquals "$HOME/.claude" "$(get_claude_config_dir)"
 }
 
 

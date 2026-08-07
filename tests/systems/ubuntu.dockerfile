@@ -47,3 +47,8 @@ RUN mkdir -p "$HOME/.local/bin" \
        "https://github.com/asdf-vm/asdf/releases/download/v${ASDF_VERSION}/asdf-v${ASDF_VERSION}-linux-amd64.tar.gz" \
   && tar -xzf /tmp/asdf.tar.gz -C "$HOME/.local/bin" asdf \
   && rm /tmp/asdf.tar.gz
+
+# Stage with python3 installed, for the claude module's settings merge. The base
+# stage has no python3 on purpose. A test there uses the real install.
+FROM with-asdf AS with-python
+RUN sudo apt-get install -y python3

@@ -197,7 +197,7 @@ install_managed_block() {
   fi
   _preview_file "$file"
 
-  local choice=0
+  local choice=0 backup
   if [ "$prepend" = 1 ]
     then add_label="prepend the managed block, keep the rest"
     else add_label="append the managed block, keep the rest"
@@ -211,7 +211,8 @@ install_managed_block() {
   fi
   case "$choice" in
     0) tui_skip "$(tui_path "$file") left unchanged"; return 1 ;;
-    1) backup_file "$file"
+    1) backup=$(backup_file "$file") || die "Could not back up $(tui_path "$file")"
+       tui_detail "Backed up the old one as $(tui_path "$backup")"
        _write_block_only "$file" "$tag" "$content" ;;
     2) if [ "$prepend" = 1 ]
          then write_managed_block --prepend "$file" "$tag" "$content"

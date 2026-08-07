@@ -29,7 +29,7 @@ basic_packages="wget tar gzip"
 
 # Modules the wizard offers, in the order they are asked. A module's position
 # here is the counter in its section header.
-deploy_modules="zsh zimfw asdf tmux git pi"
+deploy_modules="zsh zimfw asdf tmux git pi claude"
 
 # Modules that ran but did not finish — a failed step, or one the user
 # cancelled. Names collect here so the epilogue can name them and the run can
@@ -130,6 +130,10 @@ deploy_wizard() {
 
   if confirm "Install pi?"; then
     run_module pi
+  fi
+
+  if confirm "Configure claude code?"; then
+    run_module claude
   fi
 
   deploy_epilogue

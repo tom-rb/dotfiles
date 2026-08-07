@@ -102,6 +102,14 @@ test_backup_file_copies_it() {
   assertTrue "Expected backup copy" "[ -f \"$file.bkp\" ]"
 }
 
+test_backup_file_echoes_the_path_it_wrote() {
+  file="${SHUNIT_TMPDIR:?}/original with spaces"
+  echo "original" > "$file"
+
+  assertEquals "$file.bkp" "$(backup_file "$file")"
+  assertEquals "$file.bkp1" "$(backup_file "$file")"
+}
+
 test_backup_file_increments_bkp_number_if_backup_exists() {
   file="${SHUNIT_TMPDIR:?}/original with spaces"
   echo "original" > "$file"
