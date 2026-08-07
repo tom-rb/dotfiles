@@ -45,7 +45,14 @@ run_test_in_docker() {
   # same path a human gets. docker's own -t cannot do this: the pipeline below
   # needs docker's stdout to stay a pipe, and -t refuses without a terminal on
   # the host side too.
-  [ "${PTY}" = "0" ] || command="script -qec '${command}' /dev/null"
+  # The session lands in a file that is echoed afterwards rather than going
+  # straight out: util-linux 2.30, which amazonlinux-2 ships, exits without
+  # draining the pty when its stdout is a pipe, and the tail of the session —
+  # shunit2's summary among it — dies with the container. A file is not racy,
+  # where a settling delay would only make the race less likely. The cost is
+  # that a case's output arrives when it ends rather than as it goes.
+  [ "${PTY}" = "0" ] ||
+    command="script -qec '${command}' /dev/null >/tmp/pty_out 2>&1; rc=\$?; cat /tmp/pty_out; exit \$rc"
   status_file=$(mktemp) || { echo 'Could not create temporary file' >&2; exit 1; }
   # Run test case. docker heads the pipeline, so $? afterwards belongs to awk;
   # stash its own status in a file, the way tui_task does. The brace group is a
