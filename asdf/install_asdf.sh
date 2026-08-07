@@ -9,6 +9,12 @@ ASDF_BLOCK_TAG="dotfiles:asdf"
 
 # Pinned asdf release. Bump deliberately.
 ASDF_VERSION="0.16.7"
+# SHA-256 of each asdf-v${ASDF_VERSION}-<arch>.tar.gz upstream publishes for an
+# arch detect_asdf_arch can return. Bump them all with the version.
+ASDF_SHA256_LINUX_AMD64='6a5f56833da9e94068f3e70d5ca6ffe0a14a0887e1eac1b9b0c96f67d96242be'
+ASDF_SHA256_LINUX_ARM64='a4904347dd1a468b4947fe1e22458742c89da27df589a324172bb8154229dea7'
+ASDF_SHA256_DARWIN_AMD64='0d989891f40d2dbea8de41f3166603df530f1dfe97cb460a3044ded0e9756001'
+ASDF_SHA256_DARWIN_ARM64='8a54d4426da75a49c57f670ccafafcc4cd0709d31e033b357bd01d19101b3e64'
 
 # Map the current host's `uname -s`/`uname -m` to the os-arch slug used in
 # asdf release tarball names (e.g. linux-amd64, darwin-arm64).
@@ -30,6 +36,19 @@ detect_asdf_arch() {
   echo "${os}-${arch}"
 }
 
+# Pinned SHA-256 of the release tarball for the os-arch slug $1.
+# Dies when the slug has no pinned digest — an arch added to detect_asdf_arch
+# without one would otherwise install unverified.
+asdf_sha256_for() {
+  case "${1:?}" in
+    linux-amd64)  echo "$ASDF_SHA256_LINUX_AMD64" ;;
+    linux-arm64)  echo "$ASDF_SHA256_LINUX_ARM64" ;;
+    darwin-amd64) echo "$ASDF_SHA256_DARWIN_AMD64" ;;
+    darwin-arm64) echo "$ASDF_SHA256_DARWIN_ARM64" ;;
+    *) die "No pinned checksum for asdf ${ASDF_VERSION} on $1" ;;
+  esac
+}
+
 # Check if asdf is installed
 is_asdf_installed() {
   command_exists asdf || [ -x "$(asdf_bin_dir)/asdf" ]
@@ -47,7 +66,7 @@ get_asdf_version() {
 # $HOME/.local/bin. PM install is intentionally skipped — see
 # docs/adr/0002-install-asdf-from-tarball.md.
 install_asdf_program() {
-  local arch url bin_dir tarball version
+  local arch url bin_dir tarball version sha256
   (
     set -e
     if is_asdf_installed; then
@@ -57,6 +76,8 @@ install_asdf_program() {
     fi
 
     arch=$(detect_asdf_arch)
+    # Resolved before the download so an unpinned arch fails without one.
+    sha256=$(asdf_sha256_for "$arch")
     url="https://github.com/asdf-vm/asdf/releases/download/v${ASDF_VERSION}/asdf-v${ASDF_VERSION}-${arch}.tar.gz"
     bin_dir="$(asdf_bin_dir)"
     tarball="$bin_dir/asdf.tar.gz"
@@ -65,6 +86,10 @@ install_asdf_program() {
     mkdir -p "$bin_dir"
     # -q hides wget's own diagnostics too, so say why the download failed here.
     wget -q -O "$tarball" "$url" || die "Couldn't download asdf ${ASDF_VERSION} from $url"
+    if ! verify_sha256 "$tarball" "$sha256"; then
+      rm -f "$tarball"
+      die "Checksum mismatch for asdf ${ASDF_VERSION} (${arch}), refusing to install it"
+    fi
     tar -xzf "$tarball" -C "$bin_dir" asdf || die "Couldn't unpack asdf ${ASDF_VERSION}"
     rm -f "$tarball"
 

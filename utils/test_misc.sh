@@ -122,6 +122,69 @@ test_backup_file_increments_bkp_number_if_backup_exists() {
   assertTrue "Expected 3rd backup copy" "[ -f \"$file.bkp2\" ]"
 }
 
+test_verify_sha256_accepts_a_matching_digest() {
+  file="${SHUNIT_TMPDIR:?}/payload with spaces"
+  printf 'dotfiles\n' > "$file"
+
+  verify_sha256 "$file" \
+    "$(sha256sum "$file" | cut -d' ' -f1)"
+
+  assertTrue "Expected the pinned digest to verify" $?
+}
+
+test_verify_sha256_rejects_a_different_digest() {
+  file="${SHUNIT_TMPDIR:?}/payload"
+  printf 'tampered\n' > "$file"
+
+  verify_sha256 "$file" \
+    "0000000000000000000000000000000000000000000000000000000000000000"
+
+  assertFalse "Expected a mismatching digest to be rejected" $?
+}
+
+test_verify_sha256_fails_if_the_file_or_digest_is_missing() {
+  verify_sha256 "inexistent" "0000" 2>/dev/null
+  assertFalse "Expected failure for inexistent file" $?
+
+  file="${SHUNIT_TMPDIR:?}/payload"
+  printf 'dotfiles\n' > "$file"
+
+  # Returning, not exiting: a half-finished version bump leaves an empty
+  # digest constant, and the caller still has to reach its own cleanup.
+  verify_sha256 "$file" "" 2>/dev/null
+  assertFalse "Expected failure for an empty expected digest" $?
+
+  verify_sha256 2>/dev/null
+  assertFalse "Expected failure for no arguments at all" $?
+}
+
+test_verify_sha256_falls_back_to_shasum_without_sha256sum() {
+  file="${SHUNIT_TMPDIR:?}/payload"
+  printf 'dotfiles\n' > "$file"
+  digest=$(sha256sum "$file" | cut -d' ' -f1)
+  # No sha256sum (as on macOS), shasum answers instead.
+  createSpy -u -r "$SHUNIT_FALSE" -r "$SHUNIT_TRUE" command_exists
+  createSpy -u -o "$digest  $file" shasum
+
+  verify_sha256 "$file" "$digest"
+
+  assertTrue "Expected shasum's digest to verify" $?
+  assertCalledOnceWith shasum -a 256 "$file"
+}
+
+test_verify_sha256_dies_when_no_hash_tool_exists() {
+  file="${SHUNIT_TMPDIR:?}/payload"
+  printf 'dotfiles\n' > "$file"
+  createSpy -u -r "$SHUNIT_FALSE" -r "$SHUNIT_FALSE" command_exists
+
+  output=$( (verify_sha256 "$file" "0000") 2>&1)
+
+  assertFalse "Expected failure with no way to hash" $?
+  # Not "mismatch": nothing was compared, so the download isn't what's wrong.
+  assertContains "Should say the tool is what's missing" \
+    "$output" "No SHA-256 tool found"
+}
+
 #
 # version_ge
 #

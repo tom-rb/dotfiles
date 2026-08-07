@@ -121,11 +121,41 @@ test_program_returns_true_if_already_installed() {
 test_program_downloads_zimfw_when_missing() {
   createSpy -u -r "$SHUNIT_FALSE" is_zimfw_installed
   createSpy -u wget
+  createSpy -u -r "$SHUNIT_TRUE" verify_sha256
 
   quietly install_zimfw_program
 
   assertTrue "Should return success on download success" $?
   assertCallCount wget 1
+}
+
+test_download_verifies_the_pinned_checksum() {
+  createSpy -u wget
+  createSpy -u -r "$SHUNIT_TRUE" verify_sha256
+
+  download_zimfw
+
+  assertTrue "Should return success on a verified download" $?
+  assertCalledOnceWith verify_sha256 \
+    "$(get_zim_home)/zimfw.zsh" "$ZIMFW_SHA256"
+}
+
+# The unverified file must not survive: is_zimfw_installed only tests that
+# zimfw.zsh is non-empty, so leaving it behind would skip the next install.
+test_download_discards_a_file_that_fails_verification() {
+  zim_home=$(get_zim_home)
+  mkdir -p "$zim_home"
+  # Stand in for what the spied-out wget would have written.
+  printf 'tampered\n' > "$zim_home/zimfw.zsh"
+  createSpy -u wget
+  createSpy -u -r "$SHUNIT_FALSE" verify_sha256
+
+  output=$( (download_zimfw) 2>&1)
+
+  assertFalse "Should fail on a checksum mismatch" $?
+  assertContains "Should say what failed" "$output" "Checksum mismatch for zimfw"
+  assertFalse "Should not leave the unverified file behind" \
+    "[ -e \"$zim_home/zimfw.zsh\" ]"
 }
 
 #

@@ -140,12 +140,42 @@ test_install_tmux_from_source_in_custom_location() {
   output=$(echo 'ny' | install_tmux_program 3.1b)
 
   assertTrue "Tmux installed from source should not be an error" $?
-  assertCalledOnceWith install_tmux_from_source 3.1b "/opt/custom"
+  # $1 is a minimum, not the version to build: only the pinned release has a
+  # checksum, and it clears that minimum.
+  assertCalledOnceWith install_tmux_from_source "$TMUX_DESIRED_VERSION" "/opt/custom"
   # The result line belongs to install_tmux_from_source, next to the step it
   # closes — a custom prefix leaves the new tmux off PATH, so a caller reading
   # `tmux -V` here would report an empty version.
   assertNotContains "Should leave the result to the build" \
     "$output" "tmux 3.1b installed"
+}
+
+test_install_tmux_program_builds_the_pin_for_a_lower_minimum() {
+  createSpy -u -r "$SHUNIT_FALSE" is_tmux_installed
+  createSpy -u -o '' get_tmux_package_version
+  createSpy -u install_tmux_from_source
+
+  # [n]o to a custom location
+  output=$(echo 'n' | install_tmux_program 3.1b)
+
+  assertTrue "A minimum the pin satisfies should install" $?
+  assertCalledOnceWith install_tmux_from_source "$TMUX_DESIRED_VERSION" ""
+  assertContains "Should announce the version it will actually build" \
+    "$output" "tmux $TMUX_DESIRED_VERSION will be installed from source"
+}
+
+# Building the pin would silently under-deliver, and no other version can be
+# verified, so there is nothing safe left to install.
+test_install_tmux_program_dies_when_the_pin_is_below_the_minimum() {
+  createSpy -u -r "$SHUNIT_FALSE" is_tmux_installed
+  createSpy -u -o '' get_tmux_package_version
+  createSpy -u install_tmux_from_source
+
+  output=$( (install_tmux_program 9.9) 2>&1)
+
+  assertFalse "Should refuse a minimum the pin cannot meet" $?
+  assertContains "Should say what failed" "$output" "only $TMUX_DESIRED_VERSION is pinned"
+  assertNeverCalled install_tmux_from_source
 }
 
 test_tmux_dotfiles_are_installed() {
@@ -282,31 +312,77 @@ test_install_tmux_build_dependencies_dies_when_the_packages_fail() {
 test_install_tmux_from_source_wraps_the_build_in_one_task() {
   createSpy -u install_tmux_build_dependencies
   createSpy -u wget
+  createSpy -u -r "$SHUNIT_TRUE" verify_sha256
   createSpy -u tar
   createSpy -u rm
   createSpy -u _build_tmux_from_source
 
-  output=$(install_tmux_from_source "3.5a" "/opt/x")
+  output=$(install_tmux_from_source "$TMUX_DESIRED_VERSION" "/opt/x")
 
   assertTrue "Should succeed when the build step succeeds" $?
-  assertCalledOnceWith _build_tmux_from_source "3.5a" "/opt/x"
+  assertCalledOnceWith _build_tmux_from_source "$TMUX_DESIRED_VERSION" "/opt/x"
   # The version reported is the one just built: a custom prefix keeps that tmux
   # off PATH, so `tmux -V` would answer for a different binary or none at all.
   assertContains "Should close its own task with the built version" \
-    "$output" "✓ tmux 3.5a installed"
+    "$output" "✓ tmux $TMUX_DESIRED_VERSION installed"
 }
 
 test_install_tmux_from_source_propagates_build_failure() {
   createSpy -u install_tmux_build_dependencies
   createSpy -u wget
+  createSpy -u -r "$SHUNIT_TRUE" verify_sha256
   createSpy -u tar
   createSpy -u rm
   createSpy -u -r "$SHUNIT_FALSE" _build_tmux_from_source
 
-  install_tmux_from_source "3.5a" "/opt/x"
+  install_tmux_from_source "$TMUX_DESIRED_VERSION" "/opt/x"
   rc=$?
 
   assertFalse "Should propagate a failed build" "$rc"
+}
+
+test_install_tmux_from_source_verifies_the_pinned_checksum() {
+  createSpy -u install_tmux_build_dependencies
+  createSpy -u wget
+  createSpy -u -r "$SHUNIT_TRUE" verify_sha256
+  createSpy -u tar
+  createSpy -u rm
+  createSpy -u _build_tmux_from_source
+
+  quietly install_tmux_from_source "$TMUX_DESIRED_VERSION" "/opt/x"
+
+  assertCalledOnceWith verify_sha256 \
+    "tmux-${TMUX_DESIRED_VERSION}.tar.gz" "$TMUX_SHA256"
+}
+
+test_install_tmux_from_source_dies_on_a_checksum_mismatch() {
+  createSpy -u install_tmux_build_dependencies
+  createSpy -u wget
+  createSpy -u -r "$SHUNIT_FALSE" verify_sha256
+  createSpy -u tar
+  createSpy -u rm
+  createSpy -u _build_tmux_from_source
+
+  output=$( (install_tmux_from_source "$TMUX_DESIRED_VERSION" "/opt/x") 2>&1)
+
+  assertFalse "Should not build a tarball it couldn't verify" $?
+  assertContains "Should say what failed" "$output" "Checksum mismatch"
+  assertCalledOnceWith rm -f "tmux-${TMUX_DESIRED_VERSION}.tar.gz"
+  assertNeverCalled tar
+  assertNeverCalled _build_tmux_from_source
+}
+
+# The pinned digest describes one release only, so an unpinned version has
+# nothing to verify against and must not reach the network.
+test_install_tmux_from_source_refuses_an_unpinned_version() {
+  createSpy -u install_tmux_build_dependencies
+  createSpy -u wget
+
+  output=$( (install_tmux_from_source "9.9z" "/opt/x") 2>&1)
+
+  assertFalse "Should refuse a version it has no checksum for" $?
+  assertContains "Should say what failed" "$output" "No pinned checksum for tmux 9.9z"
+  assertNeverCalled wget
 }
 
 # install_tmux_program_step

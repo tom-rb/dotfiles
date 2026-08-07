@@ -8,6 +8,8 @@ ZIMFW_BLOCK_TAG="dotfiles:zimfw"
 # Pinned zimfw release. Bump deliberately.
 ZIMFW_VERSION="1.19.1"
 ZIMFW_URL="https://github.com/zimfw/zimfw/releases/download/v${ZIMFW_VERSION}/zimfw.zsh"
+# SHA-256 of the pinned zimfw.zsh. Bump it with the version.
+ZIMFW_SHA256='d523219238f335d60c846bae27e7685e9e36029e946a16dfb6ed59657da40988'
 
 # Check if zimfw is installed
 is_zimfw_installed() {
@@ -40,6 +42,12 @@ download_zimfw() {
     # -q hides wget's own diagnostics too, so say why the download failed here.
     wget -q -O "$zim_home/zimfw.zsh" "$ZIMFW_URL" \
       || die "Couldn't download zimfw ${ZIMFW_VERSION} from $ZIMFW_URL"
+    # Drop the file, or is_zimfw_installed would read the unverified download
+    # as an install and never retry it.
+    if ! verify_sha256 "$zim_home/zimfw.zsh" "$ZIMFW_SHA256"; then
+      rm -f "$zim_home/zimfw.zsh"
+      die "Checksum mismatch for zimfw ${ZIMFW_VERSION}, refusing to install it"
+    fi
   )
 }
 

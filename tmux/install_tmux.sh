@@ -7,6 +7,8 @@ TMUX_BLOCK_TAG="dotfiles:tmux"
 
 # Pinned Tmux and TPM release. Bump deliberately.
 TMUX_DESIRED_VERSION='3.5a'
+# SHA-256 of tmux-${TMUX_DESIRED_VERSION}.tar.gz. Bump it with the version.
+TMUX_SHA256='16216bd0877170dfcc64157085ba9013610b12b082548c7c9542cc0103198951'
 TPM_VERSION='3.1.0'
 TPM_REPO='https://github.com/tmux-plugins/tpm'
 
@@ -42,15 +44,24 @@ install_tmux_build_dependencies() {
 install_tmux_from_source() {
   local version_tmux="$1" install_prefix="${2:-/usr/local}"
   local tmux_tar_gz="tmux-${version_tmux}.tar.gz"
+  # Only the pinned release has a known digest, so any other one is unverifiable.
+  test "$version_tmux" = "$TMUX_DESIRED_VERSION" \
+    || die "No pinned checksum for tmux ${version_tmux}"
   install_tmux_build_dependencies
   # Download sources inside $HOME to be in a non read-only path.
   (
     set -e
     cd "$HOME"
-    # TODO: checksum
     # -q hides wget's own diagnostics too, so say why the step failed here.
-    wget -q "https://github.com/tmux/tmux/releases/download/${version_tmux}/${tmux_tar_gz}" \
+    # -O pins the output name: a leftover tarball from a failed run would
+    # otherwise send this download to tmux-*.tar.gz.1 and leave the checksum
+    # verifying the stale file.
+    wget -q -O "${tmux_tar_gz}" "https://github.com/tmux/tmux/releases/download/${version_tmux}/${tmux_tar_gz}" \
       || die "Couldn't download tmux ${version_tmux}"
+    if ! verify_sha256 "${tmux_tar_gz}" "$TMUX_SHA256"; then
+      rm -f "${tmux_tar_gz}"
+      die "Checksum mismatch for ${tmux_tar_gz}, refusing to build it"
+    fi
     tar xf "${tmux_tar_gz}" && rm -f "${tmux_tar_gz}"
     tui_task "building tmux ${version_tmux} from source (a few minutes)…" \
       --ok "tmux ${version_tmux} installed" \
@@ -72,19 +83,19 @@ _build_tmux_from_source() {
 
 # Installs tmux, ensuring at least minimum version $1
 install_tmux_program() {
-  local tmux_desired_version installed_version pm_version pm location
-  tmux_desired_version=${1:?}
+  local min_version installed_version pm_version pm location
+  min_version=${1:?}
   (
     set -e
     if is_tmux_installed; then
       installed_version=$(get_tmux_version)
-      if version_ge "$installed_version" "$tmux_desired_version"; then
-        tui_skip "tmux $installed_version already installed (≥ required $tmux_desired_version)"
+      if version_ge "$installed_version" "$min_version"; then
+        tui_skip "tmux $installed_version already installed (≥ required $min_version)"
         return 0
       fi
       tui_warn "Some features may not work with the older tmux."
       tui_detail "tmux installed version:    $installed_version"
-      tui_detail "Dotfiles minimum version:  $tmux_desired_version"
+      tui_detail "Dotfiles minimum version:  $min_version"
       if confirm -n "Install dotfiles anyway?"; then
         return 0
       fi
@@ -95,8 +106,8 @@ install_tmux_program() {
     pm_version=$(get_tmux_package_version)
     pm=$(get_supported_pm)
 
-    if [ -n "$pm_version" ] && version_ge "$pm_version" "$tmux_desired_version"; then
-      tui_skip "tmux $pm_version available from $pm (≥ required $tmux_desired_version)"
+    if [ -n "$pm_version" ] && version_ge "$pm_version" "$min_version"; then
+      tui_skip "tmux $pm_version available from $pm (≥ required $min_version)"
       if confirm "Install tmux from $pm?"; then
         install_from_pm --ok-cmd _tmux_installed_msg \
           --die "Couldn't install tmux $pm_version" \
@@ -105,14 +116,19 @@ install_tmux_program() {
       fi
     fi
 
-    tui_skip "tmux $tmux_desired_version will be installed from source"
+    # The pinned release is the only one with a checksum, so it is what gets
+    # built — which is fine as long as it clears the minimum asked for.
+    version_ge "$TMUX_DESIRED_VERSION" "$min_version" \
+      || die "Can't install tmux ≥ $min_version: only $TMUX_DESIRED_VERSION is pinned"
+
+    tui_skip "tmux $TMUX_DESIRED_VERSION will be installed from source"
 
     if confirm -n "Install tmux in a custom location?"; then
       prompt_new_path "Install under %s/bin/tmux?" location
     fi
 
     # Reports its own step and result — the build is where the version is known.
-    install_tmux_from_source "$tmux_desired_version" "$location"
+    install_tmux_from_source "$TMUX_DESIRED_VERSION" "$location"
   )
 }
 

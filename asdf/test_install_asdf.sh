@@ -108,6 +108,7 @@ test_install_downloads_and_extracts_asdf_when_not_installed() {
   createSpy -u -o "linux-amd64" detect_asdf_arch
   createSpy -u -o "0.16.7" get_asdf_version
   createSpy -u wget
+  createSpy -u -r "$SHUNIT_TRUE" verify_sha256
   createSpy -u tar
 
   output=$(install_asdf_program)
@@ -119,6 +120,56 @@ test_install_downloads_and_extracts_asdf_when_not_installed() {
     "https://github.com/asdf-vm/asdf/releases/download/v0.16.7/asdf-v0.16.7-linux-amd64.tar.gz"
   assertCalledWith tar -xzf "$HOME/.local/bin/asdf.tar.gz" -C "$HOME/.local/bin" asdf
   assertContains "Should report installed" "$output" "asdf 0.16.7 installed"
+}
+
+#
+# checksum verification
+#
+
+test_asdf_sha256_for_answers_every_arch_detect_asdf_arch_can_return() {
+  for arch in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
+    sha=$(asdf_sha256_for "$arch")
+    assertTrue "Expected a pinned digest for $arch, got <$sha>" \
+      "expr \"$sha\" : '^[0-9a-f]\{64\}$' >/dev/null"
+  done
+}
+
+test_asdf_sha256_for_dies_on_an_arch_with_no_pinned_digest() {
+  output=$( (asdf_sha256_for "linux-386") 2>&1)
+
+  assertFalse "Should refuse an arch it has no digest for" $?
+  assertContains "Should say what failed" "$output" "No pinned checksum for asdf"
+}
+
+test_install_verifies_the_tarball_against_the_digest_for_its_arch() {
+  createSpy -u -r "$SHUNIT_FALSE" is_asdf_installed
+  createSpy -u -o "darwin-arm64" detect_asdf_arch
+  createSpy -u -o "0.16.7" get_asdf_version
+  createSpy -u wget
+  createSpy -u -r "$SHUNIT_TRUE" verify_sha256
+  createSpy -u tar
+
+  quietly install_asdf_program
+
+  assertCalledOnceWith verify_sha256 \
+    "$HOME/.local/bin/asdf.tar.gz" "$ASDF_SHA256_DARWIN_ARM64"
+}
+
+test_install_dies_on_a_checksum_mismatch() {
+  createSpy -u -r "$SHUNIT_FALSE" is_asdf_installed
+  createSpy -u -o "linux-amd64" detect_asdf_arch
+  createSpy -u -o "0.16.7" get_asdf_version
+  createSpy -u wget
+  createSpy -u -r "$SHUNIT_FALSE" verify_sha256
+  createSpy -u rm
+  createSpy -u tar
+
+  output=$( (install_asdf_program) 2>&1)
+
+  assertFalse "Should not unpack a tarball it couldn't verify" $?
+  assertContains "Should say what failed" "$output" "Checksum mismatch for asdf"
+  assertCalledOnceWith rm -f "$HOME/.local/bin/asdf.tar.gz"
+  assertNeverCalled tar
 }
 
 #

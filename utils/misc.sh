@@ -39,6 +39,24 @@ backup_file() {
   cp "$file" "${file}.bkp$n" && printf '%s\n' "${file}.bkp$n"
 }
 
+# True if file $1 hashes to the expected SHA-256 $2.
+# Fails on a missing argument rather than exiting, so a caller checking the
+# result still gets to run its own cleanup. A host with no SHA-256 tool dies
+# instead: it can't verify anything, and reporting that as a mismatch would
+# blame the download for a missing coreutils.
+verify_sha256() {
+  local actual
+  [ -n "${1:-}" ] && [ -n "${2:-}" ] || return 1
+  if command_exists sha256sum; then
+    actual=$(sha256sum "$1") || return 1
+  elif command_exists shasum; then
+    actual=$(shasum -a 256 "$1") || return 1
+  else
+    die "No SHA-256 tool found, install coreutils (sha256sum) or shasum"
+  fi
+  [ "${actual%% *}" = "$2" ]
+}
+
 #
 # Version utilities
 #
