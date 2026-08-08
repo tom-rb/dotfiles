@@ -32,6 +32,8 @@ tearDown() {
 # starting a container.
 # $1: (optional) extra line to print, e.g. FAILED
 # $2: (optional) exit status for the stub, default 0
+# $3: (optional) `nosummary` to leave out shunit2's closing summary, which is
+#     what a container that stopped partway through looks like
 _given_a_fake_docker() {
   mkdir -p "$BIN_DIR"
   cat > "$BIN_DIR/docker" <<EOF
@@ -39,8 +41,10 @@ _given_a_fake_docker() {
 # The runner hands the case name to the container as \`<file> -- <case>\`.
 printf 'case %s ran\n' "\$(printf '%s\n' "\$*" | sed -nE 's/.*-- ([A-Za-z0-9_]+).*/\1/p')"
 printf '%s\n' '${1-}'
-# shunit2's closing summary, which the runner takes as proof a run happened.
-printf 'Ran 1 test.\n'
+# shunit2's closing summary, which the runner takes as proof a run happened. The
+# colour codes around the count are shunit2's own, and the runner has to see
+# past them, so the stub prints the line exactly as it really arrives.
+[ '${3-}' = nosummary ] || printf 'Ran \033[1;36m1\033[0m test.\n'
 exit ${2-0}
 EOF
   chmod +x "$BIN_DIR/docker"
@@ -124,10 +128,10 @@ test_run_system_test_fails_when_a_case_reports_a_failure() {
 }
 
 #
-# A run that dies before shunit2 prints its summary leaves no FAILED to scan
-# for. Scanning stdout was once the only signal, so every case below used to
-# read as a pass: nothing ran, nothing was verified, and the suite was green.
+# Runs that never reported a result
 #
+# Scanning stdout for FAILED was once the only signal, so a run that died before
+# shunit2's summary left nothing to scan for and every case below read as a pass.
 
 test_run_system_test_fails_when_the_container_exits_non_zero_without_failed() {
   _given_a_fake_docker '' 1
@@ -178,22 +182,10 @@ test_run_system_test_still_passes_a_clean_run() {
   assertTrue "A zero exit with no FAILED is still a pass" $?
 }
 
-# Put a stub `docker` on PATH that exits cleanly having stopped partway, with
-# no shunit2 summary to show for it — what amazonlinux-2's `script` does to
-# some cases today.
-_given_a_fake_docker_that_stops_halfway() {
-  mkdir -p "$BIN_DIR"
-  cat > "$BIN_DIR/docker" <<'EOF'
-#!/usr/bin/env sh
-printf 'case started\n'
-exit 0
-EOF
-  chmod +x "$BIN_DIR/docker"
-  PATH="$BIN_DIR:$PATH"
-}
-
 test_run_system_test_fails_when_the_run_never_reported_a_result() {
-  _given_a_fake_docker_that_stops_halfway
+  # A container that exits cleanly having stopped partway, with no summary to
+  # show for it — what amazonlinux-2's `script` does to some cases today.
+  _given_a_fake_docker '' 0 nosummary
 
   output=$("$RUNNER" ubuntu "$FIXTURE_A" 2>&1)
   status=$?
@@ -208,8 +200,10 @@ test_run_system_test_keeps_the_shunit2_summary_out_of_the_output() {
 
   output=$("$RUNNER" ubuntu "$FIXTURE_A" 2>&1)
 
+  # Matched on the bare prefix, so a summary that leaked still trips it whatever
+  # colour codes shunit2 wrapped the count in.
   assertNotContains "The summary is a signal, not something to print" \
-    "$output" "Ran 1 test."
+    "$output" "Ran "
   assertContains "The case's own output must survive" "$output" "case it_alpha ran"
 }
 
@@ -227,8 +221,9 @@ test_run_system_test_refuses_a_test_file_without_its_executable_bit() {
 }
 
 #
-# A run that plans nothing is the same silent pass by another route.
+# Runs that plan nothing
 #
+# The same silent pass by another route.
 
 test_run_system_test_fails_when_the_filter_matches_no_case() {
   _given_a_fake_docker
@@ -254,8 +249,7 @@ test_run_system_test_fails_when_a_file_defines_no_cases() {
 }
 
 #
-# JOBS decides how many cases are in flight; a pool of nought hands out no
-# tokens, so every worker would wait on one forever.
+# JOBS
 #
 
 test_run_system_test_refuses_a_job_count_of_zero() {
