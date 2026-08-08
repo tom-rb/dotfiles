@@ -39,6 +39,25 @@ backup_file() {
   cp "$file" "${file}.bkp$n" && printf '%s\n' "${file}.bkp$n"
 }
 
+# Move $1 under the backup directory $2 and keep its name. Adds -1, -2, and so
+# on when a backup of that name is already there.
+# Moves rather than copies, and takes a directory as readily as a file. The
+# caller wants $1 out of the way, and a copy would leave the original in place
+# for the replacement to collide with.
+# Echoes the path it moved $1 to.
+backup_path() {
+  local src dest_dir target suffix n
+  src=${1:?} dest_dir=${2:?}
+  mkdir -p "$dest_dir" || return 1
+  target="$dest_dir/${src##*/}" suffix='' n=0
+  # -e is false for a dangling symlink, which is still a name we must not reuse.
+  while [ -e "$target$suffix" ] || [ -L "$target$suffix" ]; do
+    n=$((n + 1))
+    suffix="-$n"
+  done
+  mv "$src" "$target$suffix" && printf '%s\n' "$target$suffix"
+}
+
 # True if file $1 hashes to the expected SHA-256 $2.
 # Fails on a missing argument rather than exiting, so a caller checking the
 # result still gets to run its own cleanup. A host with no SHA-256 tool dies

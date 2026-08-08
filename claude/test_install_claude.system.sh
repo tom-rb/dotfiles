@@ -52,6 +52,20 @@ it_installs_settings_on_a_clean_machine() {
 
   leftovers=$(find "$(get_claude_config_dir)" -name 'settings.json.??????' | wc -l)
   assertEquals "The merge temp file should be gone" "0" "$leftovers"
+
+  # -y answers the mode question with its default, which is to link. pi's skills
+  # are here too: Claude Code does not read ~/.agents/skills.
+  assertEquals "Should link its own skill" \
+    "$DOTFILES/claude/skills/rate-limit-status" \
+    "$(readlink "$(get_claude_skills_dir)/rate-limit-status")"
+  assertEquals "Should link pi's skills alongside them" \
+    "$DOTFILES/pi/skills/ste-writing" \
+    "$(readlink "$(get_claude_skills_dir)/ste-writing")"
+  assertEquals "Should link its rules" \
+    "$DOTFILES/claude/rules/md.md" \
+    "$(readlink "$(get_claude_rules_dir)/md.md")"
+  assertTrue "A linked skill should resolve to its SKILL.md" \
+    "[ -f \"$(get_claude_skills_dir)/rate-limit-status/SKILL.md\" ]"
 }
 
 # @image: with-python

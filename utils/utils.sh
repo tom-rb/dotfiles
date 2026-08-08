@@ -12,3 +12,5 @@
 . "${DOTFILES:?}/utils/xdg_paths.sh"
 # shellcheck source=wizard.sh
 . "${DOTFILES:?}/utils/wizard.sh"
+# shellcheck source=skills.sh
+. "${DOTFILES:?}/utils/skills.sh"

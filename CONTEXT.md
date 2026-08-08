@@ -30,6 +30,10 @@ How a [[Task]] ends: ok (✓), skip (•), warn (!) or fail (✗). Chosen by `tu
 
 A configuration file in the user's home (or `$ZDOTDIR`, `$XDG_CONFIG_HOME`, etc.) that the user owns but the dotfiles repo wants to write into. The user may have hand-rolled content there from before they installed the dotfiles — overwriting it blindly is hostile.
 
+## Owned entry
+
+One item a [[Module]] installs into a directory it shares with the user — a skill directory, or a rule file. The repo can prove it put that item there. The proof is a symlink whose target resolves inside one of the source directories that feed *that* destination. `utils/skills.sh::is_owned_entry` makes that test. The test covers only the sources that feed the destination, not `$DOTFILES` as a whole. So a link the user wires from some other corner of the checkout stays theirs. One example: a claude skill pulled into pi's directory, which this repo deliberately does not install there. When the repo stops shipping an entry, the installer removes it only if the repo owns it. A skill the user installed from anywhere else survives every deploy. A copy looks the same as a hand-made entry, so the installer never removes a copy. That is the price of copy over link.
+
 ## Managed block
 
 A fenced region inside an owned dotfile, marked by `# >>> <tag> >>>` … `# <<< <tag> <<<`, that the dotfiles repo owns and rewrites freely. Everything outside the fence belongs to the user and is never touched. `utils/managed_block.sh::write_managed_block` is the pure transform that upserts a block; `install_managed_block` is the interactive wrapper that handles [[First-time placement]] into a pre-existing file. A block may declare a [[Block anchor]] to control where it lands on first-time placement.

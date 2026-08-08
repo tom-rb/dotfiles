@@ -19,6 +19,13 @@ tearDown() {
   cleanupTestDir
 }
 
+# Stage $1 as the answers to come, for `... < "$KEYS"`. printf interprets
+# backslash escapes, so '\n' is the Enter that means "take the default".
+_given_keystrokes() {
+  KEYS="${SHUNIT_TMPDIR:?}/keystrokes"
+  printf '%b' "${1:?}" > "$KEYS"
+}
+
 #
 # ensure_node_installed
 #
@@ -311,6 +318,94 @@ test_install_pi_program_aborts_when_node_bootstrap_fails() {
 
   assertFalse "Should propagate the node bootstrap failure" $?
   assertNeverCalled npm
+}
+
+#
+# install_pi_skills
+#
+# utils/test_skills.sh proves how the installer installs and prunes. These tests
+# cover this module's wiring: where pi's skills go, and where they deliberately
+# do not.
+#
+
+test_install_pi_skills_links_into_the_agents_directory() {
+  _given_keystrokes '\n'
+
+  quietly install_pi_skills < "$KEYS"
+  assertTrue "A clean machine is not an error" $?
+
+  assertEquals "$DOTFILES/pi/skills/ste-writing" \
+    "$(readlink "$HOME/.agents/skills/ste-writing")"
+}
+
+# ~/.claude/skills has one owner, the claude module. If two modules pruned one
+# directory, each would remove the other's links on every deploy.
+test_install_pi_skills_leaves_claudes_directory_alone() {
+  _given_keystrokes '\n'
+
+  quietly install_pi_skills < "$KEYS"
+
+  assertFalse "pi must not write into Claude's skills" \
+    "[ -d \"$HOME/.claude/skills\" ]"
+}
+
+test_install_pi_skills_copies_when_the_second_option_is_chosen() {
+  _given_keystrokes '2'
+
+  quietly install_pi_skills < "$KEYS"
+
+  assertFalse "A copy is not a link" "[ -L \"$HOME/.agents/skills/ste-writing\" ]"
+  assertTrue "The skill should still be there" \
+    "[ -f \"$HOME/.agents/skills/ste-writing/SKILL.md\" ]"
+}
+
+test_install_pi_skills_reports_a_quit_and_writes_nothing() {
+  _given_keystrokes 'q'
+
+  quietly install_pi_skills < "$KEYS"
+
+  assertFalse "A declined step has not run" $?
+  assertFalse "Nothing should be written" "[ -d \"$HOME/.agents/skills\" ]"
+}
+
+# The regression that made this rewrite necessary: the old step cleared
+# ~/.agents/skills wholesale, and took every skill that came from anywhere else.
+test_install_pi_skills_keeps_skills_it_did_not_install() {
+  mkdir -p "$HOME/.agents/skills/handoff"
+  : > "$HOME/.agents/skills/handoff/SKILL.md"
+  _given_keystrokes '\n'
+
+  quietly install_pi_skills < "$KEYS"
+
+  assertTrue "A skill from elsewhere must survive" \
+    "[ -f \"$HOME/.agents/skills/handoff/SKILL.md\" ]"
+}
+
+# The prune must also cover the case where the repo drops everything. If it does
+# not, the last links stay behind and point at sources that are gone.
+test_install_pi_skills_prunes_when_the_repo_ships_nothing() {
+  _given_keystrokes '\n'
+  quietly install_pi_skills < "$KEYS"
+  createSpy -u -o "" entry_names
+
+  output=$(install_pi_skills)
+
+  assertTrue "Nothing to install is not an error" $?
+  assertContains "Should say there was nothing to install" "$output" "No skills found"
+  assertFalse "The link it made should be taken back" \
+    "[ -L \"$HOME/.agents/skills/ste-writing\" ]"
+}
+
+test_install_pi_skills_is_a_no_op_on_a_second_run() {
+  _given_keystrokes '\n'
+  quietly install_pi_skills < "$KEYS"
+
+  _given_keystrokes '\n'
+  output=$(install_pi_skills < "$KEYS")
+
+  assertContains "Should report it is already done" "$output" "nothing to do"
+  assertEquals "The link should be untouched" "$DOTFILES/pi/skills/ste-writing" \
+    "$(readlink "$HOME/.agents/skills/ste-writing")"
 }
 
 #

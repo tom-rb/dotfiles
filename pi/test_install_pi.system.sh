@@ -18,45 +18,45 @@ it_checks_pi_is_not_installed() {
 }
 
 # @image: base
-it_copies_skills_to_agents_directory() {
+it_links_skills_into_the_agents_directory() {
   local skills_dest
   skills_dest="$HOME/.agents/skills"
 
-  # Verify destination doesn't exist before install
+  # Verify the destination does not exist before the install
   assertFalse "$HOME/.agents/skills should not exist yet" "[ -d \"$skills_dest\" ]"
 
-  # Run the install step
-  quietly install_pi_skills
+  # Enter takes the default answer, which is to link
+  printf '\n' | quietly install_pi_skills
 
-  # Verify ~/.agents/skills was created
+  # Verify the install created ~/.agents/skills
   assertTrue "$HOME/.agents/skills should exist" "[ -d \"$skills_dest\" ]"
 
-  # Verify grill-me skill was copied
-  assertTrue "grill-me skill should be copied" "[ -d \"$skills_dest/grill-me\" ]"
-  assertTrue "grill-me should have SKILL.md" "[ -f \"$skills_dest/grill-me/SKILL.md\" ]"
+  # The link points at this checkout, so a change to the repo changes the skill
+  assertEquals "ste-writing should link to the checkout" \
+    "$DOTFILES/pi/skills/ste-writing" "$(readlink "$skills_dest/ste-writing")"
+  assertTrue "ste-writing should resolve to its SKILL.md" \
+    "[ -f \"$skills_dest/ste-writing/SKILL.md\" ]"
 }
 
+# The old step cleared ~/.agents/skills wholesale on every run. It took every
+# skill installed from anywhere else with it.
 # @image: base
-it_overwrites_existing_skills() {
-  local skills_dest grill_me_marker
+it_leaves_skills_it_did_not_install_alone() {
+  local skills_dest
   skills_dest="$HOME/.agents/skills"
-  grill_me_marker="$skills_dest/grill-me/TEST_MARKER"
 
-  # First install
-  quietly install_pi_skills
-  assertTrue "grill-me should exist after first install" "[ -d \"$skills_dest/grill-me\" ]"
+  printf '\n' | quietly install_pi_skills
+  mkdir -p "$skills_dest/handoff"
+  echo "from somewhere else" > "$skills_dest/handoff/SKILL.md"
 
-  # Add a marker file to detect if it gets overwritten
-  mkdir -p "$(dirname "$grill_me_marker")"
-  echo "test marker" > "$grill_me_marker"
-  assertTrue "Marker file should exist" "[ -f \"$grill_me_marker\" ]"
+  # Second run: nothing to do, and nothing to take with it
+  output=$(printf '\n' | install_pi_skills)
 
-  # Second install should overwrite
-  quietly install_pi_skills
-
-  # Marker should be gone (directory was overwritten)
-  assertFalse "Marker file should be overwritten" "[ -f \"$grill_me_marker\" ]"
-  assertTrue "grill-me should still exist" "[ -d \"$skills_dest/grill-me\" ]"
+  assertContains "A second run should find nothing to do" "$output" "nothing to do"
+  assertTrue "A skill from elsewhere should survive" \
+    "[ -f \"$skills_dest/handoff/SKILL.md\" ]"
+  assertEquals "And ours should be untouched" \
+    "$DOTFILES/pi/skills/ste-writing" "$(readlink "$skills_dest/ste-writing")"
 }
 
 # @image: with-asdf
@@ -97,8 +97,11 @@ it_installs_pi_via_asdf_managed_node() {
   assertContains "pi --version should report the pinned version" \
     "$output" "$PI_VERSION"
 
-  assertTrue "Skills should be copied to ~/.agents/skills" \
-    "[ -d \"$HOME/.agents/skills/grill-me\" ]"
+  # -y answers the mode question with its default, which is to link
+  assertEquals "Skills should be linked into ~/.agents/skills" \
+    "$DOTFILES/pi/skills/ste-writing" "$(readlink "$HOME/.agents/skills/ste-writing")"
+  assertFalse "And nothing should reach Claude's own directory" \
+    "[ -d \"$HOME/.claude/skills\" ]"
 
   # Idempotency: a second run detects the existing install and short-circuits
   # instead of reinstalling (verified here to avoid a second node bootstrap).

@@ -75,26 +75,40 @@ install_pi_program() {
   )
 }
 
-# Copy all skill folders from pi/skills/ to ~/.agents/skills/, creating the
-# destination directory if needed. Overwrites existing skills.
+# Install the skills from pi/skills/ into the cross-harness directory pi reads.
+# The same skills reach Claude Code through the claude module, which owns
+# ~/.claude/skills. This step never writes there.
 install_pi_skills() {
-  local skills_src skills_dest
-  (
-    set -e
-    skills_src="${DOTFILES:?}/pi/skills"
-    skills_dest="$HOME/.agents/skills"
+  local mode policy collisions skills_src skills_dest
+  skills_src="${DOTFILES:?}/pi/skills"
+  skills_dest=$(get_agents_skills_dir)
 
-    if [ ! -d "$skills_src" ]; then
-      tui_skip "No skills found in $(tui_path "$skills_src")"
-      return 0
-    fi
+  # The prune comes first when there is nothing left to install. A repo that
+  # dropped its last skill must still remove the links it made.
+  if [ -z "$(entry_names "$skills_src")" ]; then
+    prune_owned_entries "$skills_dest" '' "$skills_src"
+    tui_skip "No skills found in $(tui_path "$skills_src")"
+    return 0
+  fi
 
-    mkdir -p "$HOME/.agents"
-    rm -rf "$skills_dest"
-    cp -r "$skills_src" "$skills_dest"
+  ask_install_mode "skills" mode || {
+    tui_skip "skills left alone"
+    return 1
+  }
 
-    tui_ok "Skills installed to $(tui_path "$skills_dest")"
-  )
+  collisions=$(list_collisions "$skills_src" "$skills_dest" "$mode")
+  policy=backup
+  if [ -n "$collisions" ]; then
+    ask_collision_policy "$collisions" policy || {
+      tui_skip "skills left alone"
+      return 1
+    }
+  fi
+
+  mkdir -p "$skills_dest" || die "Could not create $(tui_path "$skills_dest")"
+
+  install_entries "$skills_src" "$skills_dest" "$mode" "$policy" || return 1
+  prune_owned_entries "$skills_dest" "$(entry_names "$skills_src")" "$skills_src"
 }
 
 # Installs the pi coding agent and skills.

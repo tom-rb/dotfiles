@@ -26,15 +26,16 @@
       "ShareOnboardingGuide",
       "mcp__ide__executeCode",
       "mcp__ide__getDiagnostics"
-    ]
+    ],
+    "defaultMode": "auto"
   },
   "disableArtifact": true,
   "disableClaudeAiConnectors": true,
   "disableWorkflows": true,
   "includeGitInstructions": false,
+  "spinnerTipsEnabled": false,
   "awaySummaryEnabled": false,
   "autoMemoryEnabled": false,
-  "spinnerTipsEnabled": false,
   "switchModelsOnFlag": false,
   "disableRemoteControl": false,
   "remoteControlAtStartup": false,

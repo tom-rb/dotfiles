@@ -26,6 +26,13 @@ _given_settings() {
   printf '%s\n' "$1" > "$CLAUDE_CONFIG_DIR/settings.json"
 }
 
+# Stage $1 as the answers to come, for `... < "$KEYS"`. printf interprets
+# backslash escapes, so '\n' is the Enter that means "take the default".
+_given_keystrokes() {
+  KEYS="${SHUNIT_TMPDIR:?}/keystrokes"
+  printf '%b' "${1:?}" > "$KEYS"
+}
+
 #
 # report_claude_install
 #
@@ -250,6 +257,121 @@ test_install_settings_dies_when_the_merge_fails() {
 }
 
 #
+# install_claude_skills_and_rules
+#
+# utils/test_skills.sh proves how the installer links, copies, backs up and
+# prunes. These tests cover the wiring this module adds: which sources reach
+# which destination, and that pi's skills are among them.
+#
+
+test_skills_step_installs_the_repos_own_skills_and_rules() {
+  _given_keystrokes '\n'
+
+  quietly install_claude_skills_and_rules < "$KEYS"
+  assertTrue "A clean machine is not an error" $?
+
+  assertEquals "$DOTFILES/claude/skills/rate-limit-status" \
+    "$(readlink "$CLAUDE_CONFIG_DIR/skills/rate-limit-status")"
+  assertEquals "$DOTFILES/claude/rules/md.md" \
+    "$(readlink "$CLAUDE_CONFIG_DIR/rules/md.md")"
+}
+
+# Claude Code does not read ~/.agents/skills, so pi's skills only reach it
+# through this module.
+test_skills_step_installs_pi_skills_into_claudes_own_directory() {
+  _given_keystrokes '\n'
+
+  quietly install_claude_skills_and_rules < "$KEYS"
+
+  assertEquals "$DOTFILES/pi/skills/ste-writing" \
+    "$(readlink "$CLAUDE_CONFIG_DIR/skills/ste-writing")"
+}
+
+test_skills_step_copies_when_the_second_option_is_chosen() {
+  _given_keystrokes '2'
+
+  quietly install_claude_skills_and_rules < "$KEYS"
+
+  assertFalse "A copy is not a link" \
+    "[ -L \"$CLAUDE_CONFIG_DIR/skills/rate-limit-status\" ]"
+  assertTrue "The skill should still be there" \
+    "[ -f \"$CLAUDE_CONFIG_DIR/skills/rate-limit-status/SKILL.md\" ]"
+}
+
+# A quit at the mode question leaves the directories untouched and reports the
+# step as unfinished. It does not silently do what the user declined.
+test_skills_step_reports_a_quit_and_writes_nothing() {
+  _given_keystrokes 'q'
+
+  quietly install_claude_skills_and_rules < "$KEYS"
+
+  assertFalse "A declined step has not run" $?
+  assertFalse "Nothing should be written" "[ -d \"$CLAUDE_CONFIG_DIR/skills\" ]"
+}
+
+test_skills_step_asks_once_for_collisions_across_skills_and_rules() {
+  mkdir -p "$CLAUDE_CONFIG_DIR/skills/rate-limit-status" "$CLAUDE_CONFIG_DIR/rules"
+  : > "$CLAUDE_CONFIG_DIR/rules/md.md"
+  # Enter for the mode, then Enter for one collision question that covers both
+  # roots.
+  _given_keystrokes '\n\n'
+
+  output=$(install_claude_skills_and_rules < "$KEYS")
+
+  assertTrue "The install should finish" $?
+  assertContains "Should name the colliding skill" "$output" "skills/rate-limit-status"
+  assertContains "Should name the colliding rule" "$output" "rules/md.md"
+  assertTrue "The skill should be backed up" \
+    "[ -d \"$CLAUDE_CONFIG_DIR/skills.bkp/rate-limit-status\" ]"
+  assertTrue "The rule should be backed up" \
+    "[ -f \"$CLAUDE_CONFIG_DIR/rules.bkp/md.md\" ]"
+}
+
+# Two sources feed ~/.claude/skills. A name in both would make each install undo
+# the other, and file a backup of the loser on every deploy.
+test_skills_step_stops_when_both_sources_ship_the_same_name() {
+  createSpy -u -o "shared" duplicate_entry_names
+  _given_keystrokes '\n'
+
+  output=$( (install_claude_skills_and_rules < "$KEYS") 2>&1 )
+
+  assertFalse "A packaging mistake should stop the deploy" $?
+  assertContains "Should name the entry shipped twice" "$output" "shared"
+  assertFalse "And write nothing" "[ -d \"$CLAUDE_CONFIG_DIR/skills\" ]"
+}
+
+# The prune must also cover the case where the repo drops everything. If it does
+# not, the last links stay behind and point at sources that are gone.
+test_skills_step_prunes_when_the_repo_ships_nothing() {
+  _given_keystrokes '\n'
+  quietly install_claude_skills_and_rules < "$KEYS"
+  createSpy -u -o "" entry_names
+
+  output=$(install_claude_skills_and_rules)
+
+  assertTrue "Nothing to install is not an error" $?
+  assertContains "Should say there was nothing to install" "$output" "No skills or rules"
+  assertFalse "The link it made should be taken back" \
+    "[ -L \"$CLAUDE_CONFIG_DIR/skills/rate-limit-status\" ]"
+  assertFalse "Rules too" "[ -L \"$CLAUDE_CONFIG_DIR/rules/md.md\" ]"
+}
+
+test_skills_step_prunes_only_what_this_repo_installed() {
+  _given_keystrokes '\n'
+  quietly install_claude_skills_and_rules < "$KEYS"
+  ln -s "$DOTFILES/claude/skills/dropped" "$CLAUDE_CONFIG_DIR/skills/dropped"
+  ln -s ../../.agents/skills/handoff "$CLAUDE_CONFIG_DIR/skills/handoff"
+
+  _given_keystrokes '\n'
+  quietly install_claude_skills_and_rules < "$KEYS"
+
+  assertFalse "A link to a skill the repo dropped goes" \
+    "[ -L \"$CLAUDE_CONFIG_DIR/skills/dropped\" ]"
+  assertTrue "A link the user made stays" \
+    "[ -L \"$CLAUDE_CONFIG_DIR/skills/handoff\" ]"
+}
+
+#
 # install_claude_wizard
 #
 
@@ -260,7 +382,20 @@ test_wizard_delegates_step_list_to_wizard_run() {
   install_claude_wizard
 
   assertCalledOnceWith wizard_run -- report_claude_install \
-    ensure_python3_installed install_claude_settings
+    ensure_python3_installed install_claude_settings install_claude_skills_and_rules
+}
+
+test_wizard_skips_the_skills_when_the_settings_step_fails() {
+  createSpy -u report_claude_install
+  createSpy -u ensure_python3_installed
+  createSpy -u -r "$SHUNIT_FALSE" install_claude_settings
+  createSpy -u install_claude_skills_and_rules
+
+  # shellcheck disable=SC2119
+  install_claude_wizard
+
+  assertFalse "Wizard should fail when the settings step fails" $?
+  assertNeverCalled install_claude_skills_and_rules
 }
 
 test_wizard_skips_the_settings_when_python3_cannot_be_installed() {
