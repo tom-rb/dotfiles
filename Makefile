@@ -21,6 +21,7 @@ help:
 	@echo ""
 	@echo "Options:"
 	@echo "   DEBUG=1                Show verbose outputs during builds and tests"
+	@echo "   JOBS=N                 Run N system test cases at once (default 3)"
 	@echo "   PTY=0                  Run system tests on piped stdin, not a terminal"
 	@echo "   PTY_SETTLE_SECONDS=N   Wait longer before each scripted keystroke"
 

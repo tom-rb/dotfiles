@@ -26,6 +26,15 @@ if [ $# -lt 1 ]; then
   exit 1
 fi
 
+# Refuse a test file that cannot be executed, naming the missing bit rather than
+# leaving it to surface as a bare "Permission denied". Kept in step with the
+# same check in run_system_test.sh.
+for test_file in "$@"; do
+  [ -f "$test_file" ] || { printf 'No such test file: %s\n' "$test_file" >&2; exit 1; }
+  [ -x "$test_file" ] ||
+    { printf 'Test file is not executable: %s\n' "$test_file" >&2; exit 1; }
+done
+
 #
 # Run tests
 #

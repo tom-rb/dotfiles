@@ -65,7 +65,22 @@ pty_run() {
     pid=$!
     # The marker matters: script exits 0 when it is killed, so without it a
     # timed-out run is indistinguishable from a passing one.
-    ( sleep "$PTY_TIMEOUT_SECONDS"; kill "$pid" 2>/dev/null && : >"$dir/timeout" ) &
+    # Two details keep the watchdog from costing a full timeout on every call.
+    # Its stdout must not be this function's: callers read pty_run through a
+    # command substitution, which waits for every writer to close the pipe, so
+    # a `sleep` inheriting it stalls the caller long after the command left.
+    # And it polls for the command instead of sleeping through the timeout in
+    # one go, so it retires with the run rather than outliving it and firing
+    # `kill` at whatever inherited the pid by then.
+    (
+      waited=0
+      while [ "$waited" -lt "$PTY_TIMEOUT_SECONDS" ]; do
+        kill -0 "$pid" 2>/dev/null || exit 0
+        sleep 1
+        waited=$((waited + 1))
+      done
+      kill "$pid" 2>/dev/null && : >"$dir/timeout"
+    ) >/dev/null 2>&1 &
     watchdog=$!
 
     # PIPE is ignored while feeding so a command that exits early fails the
