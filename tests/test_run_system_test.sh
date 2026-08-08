@@ -137,6 +137,18 @@ test_run_system_test_fails_when_the_container_exits_non_zero_without_failed() {
   assertFalse "A non-zero container must fail the run on its own" $?
 }
 
+test_run_system_test_lets_a_failing_case_speak_for_itself() {
+  # shunit2 exits non-zero and prints FAILED; the runner adding "exited 1
+  # without reporting a result" on top of that would be contradicting it.
+  _given_a_fake_docker FAILED 1
+
+  output=$("$RUNNER" ubuntu "$FIXTURE_A" 2>&1)
+
+  assertContains "The case's own verdict must show" "$output" "FAILED"
+  assertNotContains "No second, contradictory explanation" \
+    "$output" "without reporting a result"
+}
+
 test_run_system_test_fails_when_the_command_cannot_be_executed() {
   # 126 is what a test file without its executable bit surfaces as.
   _given_a_fake_docker '' 126
