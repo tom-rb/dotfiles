@@ -226,6 +226,68 @@ test_run_system_test_refuses_a_test_file_without_its_executable_bit() {
   assertContains "The message must name the file" "$output" "$FIXTURE_A"
 }
 
+#
+# A run that plans nothing is the same silent pass by another route.
+#
+
+test_run_system_test_fails_when_the_filter_matches_no_case() {
+  _given_a_fake_docker
+
+  output=$("$RUNNER" -t it_no_such_case ubuntu "$FIXTURE_A" 2>&1)
+  status=$?
+
+  assertFalse "A filter that matched nothing is not a pass" $status
+  assertContains "The message must name the case that was asked for" \
+    "$output" "it_no_such_case"
+}
+
+test_run_system_test_fails_when_a_file_defines_no_cases() {
+  _given_a_fake_docker
+  printf '# nothing here\n' > "$FIXTURE_A"
+  chmod +x "$FIXTURE_A"
+
+  output=$("$RUNNER" ubuntu "$FIXTURE_A" 2>&1)
+  status=$?
+
+  assertFalse "A file with no cases is not a pass" $status
+  assertContains "The message must say why" "$output" "No test cases found"
+}
+
+#
+# JOBS decides how many cases are in flight; a pool of nought hands out no
+# tokens, so every worker would wait on one forever.
+#
+
+test_run_system_test_refuses_a_job_count_of_zero() {
+  _given_a_fake_docker
+
+  output=$(JOBS=0 "$RUNNER" ubuntu "$FIXTURE_A" 2>&1)
+  status=$?
+
+  assertFalse "JOBS=0 must be refused, not hang" $status
+  assertContains "The message must name the offending value" "$output" "JOBS"
+}
+
+test_run_system_test_refuses_a_job_count_that_is_not_a_number() {
+  _given_a_fake_docker
+
+  output=$(JOBS=abc "$RUNNER" ubuntu "$FIXTURE_A" 2>&1)
+  status=$?
+
+  assertFalse "A non-numeric JOBS must be refused" $status
+  assertContains "The message must name the offending value" "$output" "abc"
+}
+
+test_run_system_test_keeps_case_output_on_stderr() {
+  _given_a_fake_docker
+
+  # Only the runner's own file headings belong on stdout; a caller separating
+  # the streams to surface failures needs the cases themselves on stderr.
+  output=$("$RUNNER" ubuntu "$FIXTURE_A" 2>&1 1>/dev/null)
+
+  assertContains "Case output belongs on stderr" "$output" "case it_alpha ran"
+}
+
 test_run_system_test_refuses_a_test_file_that_does_not_exist() {
   _given_a_fake_docker
 

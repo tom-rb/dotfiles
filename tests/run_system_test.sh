@@ -17,6 +17,11 @@ readonly THISDIR
 # builds tmux from source already asks four cores of it. JOBS=1 runs the suite
 # one case at a time.
 : "${JOBS:=3}"
+# A pool of nought hands out no tokens and every worker waits on one forever,
+# so refuse anything that is not a positive whole number rather than hang.
+case "${JOBS}" in
+  *[!0-9]* | '' | 0) printf 'JOBS must be a positive integer, got: %s\n' "${JOBS}" >&2; exit 1 ;;
+esac
 
 # Field separator for plan records. ASCII FS is not whitespace, so `read` keeps
 # the empty fields instead of collapsing them away.
@@ -49,23 +54,30 @@ get_test_image_annotation() {
 #
 
 # $1: image  $2: test file  $3: test case  $4: name to give the container
+# $5: where to stash docker's exit status. It belongs to the caller's temp dir
+#     rather than a mktemp of its own, so a case killed before it can tidy up
+#     is swept away with the rest of the run.
 run_test_in_docker() {
-  local image="${1:?}" file="${2:?}" case="${3:?}" name="${4:?}" command
-  local status_file docker_status output_verdict
+  local image="${1:?}" file="${2:?}" case="${3:?}" name="${4:?}"
+  local status_file="${5:?}" command docker_status output_verdict
   command="${file} -- ${case}"
   # Give the test a pseudo-terminal, so anything guarded by [ -t 0 ] runs the
   # same path a human gets. docker's own -t cannot do this: the pipeline below
   # needs docker's stdout to stay a pipe, and -t refuses without a terminal on
   # the host side too.
-  # The session lands in a file that is echoed afterwards rather than going
+  # The session goes to a file that `tail` follows out to stdout, rather than
   # straight out: util-linux 2.30, which amazonlinux-2 ships, exits without
   # draining the pty when its stdout is a pipe, and the tail of the session —
-  # shunit2's summary among it — dies with the container. A file is not racy,
-  # where a settling delay would only make the race less likely. The cost is
-  # that a case's output arrives when it ends rather than as it goes.
-  [ "${PTY}" = "0" ] ||
-    command="script -qec '${command}' /dev/null >/tmp/pty_out 2>&1; rc=\$?; cat /tmp/pty_out; exit \$rc"
-  status_file=$(mktemp) || { echo 'Could not create temporary file' >&2; exit 1; }
+  # shunit2's summary among it — dies with the container. Writing to a file
+  # removes that race outright, where a settling delay would only narrow it.
+  # Following the file rather than echoing it at the end keeps the output live,
+  # which is what a container that gets killed has to show for itself: a case
+  # stopped partway through otherwise reports not one line.
+  [ "${PTY}" = "0" ] || command=": >/tmp/pty_out
+script -qec '${command}' /dev/null >/tmp/pty_out 2>&1 &
+pty_pid=\$!
+tail -f -n +1 --pid=\"\$pty_pid\" /tmp/pty_out
+wait \"\$pty_pid\""
   # Run test case. docker heads the pipeline, so $? afterwards belongs to awk;
   # stash its own status in a file, the way tui_task does. The brace group is a
   # pipeline stage, so the redirection stays confined to that subshell.
@@ -140,6 +152,33 @@ report_run_status() {
 # Scheduling
 #
 
+# Take down everything the current run started. Killing a worker shell does not
+# stop the `docker run` it is blocked on, so the containers are reached by the
+# name they were given rather than through the process tree.
+# $1: the container name prefix for this run
+# $2: the pids of the workers still outstanding, space separated
+# $3: (optional) the run's temp dir, removed when given
+stop_plan() {
+  local prefix="${1:?}" pids="${2:-}" dir="${3:-}" container partial
+  # shellcheck disable=SC2086 # the pids are a deliberate word-split list
+  [ -z "${pids}" ] || kill ${pids} 2>/dev/null
+  for container in $(docker ps -q --filter "name=^${prefix}-" 2>/dev/null); do
+    docker rm -f "${container}" >/dev/null 2>&1
+  done
+  [ -z "${dir}" ] && return 0
+  # Whatever the interrupted cases had said for themselves. The replay loop
+  # deletes each file as it prints it, so what is left is only the part of the
+  # run nobody has seen — and a case killed midway is exactly the one whose
+  # output is worth keeping.
+  for partial in "${dir}"/*.out; do
+    [ -s "${partial}" ] || continue
+    printf '\n> interrupted, output so far:\n' >&2
+    cat "${partial}" >&2
+  done
+  rm -rf "${dir}"
+  return 0
+}
+
 # Run the plan file $1, keeping $JOBS cases in flight, and echo each case's
 # output in plan order as it finishes. A plan is one record per line, five
 # fields separated by ASCII FS: `H..file..` for a file heading, or
@@ -147,30 +186,17 @@ report_run_status() {
 # whitespace in IFS collapses runs of itself, which would eat the empty
 # fields a heading is mostly made of.
 # Returns the last non-zero verdict any case reported, or 0 if all passed.
-# Take down everything the current run started. Killing a worker shell does not
-# stop the `docker run` it is blocked on, so the containers are reached by the
-# name they were given rather than through the process tree.
-# $1: the container name prefix for this run
-# $2: the worker pids, space separated
-stop_plan() {
-  local prefix="${1:?}" pids="${2:-}" container
-  # shellcheck disable=SC2086 # the pids are a deliberate word-split list
-  [ -z "${pids}" ] || kill ${pids} 2>/dev/null
-  for container in $(docker ps -q --filter "name=^${prefix}-" 2>/dev/null); do
-    docker rm -f "${container}" >/dev/null 2>&1
-  done
-  return 0
-}
-
 run_plan() {
-  local plan="${1:?}" dir slots_taken status prefix workers
+  local plan="${1:?}" dir slots_taken status prefix workers remaining worker
   local kind idx file case image pid rc
   status=0
-  workers=''
+  # Both are named before the trap that reads them, so an interrupt landing
+  # between here and the first container still finds something defined.
+  workers='' dir=''
   # Names the containers of this run and no other, so an interrupt can find
   # them without disturbing a suite running alongside it.
   prefix="dotfiles-test-$$"
-  trap 'stop_plan "${prefix}" "${workers}"; exit 130' INT TERM
+  trap 'stop_plan "${prefix}" "${workers}" "${dir}"; exit 130' INT TERM
   dir=$(mktemp -d) || { echo 'Could not create temporary directory' >&2; exit 1; }
   # One token per slot on a fifo: a worker takes one before it starts and puts
   # it back when it is done, which caps what is in flight without the parent
@@ -193,7 +219,7 @@ run_plan() {
       # early would shrink the pool for the rest of the run.
       trap 'printf "\n" >&9' EXIT
       run_test_in_docker "${image}" "${file}" "${case}" "${prefix}-${idx}" \
-        >"${dir}/${idx}.out" 2>&1
+        "${dir}/${idx}.status" >"${dir}/${idx}.out" 2>&1
       echo $? >"${dir}/${idx}.rc"
     ) &
     echo $! >"${dir}/${idx}.pid"
@@ -210,7 +236,18 @@ run_plan() {
     fi
     read -r pid <"${dir}/${idx}.pid"
     wait "${pid}"
-    cat "${dir}/${idx}.out"
+    # Case output went to stderr before the pool existed, and downstream that
+    # separates the streams to surface only failures still expects it there.
+    cat "${dir}/${idx}.out" >&2
+    # Printed, so an interrupt later has no reason to print it again.
+    rm -f "${dir}/${idx}.out"
+    # Drop the reaped worker: an interrupt arriving later must not signal a pid
+    # the system has since handed to somebody else.
+    remaining=''
+    for worker in ${workers}; do
+      [ "${worker}" = "${pid}" ] || remaining="${remaining} ${worker}"
+    done
+    workers="${remaining}"
     # A missing file means the worker died before it could record a verdict,
     # which is a failure like any other.
     rc=$(cat "${dir}/${idx}.rc" 2>/dev/null)
@@ -283,6 +320,18 @@ while [ $# -gt 0 ]; do
       "${PLAN_FS}" "${test_case}" "${PLAN_FS}" "${image}" >>"$plan"
   done
 done
+
+# A plan with nothing in it would sail through as a pass, which is the failure
+# this runner exists to refuse: a mistyped -t, or a file that defines no cases,
+# should not read the same as a suite that ran and was happy.
+if [ "${case_index}" -eq 0 ]; then
+  if [ -n "${filter_case}" ]; then
+    printf 'No test case named %s in the given files\n' "${filter_case}" >&2
+  else
+    echo 'No test cases found in the given files' >&2
+  fi
+  exit 1
+fi
 
 # Exits with 0 only if all tests passed
 run_plan "$plan"
