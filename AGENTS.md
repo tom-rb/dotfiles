@@ -4,6 +4,8 @@ This repo is a portable dotfiles setup organized as self-contained, per-tool mod
 
 Shared utilities live in `utils/utils.sh` and are sourced by other scripts. Test infrastructure (shunit2, shpy mocks, Dockerfiles) lives in `tests/`.
 
+`lifecycle/` is **not a module** and has no `install_lifecycle.sh`. It holds the code behind the top-level entry points — what `deploy.sh` needs that no module does — plus the tests for both it and `deploy.sh` itself. A file belongs in `utils/` only if a module might plausibly want it, since `utils/utils.sh` is loaded by every module installer.
+
 Scripts are written in POSIX `sh`, not bash. They respect XDG directories.
 
 ## Testing

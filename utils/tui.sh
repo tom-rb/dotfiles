@@ -360,13 +360,22 @@ press_any_key() {
 
 # Ask for user confirmation with a keystroke
 # -n: Make default answer be NO
+# -k KEY: name this prompt's answer, so a run can replay it. When
+#         $DOTFILES_ANSWERS records KEY the prompt is not asked at all and stdin
+#         is left untouched. Needs lifecycle/deploy_profile.sh sourced, which
+#         only deploy.sh does — an unkeyed call works without it.
 # $1: (optional) Confirmation message
 confirm() {
-  local c message out_code
-  if [ "$1" != '-n' ]
-    then message=$1 out_code=0
-    else message=$2 out_code=1
-  fi
+  local c message out_code key recorded
+  key='' out_code=0
+  while : ; do
+    case "$1" in
+      -n) out_code=1; shift ;;
+      -k) key=${2:?}; shift 2 ;;
+      *)  break ;;
+    esac
+  done
+  message=$1
   # Remove trailing whitespace characters
   message="${message%"${message##*[![:space:]]}"}"
   message="${message:-Continue?}"
@@ -374,6 +383,14 @@ confirm() {
     then message="$message  [Y/n] "
     else message="$message  [y/N] "
   fi
+  # A recorded answer skips the keystroke, but still renders the line the way an
+  # answered prompt looks, so a replayed run reads like a run someone sat through.
+  if [ -n "$key" ] && recorded=$(answer_for "$key"); then
+    printf '  %s?%s %s%s\n' "$_TUI_BOLD" "$_TUI_RESET" "$message" "$recorded"
+    [ "$recorded" = 'y' ]
+    return
+  fi
+
   printf '  %s?%s %s' "$_TUI_BOLD" "$_TUI_RESET" "$message"
   while : ; do
     if ! c=$(read_char); then
@@ -381,12 +398,17 @@ confirm() {
       die "Aborted: input ended while asking \"$message\""
     fi
     case "$c" in
-      [nN]) echo "$c"; return 1;;
-      [yY]) echo "$c"; return 0;;
-      "")   [ $out_code -eq 0 ] && echo 'y' || echo 'n'
-            return $out_code;;
-      *)    echo ' Choose y or n.';;
+      [nN]) echo "$c"; c=n;;
+      [yY]) echo "$c"; c=y;;
+      "")   [ $out_code -eq 0 ] && c=y || c=n
+            echo "$c";;
+      *)    echo ' Choose y or n.'; continue;;
     esac
+    # Guarded here rather than left to record_answer's own no-op, since most
+    # callers never source lifecycle/deploy_profile.sh at all.
+    [ -z "$key" ] || record_answer "$key" "$c"
+    [ "$c" = 'y' ]
+    return
   done
 }
 

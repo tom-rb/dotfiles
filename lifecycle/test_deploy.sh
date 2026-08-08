@@ -11,6 +11,10 @@ setUp() {
   # Source deploy.sh with a defined DOTFILES path
   DOTFILES="$(CDPATH='' cd -- "$THISDIR/.." >/dev/null && pwd -P)" \
     dotfiles_dont_run=1 . "$THISDIR/../deploy.sh"
+  # Keep the deploy profile these tests write inside the temp dir
+  # shellcheck disable=SC2034 # read by the deploy.sh sourced above
+  XDG_STATE_HOME=${SHUNIT_TMPDIR:?}/state
+  DOTFILES_ANSWERS=''
 }
 
 tearDown() {
@@ -123,6 +127,227 @@ test_deploy_wizard_keeps_module_numbers_when_zsh_declined() {
   # zimfw and asdf were never offered, but tmux keeps its own position.
   assertContains "Expected tmux to keep its position" "$message" "▸ tmux  (4/7)"
   assertNotContains "zimfw was not offered" "$message" "▸ zimfw"
+}
+
+#
+# Deploy profile
+#
+
+# Run the wizard in a subshell so a die inside cannot take the test runner with
+# it, feeding stdin from a file rather than a pipe. The spies record to files, so
+# they are still readable afterwards, as is the profile the run writes.
+# $1: (optional) keystrokes to answer with, escapes interpreted
+_deploy_with() {
+  printf '%b' "${1:-}" > "${SHUNIT_TMPDIR:?}/answers"
+  ( deploy_wizard ) < "$SHUNIT_TMPDIR/answers" > "$SHUNIT_TMPDIR/output" 2>&1
+}
+
+_deploy_output() {
+  cat "${SHUNIT_TMPDIR:?}/output" 2>/dev/null
+}
+
+_saved_profile() {
+  cat "$(get_deploy_profile_path)" 2>/dev/null
+}
+
+# Writes $1 as the profile a previous deploy would have left behind.
+_given_saved_profile() {
+  local path
+  path=$(get_deploy_profile_path)
+  mkdir -p "${path%/*}"
+  printf '%s\n' "${1:?}" > "$path"
+}
+
+# Nobody has said what to run, so the last deploy's answers stand in.
+test_deploy_wizard_replays_the_saved_profile() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u start_module_wizard
+  createSpy -u activate_asdf
+
+  _given_saved_profile 'zsh=y
+zimfw=n
+asdf=n
+tmux=y
+git=n
+pi=n
+claude=n'
+  unset DOTFILES_ANSWERS
+  _deploy_with
+
+  assertCallCount start_module_wizard 2
+  assertCalledWith start_module_wizard zsh
+  assertCalledWith start_module_wizard tmux
+}
+
+# Every question answering itself is startling if you do not know a profile
+# exists, and there is no way to guess how to get the questions back. Say both,
+# once, only on a run that actually replayed something.
+test_deploy_wizard_says_where_the_replayed_answers_came_from() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u start_module_wizard
+  createSpy -u activate_asdf
+
+  _given_saved_profile 'zsh=n
+zimfw=n
+asdf=n
+tmux=n
+git=n
+pi=n
+claude=n'
+  unset DOTFILES_ANSWERS
+  _deploy_with
+
+  assertContains "should name the profile it replayed" \
+    "$(_deploy_output)" "$(get_deploy_profile_path)"
+  assertContains "should say how to answer again" \
+    "$(_deploy_output)" "DOTFILES_ANSWERS=''"
+}
+
+test_deploy_wizard_says_nothing_about_a_profile_it_did_not_replay() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u start_module_wizard
+  createSpy -u activate_asdf
+
+  _deploy_with 'nnnnnnn'
+
+  assertNotContains "a first run has nothing to explain" \
+    "$(_deploy_output)" "DOTFILES_ANSWERS=''"
+}
+
+# A map that is set, even to nothing, is the caller's word and outranks the
+# profile — which is how `dotfiles deploy` asks for a fresh interview.
+test_deploy_wizard_asks_everything_when_handed_an_empty_map() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u start_module_wizard
+  createSpy -u activate_asdf
+
+  _given_saved_profile 'zsh=y
+zimfw=y
+asdf=y
+tmux=y
+git=y
+pi=y
+claude=y'
+  DOTFILES_ANSWERS=''
+  _deploy_with 'nnnnn'
+
+  assertCallCount start_module_wizard 0
+}
+
+test_deploy_wizard_runs_exactly_the_modules_the_profile_records() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u start_module_wizard
+  createSpy -u activate_asdf
+
+  DOTFILES_ANSWERS='zsh=y zimfw=n asdf=n tmux=y git=n pi=n claude=y'
+  # No keystrokes at all: every question is already answered.
+  _deploy_with
+
+  assertCallCount start_module_wizard 3
+  assertCalledWith start_module_wizard zsh
+  assertCalledWith start_module_wizard tmux
+  assertCalledWith start_module_wizard claude
+}
+
+test_deploy_wizard_saves_the_answers_it_was_given() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u start_module_wizard
+  createSpy -u activate_asdf
+
+  # Accept everything, one keystroke per prompt.
+  _deploy_with 'yyyyyyy'
+
+  assertEquals 'zsh=y
+zimfw=y
+asdf=y
+tmux=y
+git=y
+pi=y
+claude=y' "$(_saved_profile)"
+}
+
+# A pull can add a module the profile predates. That module's question is the
+# one thing an otherwise replayed run still asks, and the answer joins the
+# profile so it is only ever asked once.
+test_deploy_wizard_asks_about_a_module_the_profile_predates() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u start_module_wizard
+  createSpy -u activate_asdf
+
+  DOTFILES_ANSWERS='zsh=y zimfw=n asdf=n tmux=n git=n pi=n'
+  # One keystroke, for the one unanswered question.
+  _deploy_with 'y'
+
+  # assertCalledWith walks the invocations in order, so zsh comes first.
+  assertCallCount start_module_wizard 2
+  assertCalledWith start_module_wizard zsh
+  assertCalledWith start_module_wizard claude
+  assertContains "the new answer should join the profile" \
+    "$(_saved_profile)" 'claude=y'
+}
+
+# Answers, not outcomes. Recording what succeeded would turn one bad network day
+# into a permanently shrunken install.
+test_deploy_wizard_records_a_module_that_failed() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u -r "$SHUNIT_FALSE" start_module_wizard
+  createSpy -u activate_asdf
+
+  # zsh is accepted and fails, which takes zimfw and asdf off the table; the
+  # four questions after it are still asked.
+  _deploy_with 'yyyyy'
+
+  assertContains "a module that failed is still what was asked for" \
+    "$(_saved_profile)" 'zsh=y'
+}
+
+# The profile is a record, not a request. A key it holds for a module the repo
+# no longer ships is drift, and refusing to deploy over it would strand every
+# user who already has a profile behind an upstream rename.
+test_deploy_wizard_drops_a_profile_key_for_a_module_that_is_gone() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u start_module_wizard
+  createSpy -u activate_asdf
+
+  # `nvim` is a module this repo has since renamed or dropped: the profile still
+  # holds an answer for it, and no prompt in the run claims it.
+  _given_saved_profile 'zsh=y
+nvim=y'
+  unset DOTFILES_ANSWERS
+  # zsh replays; the six modules that do exist are still asked about.
+  _deploy_with 'nnnnnn'
+
+  assertTrue "a module that is gone should not stop the run" $?
+  assertCallCount start_module_wizard 1
+  assertCalledWith start_module_wizard zsh
+  assertContains "should say which answer it dropped" "$(_deploy_output)" 'nvim'
+  assertNotContains "the dropped key should not be written back" \
+    "$(_saved_profile)" 'nvim'
+}
+
+# A map handed in by a caller is a request, and a key no prompt claims can only
+# be a typo — which stays fatal, unlike the drift above.
+test_deploy_wizard_refuses_a_map_with_a_key_no_prompt_claims() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u start_module_wizard
+  createSpy -u activate_asdf
+
+  DOTFILES_ANSWERS='zsh=y tmxu=n'
+  output=$(deploy_wizard < /dev/null 2>&1)
+
+  assertFalse "an unknown key should stop the run" $?
+  assertContains "should name the offending key" "$output" 'tmxu'
+  assertCallCount start_module_wizard 0
 }
 
 test_deploy_wizard_ends_with_epilogue() {
@@ -269,8 +494,8 @@ test_deploy_wizard_dies_if_basic_packages_fail() {
 }
 
 # Run tests
-SHPY_PATH="$THISDIR/shpy"
+SHPY_PATH="$THISDIR/../tests/shpy"
 export SHPY_PATH
-. "$THISDIR/shpy"
-. "$THISDIR/shpy-shunit2"
-. "$THISDIR/shunit2"
+. "$THISDIR/../tests/shpy"
+. "$THISDIR/../tests/shpy-shunit2"
+. "$THISDIR/../tests/shunit2"

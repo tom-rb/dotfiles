@@ -6,6 +6,14 @@ This file is the glossary for the dotfiles repo. When code or docs name a concep
 
 A per-tool slice of the repo — `git/`, `tmux/`, `zsh/`, `zimfw/`, `asdf/`, plus shared infrastructure under `utils/`. A module owns its configuration files, its install script, and its tests. Modules are self-contained: they source `utils/utils.sh` for shared helpers and otherwise know nothing about each other.
 
+## Lifecycle directory
+
+`lifecycle/` — **not a [[Module]]**, and deliberately has no `install_lifecycle.sh`. It holds the code behind the repo's top-level entry points: what `deploy.sh` (and later `update.sh`) needs that no module does. `lifecycle/deploy_profile.sh` is the first tenant, along with the tests for both it and `deploy.sh` itself.
+
+The distinction from `utils/` is who pays for it. Everything in `utils/` is sourced by `utils/utils.sh`, which every module installer loads — so a file belongs there only if a module might plausibly want it. The deploy profile is used by exactly one caller, and lives here so `install_tmux.sh` does not carry it.
+
+One consequence: `confirm -k` in `utils/tui.sh` reaches for `answer_for` and `record_answer`, which are *not* loaded in a module installer. Both calls are guarded, so an unkeyed `confirm` works everywhere and `-k` only functions where `deploy_profile.sh` has been sourced.
+
 ## Wizard
 
 The user-facing install flow for a module, exposed as `install_<module>_wizard` and triggered by `sh <module>/install_<module>.sh --wizard`. A wizard is a list of [[Wizard step]]s composed by the [[Wizard runner]] into an `&&`-chain, with `-y` accepting default answers for every interactive prompt. The per-module `install_<module>_wizard` function is the adapter: it names the step list, the runner does everything else.
@@ -54,6 +62,20 @@ The split is by trait, not convention:
 
 - **Inline** when the content is short, stable, and would otherwise create a lockstep between the sh-side install helpers and a zsh-side runtime file (the two layers must agree on default paths). Inlining makes the install script the single source of truth and saves one file source on every zsh startup. Cost: edits only take effect after re-running the wizard.
 - **Source** when the content is substantial, has its own dev cycle (edit-and-reload), or defines functions/aliases users iterate on. The repo file can be edited live without re-running the installer.
+
+## Deploy profile
+
+The answers a `deploy.sh` run was given, recorded at `$(xdg_state_home)/dotfiles/profile` so a later run can replay them instead of asking again. **Answers, not outcomes**: a module the user said yes to stays in the profile even when its install failed, so the next run retries it rather than dropping it forever. State, not config — a record of what deploy was told, not a file to hand-edit; `deploy.sh` rewrites it at the end of every run that reaches the end, and a run that dies partway leaves the previous profile intact.
+
+In memory the profile is `$DOTFILES_ANSWERS`, a space-separated `key=y|n` map that can also be set by hand for a canned run. The variable outranks the file: `deploy.sh` loads the profile only when `DOTFILES_ANSWERS` is *unset*, so a caller that sets it — even to empty — gets the run it asked for. An empty map is how a caller asks for a fresh interview. `lifecycle/deploy_profile.sh` owns both halves.
+
+## Answer key
+
+The name a prompt carries so a [[Deploy profile]] can address its answer by name rather than by position, passed as `confirm -k <key>`. Only prompts that are *deployment choices* get one — the module questions in `deploy.sh`. A prompt about the state of this machine right now ([[First-time placement]], a version clash, a backup choice) stays unkeyed and is always asked, because replaying it would answer a question about a file nobody has looked at yet.
+
+A recorded answer short-circuits the prompt without reading stdin, and still prints the line as an answered prompt so a replayed run reads like one somebody sat through. An unrecorded key falls through to stdin, which is how a module added upstream after the profile was written gets asked about exactly once.
+
+A key that no prompt claims is treated by where the map came from. In a map a *caller* supplied it is a typo and is fatal (`validate_answers`), because honouring the rest of it would produce a run quietly different from the one asked for. In a map read back from the *profile* it is drift — the repo renamed or dropped that module — so it is discarded with a warning (`drop_unknown_answers`) rather than stranding everyone who has a profile behind an upstream rename.
 
 ## XDG paths module
 

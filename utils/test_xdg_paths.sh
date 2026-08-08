@@ -13,7 +13,8 @@ setUp() {
   . "$THISDIR/xdg_paths.sh"
   HOME=${SHUNIT_TMPDIR:?}/home
   mkdir -p "$HOME"
-  unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME ZDOTDIR ZIM_HOME CLAUDE_CONFIG_DIR
+  unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME \
+    ZDOTDIR ZIM_HOME CLAUDE_CONFIG_DIR
 }
 
 tearDown() {
@@ -52,6 +53,15 @@ test_xdg_cache_home_honors_env_override() {
   assertEquals "/custom/cache" "$(xdg_cache_home)"
 }
 
+test_xdg_state_home_defaults_to_local_state() {
+  assertEquals "$HOME/.local/state" "$(xdg_state_home)"
+}
+
+test_xdg_state_home_honors_env_override() {
+  XDG_STATE_HOME=/custom/state
+  assertEquals "/custom/state" "$(xdg_state_home)"
+}
+
 #
 # Tool-path helpers
 #
@@ -86,6 +96,15 @@ test_get_tmux_plugins_dir_defaults_to_xdg_data_tmux_plugins() {
 test_get_tmux_plugins_dir_follows_xdg_data_home_override() {
   XDG_DATA_HOME=/custom/data
   assertEquals "/custom/data/tmux/plugins" "$(get_tmux_plugins_dir)"
+}
+
+test_get_deploy_profile_path_defaults_to_xdg_state_dotfiles() {
+  assertEquals "$HOME/.local/state/dotfiles/profile" "$(get_deploy_profile_path)"
+}
+
+test_get_deploy_profile_path_follows_xdg_state_home_override() {
+  XDG_STATE_HOME=/custom/state
+  assertEquals "/custom/state/dotfiles/profile" "$(get_deploy_profile_path)"
 }
 
 test_get_claude_config_dir_defaults_to_dot_claude() {

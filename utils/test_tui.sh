@@ -10,11 +10,18 @@ oneTimeSetUp() {
 
 setUp() {
   . "$THISDIR/utils.sh"
+  # confirm -k reads and writes the answer map, which lives outside utils/ and is
+  # sourced only by deploy.sh. Sourcing it here also restores the functions a
+  # test may have unset to check confirm without it.
+  . "$THISDIR/../lifecycle/deploy_profile.sh"
   # `DEBUG=1 tui_task …` is a variable-assignment prefix on a *function* call,
   # which POSIX leaves unspecified: dash drops it afterwards, bash in sh mode
   # keeps it for the rest of the shell. Clear it here so a DEBUG test cannot
   # leak into the ones that follow.
   DEBUG=''
+  # Same reasoning: confirm consults this map, and a test that sets it must not
+  # answer the prompts of the tests after it.
+  DOTFILES_ANSWERS=''
 }
 
 tearDown() {
@@ -167,6 +174,98 @@ test_confirm_echoes_right_inputs() {
 test_confirm_write_y_for_enter() {
   message=$(echo '' | confirm)
   assertEquals "y" "${message##*[!y]}"
+}
+
+#
+# confirm -k (recorded answers)
+#
+
+test_confirm_answers_from_the_map_without_reading_stdin() {
+  DOTFILES_ANSWERS='zimfw=n zsh=y'
+  # stdin says no. The recorded yes has to win, which it only can if the
+  # keystroke was never read.
+  echo 'n' | confirm -k zsh 'Install zsh?' > /dev/null
+  assertTrue "recorded y should win over stdin" $?
+
+  echo 'y' | confirm -k zimfw 'Install zimfw?' > /dev/null
+  assertFalse "recorded n should win over stdin" $?
+}
+
+# A module added upstream after the profile was written has no recorded answer,
+# so its prompt has to reach the user the way an unkeyed one does.
+test_confirm_asks_when_its_key_is_unrecorded() {
+  DOTFILES_ANSWERS='zsh=y'
+  echo 'n' | confirm -k claude 'Configure claude code?' > /dev/null
+  assertFalse "unrecorded key should read stdin" $?
+
+  DOTFILES_ANSWERS=''
+  echo 'n' | confirm -k zsh 'Install zsh?' > /dev/null
+  assertFalse "empty map should read stdin" $?
+}
+
+# A key is matched whole: `zsh` must not answer for `zsh.default-shell`, nor
+# `sh` for `zsh`.
+test_confirm_does_not_match_a_partial_key() {
+  DOTFILES_ANSWERS='zsh=y'
+  echo 'n' | confirm -k zsh.default-shell 'Set zsh as the default shell?' > /dev/null
+  assertFalse "zsh should not answer for zsh.default-shell" $?
+
+  DOTFILES_ANSWERS='zsh.default-shell=y'
+  echo 'n' | confirm -k zsh 'Install zsh?' > /dev/null
+  assertFalse "zsh.default-shell should not answer for zsh" $?
+}
+
+# Feed stdin from a file rather than a pipe: a pipeline runs confirm in a
+# subshell, where the answer it records could not outlive the prompt.
+# $1: keystrokes, with escapes interpreted so '\n' stands for Enter (an *empty*
+#     file is exhausted input, which confirm treats as fatal — not as Enter)
+# $2+: the command to run
+_answer_with() {
+  printf '%b' "${1?}" > "${SHUNIT_TMPDIR:?}/answer"
+  shift
+  "$@" < "$SHUNIT_TMPDIR/answer" > /dev/null
+}
+
+# An answer given at the prompt joins the map, so a run started from a profile
+# that predates a module writes that module's answer back into it.
+test_confirm_records_the_answer_it_was_given() {
+  _answer_with 'y' confirm -k tmux 'Install tmux?'
+  assertEquals 'tmux=y' "$DOTFILES_ANSWERS"
+}
+
+test_confirm_records_the_default_taken_on_enter() {
+  _answer_with '\n' confirm -n -k pi 'Install pi?'
+  assertEquals 'pi=n' "$DOTFILES_ANSWERS"
+}
+
+test_confirm_adds_its_answer_to_the_answers_already_held() {
+  DOTFILES_ANSWERS='zsh=y git=y'
+  _answer_with 'y' confirm -k tmux 'Install tmux?'
+  assertEquals 'zsh=y git=y tmux=y' "$DOTFILES_ANSWERS"
+}
+
+# An unkeyed prompt is one whose answer is about this machine right now — a
+# backup choice, a version clash. Replaying those is exactly what must not happen.
+test_confirm_leaves_the_map_alone_without_a_key() {
+  DOTFILES_ANSWERS='zsh=y'
+  _answer_with 'n' confirm 'Overwrite it?'
+  assertEquals 'zsh=y' "$DOTFILES_ANSWERS"
+}
+
+# Every module installer calls confirm without a key and without the answer map
+# sourced, so an unkeyed prompt must not reach for it.
+test_confirm_works_without_the_answer_map_sourced() {
+  unset -f answer_for record_answer
+  _answer_with 'y' confirm 'Overwrite it?'
+  assertTrue "an unkeyed prompt should not need the answer map" $?
+}
+
+test_confirm_composes_k_and_n_in_either_order() {
+  message=$(echo '' | confirm -n -k tmux 'Install tmux?')
+  assertEquals "  ? Install tmux?  [y/N] n" "$message"
+
+  message=$(echo '' | confirm -k tmux -n 'Install tmux?')
+  assertEquals "  ? Install tmux?  [y/N] n" "$message"
 }
 
 test_confirm_aborts_when_input_is_exhausted() {
