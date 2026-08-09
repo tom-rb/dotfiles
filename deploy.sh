@@ -100,7 +100,7 @@ deploy_epilogue() {
 # by hand again. Nothing to say on a first run, which has no profile to replay.
 announce_replayed_profile() {
   [ -n "$DOTFILES_ANSWERS" ] || return 0
-  tui_detail "Replaying the answers in $(get_deploy_profile_path)"
+  tui_detail "Replaying the answers in $(tui_path "$(get_deploy_profile_path)")"
   # shellcheck disable=SC2016 # names the invocation, does not run it
   tui_detail 'Run with DOTFILES_ANSWERS='"''"' to answer them again.'
 }
@@ -131,29 +131,29 @@ deploy_wizard() {
   activate_asdf
 
   # zimfw and asdf both depend on zsh dotfiles.
-  if confirm -k zsh "Install zsh?" && run_module zsh; then
-    if confirm -k zimfw "Install zimfw (zsh framework)?"; then
+  if confirm_keyed zsh "Install zsh?" && run_module zsh; then
+    if confirm_keyed zimfw "Install zimfw (zsh framework)?"; then
       run_module zimfw
     fi
-    if confirm -k asdf "Install asdf?"; then
+    if confirm_keyed asdf "Install asdf?"; then
       run_module asdf
       activate_asdf
     fi
   fi
 
-  if confirm -k tmux "Install tmux?"; then
+  if confirm_keyed tmux "Install tmux?"; then
     run_module tmux
   fi
 
-  if confirm -k git "Install git (and default configs)?"; then
+  if confirm_keyed git "Install git (and default configs)?"; then
     run_module git
   fi
 
-  if confirm -k pi "Install pi?"; then
+  if confirm_keyed pi "Install pi?"; then
     run_module pi
   fi
 
-  if confirm -k claude "Configure claude code?"; then
+  if confirm_keyed claude "Configure claude code?"; then
     run_module claude
   fi
 

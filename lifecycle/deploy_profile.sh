@@ -29,8 +29,8 @@ answer_for() {
 }
 
 # Record answer $2 for key $1, replacing any answer already held for it.
-# A caller with no key to record under is a no-op, so an unkeyed prompt leaves
-# the map exactly as it found it.
+# An empty key records nothing. Otherwise it would leave an entry no prompt
+# can claim, which validate_answers would then reject on the next run.
 # $1: answer key (may be empty)
 # $2: y or n
 record_answer() {
@@ -51,12 +51,14 @@ record_answer() {
 }
 
 # True when key $1 is one of the space-separated declared keys $2.
-# Called only from a loop that has already disabled globbing, so it does not
+# Called only from a loop that has already disabled globbing, so this does not
 # disable it again — a nested save-and-restore would restore the wrong state.
-# $1: key; $2: declared keys
+# The key may be empty. An empty one is simply undeclared, so an entry like
+# `=y` reaches the caller's own reporting instead of aborting the shell here.
+# $1: key  $2: declared keys
 _is_declared_key() {
   local key declared candidate
-  key=${1:?} declared=${2:?}
+  key=${1?} declared=${2:?}
   # shellcheck disable=SC2086
   for candidate in $declared; do
     [ "$candidate" = "$key" ] && return 0
@@ -110,6 +112,33 @@ drop_unknown_answers() {
   done
   DOTFILES_ANSWERS=$kept
   [ -z "$reglob" ] || set +f
+}
+
+#
+# Keyed prompts
+#
+
+# Ask a confirmation under the answer key $1. An answer the map already holds
+# is replayed instead of asked, and one given at the prompt joins the map.
+# Everything after the key reaches `confirm` untouched, so the key comes first.
+# $1: answer key
+# $2+: confirm's own flags and message
+confirm_keyed() {
+  local key recorded status
+  key=${1:?}
+  shift
+  if recorded=$(answer_for "$key"); then
+    confirm -a "$recorded" "$@"
+    return
+  fi
+  confirm "$@"
+  status=$?
+  if [ "$status" -eq 0 ]; then
+    record_answer "$key" y
+  else
+    record_answer "$key" n
+  fi
+  return "$status"
 }
 
 #

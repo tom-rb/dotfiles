@@ -360,18 +360,16 @@ press_any_key() {
 
 # Ask for user confirmation with a keystroke
 # -n: Make default answer be NO
-# -k KEY: name this prompt's answer, so a run can replay it. When
-#         $DOTFILES_ANSWERS records KEY the prompt is not asked at all and stdin
-#         is left untouched. Needs lifecycle/deploy_profile.sh sourced, which
-#         only deploy.sh does — an unkeyed call works without it.
+# -a y|n: this prompt is already answered. It renders the line the way an
+#         answered prompt looks and returns that answer, without reading stdin.
 # $1: (optional) Confirmation message
 confirm() {
-  local c message out_code key recorded
-  key='' out_code=0
+  local c message out_code answered
+  answered='' out_code=0
   while : ; do
     case "$1" in
       -n) out_code=1; shift ;;
-      -k) key=${2:?}; shift 2 ;;
+      -a) answered=${2:?}; shift 2 ;;
       *)  break ;;
     esac
   done
@@ -383,11 +381,11 @@ confirm() {
     then message="$message  [Y/n] "
     else message="$message  [y/N] "
   fi
-  # A recorded answer skips the keystroke, but still renders the line the way an
-  # answered prompt looks, so a replayed run reads like a run someone sat through.
-  if [ -n "$key" ] && recorded=$(answer_for "$key"); then
-    printf '  %s?%s %s%s\n' "$_TUI_BOLD" "$_TUI_RESET" "$message" "$recorded"
-    [ "$recorded" = 'y' ]
+  # The one place the answered line is built, so a replayed run cannot drift
+  # from a live one.
+  if [ -n "$answered" ]; then
+    printf '  %s?%s %s%s\n' "$_TUI_BOLD" "$_TUI_RESET" "$message" "$answered"
+    [ "$answered" = 'y' ]
     return
   fi
 
@@ -404,9 +402,6 @@ confirm() {
             echo "$c";;
       *)    echo ' Choose y or n.'; continue;;
     esac
-    # Guarded here rather than left to record_answer's own no-op, since most
-    # callers never source lifecycle/deploy_profile.sh at all.
-    [ -z "$key" ] || record_answer "$key" "$c"
     [ "$c" = 'y' ]
     return
   done

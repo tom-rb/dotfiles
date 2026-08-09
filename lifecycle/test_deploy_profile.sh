@@ -78,6 +78,78 @@ test_the_answer_map_leaves_pathname_expansion_as_it_found_it() {
 }
 
 #
+# Keyed prompts
+#
+
+test_confirm_keyed_answers_from_the_map_without_reading_stdin() {
+  DOTFILES_ANSWERS='zimfw=n zsh=y'
+  # stdin says no. The recorded yes has to win, which it only can if the
+  # keystroke was never read.
+  echo 'n' | confirm_keyed zsh 'Install zsh?' > /dev/null
+  assertTrue "recorded y should win over stdin" $?
+
+  echo 'y' | confirm_keyed zimfw 'Install zimfw?' > /dev/null
+  assertFalse "recorded n should win over stdin" $?
+}
+
+# A module added upstream after the profile was written has no recorded answer,
+# so its prompt has to reach the user the way an unkeyed one does.
+test_confirm_keyed_asks_when_its_key_is_unrecorded() {
+  DOTFILES_ANSWERS='zsh=y'
+  echo 'n' | confirm_keyed claude 'Configure claude code?' > /dev/null
+  assertFalse "unrecorded key should read stdin" $?
+
+  DOTFILES_ANSWERS=''
+  echo 'n' | confirm_keyed zsh 'Install zsh?' > /dev/null
+  assertFalse "empty map should read stdin" $?
+}
+
+test_confirm_keyed_does_not_match_a_partial_key() {
+  DOTFILES_ANSWERS='zsh=y'
+  echo 'n' | confirm_keyed zsh.default-shell 'Set zsh as the default shell?' > /dev/null
+  assertFalse "zsh should not answer for zsh.default-shell" $?
+
+  DOTFILES_ANSWERS='zsh.default-shell=y'
+  echo 'n' | confirm_keyed zsh 'Install zsh?' > /dev/null
+  assertFalse "zsh.default-shell should not answer for zsh" $?
+}
+
+# Feed stdin from a file, not a pipe. A pipe would run confirm_keyed in a
+# subshell, where the answer it records could not outlive the prompt.
+# $1: keystrokes, with escapes interpreted so '\n' stands for Enter (an *empty*
+#     file is exhausted input, which confirm treats as fatal — not as Enter)
+# $2+: the command to run
+_answer_with() {
+  printf '%b' "${1?}" > "${SHUNIT_TMPDIR:?}/answer"
+  shift
+  "$@" < "$SHUNIT_TMPDIR/answer" > /dev/null
+}
+
+# An answer given at the prompt joins the map, so a run started from a profile
+# that predates a module writes that module's answer back into it.
+test_confirm_keyed_records_the_answer_it_was_given() {
+  _answer_with 'y' confirm_keyed tmux 'Install tmux?'
+  assertEquals 'tmux=y' "$DOTFILES_ANSWERS"
+}
+
+test_confirm_keyed_records_the_default_taken_on_enter() {
+  _answer_with '\n' confirm_keyed pi -n 'Install pi?'
+  assertEquals 'pi=n' "$DOTFILES_ANSWERS"
+}
+
+test_confirm_keyed_adds_its_answer_to_the_answers_already_held() {
+  DOTFILES_ANSWERS='zsh=y git=y'
+  _answer_with 'y' confirm_keyed tmux 'Install tmux?'
+  assertEquals 'zsh=y git=y tmux=y' "$DOTFILES_ANSWERS"
+}
+
+# The key is positional so that confirm's own flags travel to it verbatim.
+test_confirm_keyed_forwards_the_flags_it_was_given() {
+  message=$(echo '' | confirm_keyed tmux -n 'Install tmux?')
+  assertEquals "  ? Install tmux?  [y/N] n" "$message"
+}
+
+#
 # Loading
 #
 
@@ -188,6 +260,30 @@ test_validate_answers_dies_on_an_answer_that_is_not_y_or_n() {
   output=$(validate_answers 'zsh zimfw tmux' 2>&1)
   assertFalse "an unreadable answer should be fatal" $?
   assertContains "should name the offending entry" "$output" "zsh=yes"
+}
+
+# An entry with nothing before the `=` has an empty key. It must still travel
+# the paths above as an unclaimed one, so a truncated write gets reported
+# instead of an expansion error that names neither the file nor the entry.
+test_validate_answers_dies_on_an_entry_with_no_key() {
+  DOTFILES_ANSWERS='zsh=y =y'
+  output=$(validate_answers 'zsh zimfw tmux' 2>&1)
+  assertFalse "an empty key should be fatal" $?
+  assertContains "should say which check the entry failed" \
+    "$output" 'Unknown answer key'
+}
+
+test_drop_unknown_answers_drops_an_entry_with_no_key() {
+  # This runs twice: once to capture the message, which requires a subshell,
+  # and once with quietly so the rewritten map survives.
+  DOTFILES_ANSWERS='zsh=y =y tmux=n'
+  output=$(drop_unknown_answers 'zsh zimfw tmux' 2>&1)
+  assertTrue "a malformed profile line should not stop the run" $?
+  assertContains "should name the entry it dropped" "$output" '=y'
+
+  DOTFILES_ANSWERS='zsh=y =y tmux=n'
+  quietly drop_unknown_answers 'zsh zimfw tmux'
+  assertEquals "should keep only the claimed answers" 'zsh=y tmux=n' "$DOTFILES_ANSWERS"
 }
 
 # A profile left root-owned by an earlier `sudo sh deploy.sh` is writable by

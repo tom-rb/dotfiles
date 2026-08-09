@@ -64,7 +64,7 @@ The choice depends on the nature of the content, not on convention.
 
 The record of the answers a `deploy.sh` run was given, saved so a later run can replay them instead of asking again. The profile stores answers, not outcomes: if the user says yes to a module but its install fails, the profile still remembers yes, so the next run tries that module again instead of skipping it forever. The profile is state, not configuration, and it is not meant to be hand-edited. `deploy.sh` rewrites it at the end of every run that completes, and a run that dies partway through leaves the previous profile untouched.
 
-A caller can also supply answers directly, bypassing the saved profile entirely. This is how a caller asks for a fresh run, or replays a canned set of answers, without touching the file on disk.
+A caller can also supply answers directly, bypassing the saved profile entirely. This is how a caller asks for a fresh run, or replays a canned set of answers.
 
 ## Answer key
 

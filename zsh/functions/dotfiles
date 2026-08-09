@@ -1,0 +1,80 @@
+# Manage the dotfiles clone from anywhere, via the $DOTFILES that the
+# dotfiles:zsh block in $HOME/.zshenv exports into every zsh.
+#
+# A shell function rather than a script because `cd` and `exec` only mean
+# anything in the live shell. Everything else is handed to a child `sh`, which
+# is also what keeps a pull from rewriting a script that is still being read.
+#
+# It must never `exit`: this runs in the user's interactive shell, and an exit
+# closes their terminal.
+
+emulate -L zsh
+
+local usage='usage: dotfiles [cd|update|deploy|help]'
+local restart=0 rc=0
+
+if [[ -z $DOTFILES ]]; then
+  print -u2 -r -- 'dotfiles: $DOTFILES is unset. Run deploy.sh from the clone to set it.'
+  return 1
+fi
+
+# A path that no longer exists is what a moved clone looks like, since the
+# dotfiles:zsh block holds an absolute one. This is caught here because every
+# branch below would otherwise fail with sh's own "can't open" error. update.sh
+# has a message written for exactly this case, but it would never get to run.
+if [[ ! -d $DOTFILES ]]; then
+  print -u2 -r -- "dotfiles: \$DOTFILES is $DOTFILES, which does not exist."
+  print -u2 -r -- "dotfiles: run deploy.sh from the clone's new location."
+  return 1
+fi
+
+case ${1:-cd} in
+  cd)
+    cd -- "$DOTFILES"
+    rc=$?
+    ;;
+  update)
+    sh -- "$DOTFILES/update.sh"
+    rc=$?
+    (( rc )) || restart=1
+    ;;
+  deploy)
+    # A set-but-empty answer map asks deploy.sh for a fresh interview. Leaving
+    # it unset would replay the saved profile, which is the one thing
+    # `dotfiles deploy` exists not to do.
+    DOTFILES_ANSWERS='' sh -- "$DOTFILES/deploy.sh"
+    rc=$?
+    (( rc )) || restart=1
+    ;;
+  help|-h|--help)
+    print -r -- "$usage"
+    print -r -- ''
+    print -r -- "  cd       change to $DOTFILES (the default)"
+    print -r -- '  update   fast-forward the clone, then redeploy it'
+    print -r -- '  deploy   run the deploy wizard again, answering every question afresh'
+    print -r -- '  help     this message'
+    ;;
+  *)
+    print -u2 -r -- "dotfiles: unknown command \"$1\""
+    print -u2 -r -- "$usage"
+    return 1
+    ;;
+esac
+
+# Only after a run that finished, and never on a shell with nothing to type at
+# it. `exec zsh` throws away the job table and the directory stack, so it is
+# offered rather than done automatically.
+# This does not use `exec zsh -l`. A login shell would rerun login files this
+# repo neither installs nor knows the contents of, while .zshenv and .zshrc
+# already carry everything a deploy touches.
+if (( restart )) && [[ -o interactive ]]; then
+  local answer
+  # `read -k` reads the terminal, not stdin, and fails when there is none —
+  # which must not read as the empty answer that means "yes, restart".
+  if read -k 1 answer'?Restart your shell now? [Y/n] '; then
+    print
+    [[ $answer == [nN] ]] || exec zsh
+  fi
+fi
+
+return $rc

@@ -205,6 +205,32 @@ claude=n'
     "$(_deploy_output)" "DOTFILES_ANSWERS=''"
 }
 
+# drop_unknown_answers names the same file again, unshortened. Two spellings of
+# one path in one run would read like two files.
+test_deploy_wizard_shortens_the_profile_path_it_names() {
+  createSpy -u -r "$SHUNIT_TRUE" command_exists
+  createSpy -u install_from_pm
+  createSpy -u start_module_wizard
+  createSpy -u activate_asdf
+
+  HOME=${SHUNIT_TMPDIR:?}/home
+  # shellcheck disable=SC2034 # read by get_deploy_profile_path
+  XDG_STATE_HOME=$HOME/.local/state
+  _given_saved_profile 'zsh=n
+zimfw=n
+asdf=n
+tmux=n
+git=n
+pi=n
+claude=n'
+  unset DOTFILES_ANSWERS
+  _deploy_with
+
+  # shellcheck disable=SC2088 # the tilde is the displayed text, not a path
+  assertContains "should name the profile under ~" \
+    "$(_deploy_output)" "~/.local/state/dotfiles/profile"
+}
+
 test_deploy_wizard_says_nothing_about_a_profile_it_did_not_replay() {
   createSpy -u -r "$SHUNIT_TRUE" command_exists
   createSpy -u install_from_pm

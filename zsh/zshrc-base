@@ -8,14 +8,20 @@
 # which is sourced after the framework block via a separate marker block.
 #
 
-###################
-# Dotfiles update #
-###################
+#####################
+# Dotfiles command  #
+#####################
 
-# TODO: consider moving this to a separate file (e.g. zsh/dotfiles-update.zsh) and sourcing it from the
-# managed block, so it's available in interactive shells but not executed by deploy.sh.
-#echo "Updating configuration"
-#(cd ~/dotfiles && git pull && git submodule update --init --recursive)
+# The `dotfiles` command (cd, update, deploy), autoloaded from the repo.
+# Both lines are needed: zsh does not pick up an fpath function implicitly.
+# This lives in zshrc-base, not zshrc-overrides. Overrides is sourced after the
+# zimfw block, and zim's completion module is what runs compinit. An fpath
+# entry added in overrides would arrive too late for _dotfiles to be scanned.
+# The guard keeps a checkout missing the directory from erroring.
+if [[ -d $DOTFILES/zsh/functions ]]; then
+  fpath=($DOTFILES/zsh/functions $fpath)
+  autoload -Uz dotfiles
+fi
 
 ################
 # Theme colors #

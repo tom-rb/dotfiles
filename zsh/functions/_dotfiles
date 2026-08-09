@@ -1,0 +1,18 @@
+#compdef dotfiles
+
+# Completion for the dotfiles dispatcher. Inert unless something has run
+# compinit, which here means zimfw's completion module — zshrc-base puts this
+# directory on fpath but never calls compinit itself.
+
+local -a subcommands
+
+subcommands=(
+  'cd:change to the dotfiles clone'
+  'update:fast-forward the clone, then redeploy it'
+  'deploy:run the deploy wizard again, answering every question afresh'
+  'help:describe these commands'
+)
+
+(( CURRENT == 2 )) || return 0
+
+_describe -t commands 'dotfiles command' subcommands
