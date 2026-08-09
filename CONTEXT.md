@@ -76,6 +76,10 @@ Both kinds of prompt can carry a key. A confirmation stores `y` or `n`. A choice
 
 An answer with no matching prompt is handled differently depending on where it came from. If a caller supplied it directly, the run treats it as a mistake and stops. If it came from a saved profile, the run drops it with a warning instead, since the repo itself may have renamed or removed that prompt.
 
+## Pi package
+
+A bundle of extensions, skills, prompt templates or themes that pi loads from npm, from git, or from a path on disk. A package is named by a source spec, and the specs the repo wants are listed in the `packages` array of `pi/settings.json`. That array is the repo's list: the merge replaces whatever the machine held, so a spec removed from the template stops loading on the next deploy. The downloaded code stays on disk, because pi's settings, not its npm tree, decide what loads.
+
 ## XDG paths module
 
 `utils/xdg_paths.sh` is the single place in the repo that defines XDG Base Directory paths and tool-specific subdirectories, both as path values and as the helper functions that build full paths from them.

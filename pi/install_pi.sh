@@ -75,6 +75,78 @@ install_pi_program() {
   )
 }
 
+#
+# Settings and packages
+#
+
+# Merge the settings template into the machine's settings.json. Keys the
+# template does not name survive untouched: the provider, the model, the
+# thinking level, the enabled models and the skill filters are all per-machine,
+# so the template never names them.
+install_pi_settings() {
+  install_json_settings "${DOTFILES:?}/pi/settings.json" \
+    "$(get_pi_config_dir)/settings.json" pi
+}
+
+# The package specs a settings template declares, one per line.
+# $1: template path
+read_pi_packages() {
+  python3 -c 'import json, sys
+for spec in json.load(open(sys.argv[1])).get("packages", []):
+    print(spec if isinstance(spec, str) else spec["source"])' "${1:?}"
+}
+
+# Install every package the template declares. The specs pin a version, which
+# `pi update` refuses to move, so `pi install` is the only command that puts one
+# on a clean machine. It is also the authority on whether there is work to do: a
+# spec already installed at that version short-circuits before reaching npm.
+install_pi_packages() {
+  local template specs spec failed old_ifs
+  template="${DOTFILES:?}/pi/settings.json"
+
+  # install_pi_program either put pi on PATH or already stopped the wizard, so a
+  # missing pi here is a PATH bug worth reporting rather than skipping past.
+  is_pi_installed || die "pi is not on PATH, so its packages cannot be installed."
+
+  specs=$(read_pi_packages "$template") \
+    || die "Could not read the packages from $(tui_path "$template")"
+
+  if [ -z "$specs" ]; then
+    tui_skip "No packages declared in $(tui_path "$template")"
+    return 0
+  fi
+
+  # A spec comes out of JSON, so it can hold a space or a glob character. Split
+  # it on newlines alone, with globbing off, then walk the safe copy.
+  old_ifs=$IFS
+  IFS='
+'
+  set -f
+  # shellcheck disable=SC2086 # splitting on newlines is the point here
+  set -- $specs
+  set +f
+  IFS=$old_ifs
+
+  # One bad spec must not hide the packages that would have installed cleanly,
+  # so the loop runs to the end and the step reports the failure afterwards.
+  failed=''
+  for spec in "$@"; do
+    tui_task "installing $spec…" \
+      --ok "$spec installed" \
+      --fail "Couldn't install $spec" \
+      -- pi install "$spec" || failed="$failed $spec"
+  done
+
+  [ -z "$failed" ] || {
+    tui_warn "Some packages did not install:$failed"
+    return 1
+  }
+}
+
+#
+# Skills
+#
+
 # Install the skills from pi/skills/ into the cross-harness directory pi reads.
 # The same skills reach Claude Code through the claude module, which owns
 # ~/.claude/skills. This step never writes there.
@@ -111,10 +183,14 @@ install_pi_skills() {
   prune_owned_entries "$skills_dest" "$(entry_names "$skills_src")" "$skills_src"
 }
 
-# Installs the pi coding agent and skills.
+# Installs the pi coding agent, its settings, its packages and its skills.
 # -y: accepts default answer for all questions
 install_pi_wizard() {
-  wizard_run "$@" -- install_pi_program install_pi_skills
+  # Packages come last: the step fails on a spec npm could not fetch, and
+  # wizard_run stops at the first failure. Behind it, a registry blip would take
+  # the skills step with it, and linking skills needs no network at all.
+  wizard_run "$@" -- install_pi_program ensure_python3_installed \
+    install_pi_settings install_pi_skills install_pi_packages
 }
 
 # Run installation if called with --wizard

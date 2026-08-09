@@ -16,3 +16,5 @@
 . "${DOTFILES:?}/utils/wizard.sh"
 # shellcheck source=skills.sh
 . "${DOTFILES:?}/utils/skills.sh"
+# shellcheck source=json_settings.sh
+. "${DOTFILES:?}/utils/json_settings.sh"

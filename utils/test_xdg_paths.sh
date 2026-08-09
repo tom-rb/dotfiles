@@ -14,7 +14,7 @@ setUp() {
   HOME=${SHUNIT_TMPDIR:?}/home
   mkdir -p "$HOME"
   unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME \
-    ZDOTDIR ZIM_HOME CLAUDE_CONFIG_DIR
+    ZDOTDIR ZIM_HOME CLAUDE_CONFIG_DIR PI_CODING_AGENT_DIR
 }
 
 tearDown() {
@@ -121,6 +121,22 @@ test_get_claude_config_dir_honors_claude_config_dir_env() {
 test_get_claude_config_dir_ignores_xdg_config_home() {
   XDG_CONFIG_HOME=/custom/cfg
   assertEquals "$HOME/.claude" "$(get_claude_config_dir)"
+}
+
+test_get_pi_config_dir_defaults_to_dot_pi_agent() {
+  assertEquals "$HOME/.pi/agent" "$(get_pi_config_dir)"
+}
+
+test_get_pi_config_dir_honors_pi_coding_agent_dir_env() {
+  PI_CODING_AGENT_DIR=/custom/pi
+  assertEquals "/custom/pi" "$(get_pi_config_dir)"
+}
+
+# pi reads $HOME/.pi/agent and ignores XDG, so this resolver must not follow
+# XDG_CONFIG_HOME.
+test_get_pi_config_dir_ignores_xdg_config_home() {
+  XDG_CONFIG_HOME=/custom/cfg
+  assertEquals "$HOME/.pi/agent" "$(get_pi_config_dir)"
 }
 
 

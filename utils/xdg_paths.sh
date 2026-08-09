@@ -14,6 +14,7 @@ ZDOTDIR_SUBPATH=zsh
 ZIM_HOME_SUBPATH=zim
 TMUX_PLUGINS_SUBPATH=tmux/plugins
 AGENTS_SKILLS_SUBPATH=.agents/skills
+PI_AGENT_SUBPATH=.pi/agent
 DEPLOY_PROFILE_SUBPATH=dotfiles/profile
 
 xdg_config_home() { echo "${XDG_CONFIG_HOME:-$HOME/$XDG_CONFIG_DEFAULT_SUBPATH}"; }
@@ -47,6 +48,11 @@ get_claude_skills_dir() { echo "$(get_claude_config_dir)/skills"; }
 # Claude Code's user-level rules directory. Claude Code loads it ahead of a
 # project's own.
 get_claude_rules_dir() { echo "$(get_claude_config_dir)/rules"; }
+
+# pi's agent directory. pi ignores XDG and reads $HOME/.pi/agent, unless
+# PI_CODING_AGENT_DIR gives another path. Its settings.json lives here, and so
+# do the npm and git trees pi installs packages into.
+get_pi_config_dir() { echo "${PI_CODING_AGENT_DIR:-$HOME/$PI_AGENT_SUBPATH}"; }
 
 # The cross-harness skills directory pi reads. Claude Code does not look here,
 # so the installer puts a skill meant for both agents in each harness's own

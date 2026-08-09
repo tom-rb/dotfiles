@@ -11,6 +11,7 @@ oneTimeSetUp() {
 setUp() {
   . "$THISDIR/install_pi.sh"
   HOME=${SHUNIT_TMPDIR:?}/home
+  PI_CODING_AGENT_DIR="$HOME/.pi/agent"
   mkdir -p "$HOME"
   # The install mode is a keyed answer now. Left standing, the one a test
   # records would be replayed by the next instead of its own keystrokes.
@@ -437,6 +438,150 @@ test_install_pi_skills_is_a_no_op_on_a_second_run() {
 }
 
 #
+# install_pi_settings
+#
+# utils/test_json_settings.sh proves what the shared helper does with a
+# template. This test covers the wiring this module adds: which template lands
+# in which file, under which label.
+#
+
+test_install_pi_settings_merges_the_module_template() {
+  createSpy -u install_json_settings
+
+  install_pi_settings
+
+  assertCalledOnceWith install_json_settings "$DOTFILES/pi/settings.json" \
+    "$PI_CODING_AGENT_DIR/settings.json" pi
+}
+
+#
+# read_pi_packages
+#
+
+# The reader is python, and `make unit-<image>` runs on the base stage, which
+# has no python3 on amazonlinux-2. Every test below this one spies the reader
+# out, so this is the only case that needs the interpreter.
+test_read_pi_packages_names_every_spec_in_the_template() {
+  if ! command_exists python3; then
+    echo "Skipping: this image ships no python3"
+    startSkipping
+    return 0
+  fi
+  template="${SHUNIT_TMPDIR:?}/settings.json"
+  printf '%s\n' '{"theme": "dark", "packages": ["npm:one@1.0.0", "npm:two"]}' > "$template"
+
+  assertEquals "Should list the specs in order" \
+    "npm:one@1.0.0
+npm:two" "$(read_pi_packages "$template")"
+}
+
+test_read_pi_packages_says_nothing_when_the_template_declares_none() {
+  if ! command_exists python3; then
+    echo "Skipping: this image ships no python3"
+    startSkipping
+    return 0
+  fi
+  template="${SHUNIT_TMPDIR:?}/settings.json"
+  printf '%s\n' '{"theme": "dark"}' > "$template"
+
+  assertEquals "A template with no packages key yields nothing" \
+    "" "$(read_pi_packages "$template")"
+}
+
+#
+# install_pi_packages
+#
+
+test_install_packages_dies_when_pi_is_not_on_path() {
+  createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
+  createSpy -u read_pi_packages
+  createSpy -u pi
+
+  output=$( (install_pi_packages) 2>&1 )
+
+  assertFalse "A missing pi after its own install step is a bug, not a state" $?
+  assertContains "Should say why it stopped" "$output" "pi is not on PATH"
+  assertNeverCalled read_pi_packages
+}
+
+test_install_packages_skips_when_the_template_declares_none() {
+  createSpy -u -r "$SHUNIT_TRUE" is_pi_installed
+  createSpy -u read_pi_packages
+  createSpy -u pi
+
+  output=$(install_pi_packages)
+
+  assertTrue "Declaring no packages is not a failure" $?
+  assertContains "Should say there was nothing to install" "$output" "No packages declared"
+  assertNeverCalled pi
+}
+
+test_install_packages_installs_every_declared_spec() {
+  createSpy -u -r "$SHUNIT_TRUE" is_pi_installed
+  createSpy -u -o 'npm:one@1.0.0
+npm:two@2.0.0' read_pi_packages
+  createSpy -u pi
+
+  quietly install_pi_packages
+
+  assertTrue "Should succeed when every spec installs" $?
+  assertCallCount pi 2
+  assertEquals "Should install the first spec" \
+    "install npm:one@1.0.0" "$(getArgsForCall pi 1)"
+  assertEquals "Should install the second spec" \
+    "install npm:two@2.0.0" "$(getArgsForCall pi 2)"
+}
+
+test_install_packages_hands_the_reader_the_module_template() {
+  createSpy -u -r "$SHUNIT_TRUE" is_pi_installed
+  createSpy -u read_pi_packages
+  createSpy -u pi
+
+  quietly install_pi_packages
+
+  assertCalledOnceWith read_pi_packages "$DOTFILES/pi/settings.json"
+}
+
+# A spec comes out of JSON, so nothing stops one holding a space or a glob
+# character. Both must reach pi as the one argument the template wrote.
+test_install_packages_keeps_a_spec_with_a_space_or_a_glob_whole() {
+  createSpy -u -r "$SHUNIT_TRUE" is_pi_installed
+  createSpy -u -o '/home/me/pi packages/foo
+./pkg-*' read_pi_packages
+  createSpy -u pi
+  # A file the glob would swallow if the loop let the shell expand it. The cd
+  # lives in a subshell; the spies record to files, so their calls outlive it.
+  mkdir -p "${SHUNIT_TMPDIR:?}/globbable"
+  : > "${SHUNIT_TMPDIR:?}/globbable/pkg-one"
+
+  ( cd "${SHUNIT_TMPDIR:?}/globbable" && quietly install_pi_packages )
+
+  assertCallCount pi 2
+  assertCalledWith pi install '/home/me/pi packages/foo'
+  assertCalledWith pi install './pkg-*'
+}
+
+# A half-installed set that reports success is the outcome that bites you three
+# deploys later, so the step keeps going and then owns up.
+test_install_packages_tries_them_all_and_reports_the_failures() {
+  createSpy -u -r "$SHUNIT_TRUE" is_pi_installed
+  createSpy -u -o 'npm:one@1.0.0
+npm:two@2.0.0
+npm:three@3.0.0' read_pi_packages
+  # Only the middle spec fails.
+  createSpy -u -r 0 -r 1 -r 0 pi
+
+  output=$( (install_pi_packages) 2>&1 )
+
+  assertFalse "One failed spec must make the step fail" $?
+  assertCallCount pi 3
+  assertEquals "The spec after the failure is still attempted" \
+    "install npm:three@3.0.0" "$(getArgsForCall pi 3)"
+  assertContains "Should name the failed spec" "$output" \
+    "Some packages did not install: npm:two@2.0.0"
+}
+
+#
 # install_pi_wizard
 #
 
@@ -446,7 +591,24 @@ test_wizard_delegates_step_list_to_wizard_run() {
   # shellcheck disable=SC2119
   install_pi_wizard
 
-  assertCalledOnceWith wizard_run -- install_pi_program install_pi_skills
+  assertCalledOnceWith wizard_run -- install_pi_program ensure_python3_installed \
+    install_pi_settings install_pi_skills install_pi_packages
+}
+
+# wizard_run stops at the first failing step, so the network-bound step goes
+# last: a spec npm cannot fetch must not cost the skills their symlinks.
+test_wizard_links_skills_before_it_reaches_the_network() {
+  createSpy -u install_pi_program
+  createSpy -u ensure_python3_installed
+  createSpy -u install_pi_settings
+  createSpy -u install_pi_skills
+  createSpy -u -r "$SHUNIT_FALSE" install_pi_packages
+
+  # shellcheck disable=SC2119
+  install_pi_wizard
+
+  assertFalse "A failed package must still fail the module" $?
+  assertCallCount install_pi_skills 1
 }
 
 test_wizard_skips_skills_when_program_step_fails() {

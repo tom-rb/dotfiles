@@ -87,6 +87,11 @@ it_installs_pi_via_asdf_managed_node() {
 
   assertFalse "pi should not be installed yet" "is_pi_installed"
 
+  # The packages step has its own test below, against a fixture. Left alone here
+  # it would install the repo's real list from npm a second time, and this
+  # test's runtime would grow with every package the repo ever ships.
+  read_pi_packages() { :; }
+
   # Full wizard: bootstraps node via asdf, installs pi, then copies skills.
   quietly install_pi_wizard -y
   assertTrue "Expected pi wizard to exit 0" $?
@@ -109,6 +114,49 @@ it_installs_pi_via_asdf_managed_node() {
   assertTrue "Re-running install_pi_program should succeed" $?
   assertContains "Should report already installed on re-run" \
     "$output" "pi ${PI_VERSION} already installed"
+}
+
+# A fixture template rather than the module's own: this proves the chain from an
+# asdf-managed node through a PATH-resolved npm to a package pi can load, and
+# any one package proves it. Pointing the test at pi/settings.json instead would
+# make its runtime grow with every package the repo ever adds.
+# @image: with-asdf
+it_installs_a_declared_package_from_npm() {
+  glibc=$(getconf GNU_LIBC_VERSION 2>/dev/null)
+  case "$glibc" in
+    "glibc "*)
+      if ! version_ge "${glibc#glibc }" 2.27; then
+        echo "Skipping: pi's node needs glibc >= 2.27 (found ${glibc#glibc })"
+        startSkipping
+        return 0
+      fi
+      ;;
+  esac
+
+  export NODEJS_CHECK_SIGNATURES=no
+  activate_asdf
+  # The node bootstrap asks before it installs; an empty line takes its default,
+  # the way `wizard_run -y` feeds every step.
+  yes "" | quietly install_pi_program
+  assertTrue "Expected the pi install to exit 0" $?
+
+  # The reader stands in for the module's template. Reading the JSON is covered
+  # by the unit tests; what needs a real machine is everything after it.
+  read_pi_packages() { printf '%s\n' 'npm:pi-web-access@0.19.0'; }
+
+  quietly install_pi_packages
+  assertTrue "Expected the packages step to exit 0" $?
+
+  # pi resolves npm through PATH, so a package landing here is the proof that
+  # the npm it found was the one asdf put there.
+  assertTrue "The package should be installed under pi's npm root" \
+    "[ -d \"$(get_pi_config_dir)/npm/node_modules/pi-web-access\" ]"
+  assertContains "And pi should list it as installed" \
+    "$(pi list 2>&1)" "npm:pi-web-access@0.19.0"
+
+  # Idempotency: a second run is a no-op that still reports success.
+  quietly install_pi_packages
+  assertTrue "Re-running the packages step should succeed" $?
 }
 
 # shellcheck source=../tests/shunit2
