@@ -202,7 +202,7 @@ install_managed_block() {
     then add_label="prepend the managed block, keep the rest"
     else add_label="append the managed block, keep the rest"
   fi
-  if choose -d 1 -q "leave it alone" "What should I do with it?" \
+  if choose -d 1 -q "stop, I'll check it myself" "What should I do with it?" \
                  "back it up, then write the managed block" \
                  "$add_label" \
                  "replace it with the managed block"
@@ -210,7 +210,7 @@ install_managed_block() {
     else choice=$?
   fi
   case "$choice" in
-    0) tui_skip "$(tui_path "$file") left unchanged"; return 1 ;;
+    0) tui_warn "$(tui_path "$file") setup interrupted"; return 1 ;;
     1) backup=$(backup_file "$file") || die "Could not back up $(tui_path "$file")"
        tui_detail "Backed up the old one as $(tui_path "$backup")"
        _write_block_only "$file" "$tag" "$content" ;;

@@ -149,8 +149,8 @@ install_claude_skills_and_rules() {
     return 0
   fi
 
-  ask_install_mode "skills and rules" mode || {
-    tui_skip "skills and rules left alone"
+  ask_install_mode claude_skills "skills and rules" mode || {
+    tui_warn "skills and rules installation interrupted"
     return 1
   }
 
@@ -164,7 +164,7 @@ install_claude_skills_and_rules() {
   policy=backup
   if [ -n "$collisions" ]; then
     ask_collision_policy "$collisions" policy || {
-      tui_skip "skills and rules left alone"
+      tui_warn "skills and rules left in place, installation interrupted"
       return 1
     }
   fi

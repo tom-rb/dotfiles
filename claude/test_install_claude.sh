@@ -13,6 +13,10 @@ setUp() {
   HOME=${SHUNIT_TMPDIR:?}/home
   CLAUDE_CONFIG_DIR="$HOME/.claude"
   mkdir -p "$HOME"
+  # The install mode is a keyed answer now. Left standing, the one a test
+  # records would be replayed by the next instead of its own keystrokes.
+  # shellcheck disable=SC2034 # read by the keyed prompts under test
+  DOTFILES_ANSWERS=''
 }
 
 tearDown() {
@@ -307,6 +311,30 @@ test_skills_step_reports_a_quit_and_writes_nothing() {
 
   assertFalse "A declined step has not run" $?
   assertFalse "Nothing should be written" "[ -d \"$CLAUDE_CONFIG_DIR/skills\" ]"
+}
+
+# Quitting abandons the step and makes the module non-zero, so it reads as
+# something that needs attention rather than as a settled choice.
+test_skills_step_warns_that_a_quit_interrupted_the_install() {
+  _given_keystrokes 'q'
+
+  output=$(install_claude_skills_and_rules < "$KEYS" 2>&1)
+
+  assertContains "should say the install was interrupted" \
+    "$output" "! skills and rules installation interrupted"
+}
+
+# The two questions report differently: this one stopped with entries already
+# on disk, and naming them is what tells the user where to go look.
+test_skills_step_names_the_entries_left_in_place_on_a_collision_quit() {
+  mkdir -p "$CLAUDE_CONFIG_DIR/skills/rate-limit-status"
+  # Enter takes link mode, then q at the collision question.
+  _given_keystrokes '\nq'
+
+  output=$(install_claude_skills_and_rules < "$KEYS" 2>&1)
+
+  assertContains "should say what was left behind" \
+    "$output" "! skills and rules left in place, installation interrupted"
 }
 
 test_skills_step_asks_once_for_collisions_across_skills_and_rules() {

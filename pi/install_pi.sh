@@ -91,8 +91,8 @@ install_pi_skills() {
     return 0
   fi
 
-  ask_install_mode "skills" mode || {
-    tui_skip "skills left alone"
+  ask_install_mode pi_skills "skills" mode || {
+    tui_warn "skills installation interrupted"
     return 1
   }
 
@@ -100,7 +100,7 @@ install_pi_skills() {
   policy=backup
   if [ -n "$collisions" ]; then
     ask_collision_policy "$collisions" policy || {
-      tui_skip "skills left alone"
+      tui_warn "skills left in place, installation interrupted"
       return 1
     }
   fi

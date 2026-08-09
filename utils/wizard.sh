@@ -51,6 +51,8 @@ _sh() {
 # Shell out to a module's installer with --wizard, returning its exit code.
 # $1: module name (e.g. "zsh" → runs zsh/install_zsh.sh --wizard)
 # The sh -- subshell ensures a die inside the module doesn't kill the caller.
+# with_answers is what carries the answer map across that subshell, so a keyed
+# prompt inside a module is replayed and recorded like one asked out here.
 start_module_wizard() {
-  _sh -- "${DOTFILES:?}/${1:?}/install_${1}.sh" --wizard
+  with_answers _sh -- "${DOTFILES:?}/${1:?}/install_${1}.sh" --wizard
 }

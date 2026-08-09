@@ -81,26 +81,45 @@ duplicate_entry_names() {
 
 # Ask whether to link the entries to this checkout or copy them into place. A
 # link is the default, so `-y` and a bare Enter both link.
-# $1: what is being installed, for the question's wording
-# $2: name of variable to set with "link" or "copy"
+# The answer key is the caller's, not this function's: each module asks this
+# question about its own entries, and one key between them would let whichever
+# ran first answer for the rest.
+# Copy mode needs diff to tell an untouched copy from an edited one. Without it
+# every copy looks edited, and the default policy would file a fresh backup of
+# the same directory on every deploy — so on a machine without diff the option
+# is not offered at all. Offering it and refusing it afterwards would record an
+# answer the machine cannot honor, and a recorded answer is replayed instead of
+# asked: the menu would never be drawn again, and the refusal would repeat on
+# every deploy with no way back to it.
+# $1: answer key
+# $2: what is being installed, for the question's wording
+# $3: name of variable to set with "link" or "copy"
 # Returns 1 when the user quits.
 ask_install_mode() {
-  local _subject _var _choice
-  _subject=${1:?} _var=${2:?}
-  if choose -d 1 -q "leave them alone" "How should the $_subject be installed?" \
-                 "link them to this dotfiles checkout" \
-                 "copy them into place"
-    then _choice=$?
-    else _choice=$?
+  local _key _subject _var _choice
+  _key=${1:?} _subject=${2:?} _var=${3:?}
+  if command_exists diff; then
+    if choose_keyed "$_key" 'link copy' \
+                   -d 1 -q "stop, I'll check them myself" "How should the $_subject be installed?" \
+                   "link them to this dotfiles checkout" \
+                   "copy them into place"
+      then _choice=$?
+      else _choice=$?
+    fi
+  else
+    tui_warn "Copy mode needs diff, which this machine does not have. Only linking is offered."
+    # A profile holding `copy` names an option this menu does not carry, so the
+    # replay is refused and the question is asked. Nothing has to undo it here.
+    if choose_keyed "$_key" 'link' \
+                   -d 1 -q "stop, I'll check them myself" "How should the $_subject be installed?" \
+                   "link them to this dotfiles checkout"
+      then _choice=$?
+      else _choice=$?
+    fi
   fi
   case "$_choice" in
     1) eval "$_var=link" ;;
-    2) # Copy mode needs diff to tell an untouched copy from an edited one.
-       # Without diff every copy looks edited, and the default policy would file
-       # a fresh backup of the same directory on every deploy.
-       command_exists diff \
-         || die "Copy mode needs diff to tell an untouched copy from an edited one. Install diffutils, or link instead."
-       eval "$_var=copy" ;;
+    2) eval "$_var=copy" ;;
     *) return 1 ;;
   esac
 }
@@ -117,7 +136,7 @@ ask_collision_policy() {
   printf '%s\n' "$_paths" | while IFS= read -r _path; do
     tui_detail "$(tui_path "$_path")"
   done
-  if choose -d 1 -q "leave them alone" "What should I do with them?" \
+  if choose -d 1 -q "stop, I'll check them myself" "What should I do with them?" \
                  "back all of them up" \
                  "delete all of them" \
                  "decide one by one"

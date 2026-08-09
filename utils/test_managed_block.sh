@@ -497,13 +497,15 @@ test_install_managed_block_says_nothing_without_a_label() {
   assertEquals "Reporting is opt-in via --as" "" "$output"
 }
 
+# Quitting here abandons the step and makes the module non-zero, so it is
+# reported as something that needs attention rather than as a settled choice.
 test_install_managed_block_first_time_cancel_reports_the_file_untouched() {
   printf 'user line\n' > "$TARGET"
 
   output=$(echo q | install_managed_block "$TARGET" "dotfiles:zsh" "block")
 
-  assertContains "Cancelling is a choice, not a failure" \
-    "$output" "• $TARGET left unchanged"
+  assertContains "Cancelling should warn, not read as done" \
+    "$output" "! $TARGET setup interrupted"
 }
 
 test_install_managed_block_first_time_previews_the_file_indented() {

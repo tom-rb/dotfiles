@@ -10,6 +10,8 @@
 . "${DOTFILES:?}/utils/managed_block.sh"
 # shellcheck source=xdg_paths.sh
 . "${DOTFILES:?}/utils/xdg_paths.sh"
+# shellcheck source=answers.sh
+. "${DOTFILES:?}/utils/answers.sh"
 # shellcheck source=wizard.sh
 . "${DOTFILES:?}/utils/wizard.sh"
 # shellcheck source=skills.sh

@@ -72,6 +72,8 @@ The name a prompt carries so a [[Deploy profile]] can store and recall its answe
 
 A stored answer skips the prompt without reading input, but still shows the line as answered, so a replayed run reads the same way a live one would. A prompt with no stored answer falls through to asking the user normally.
 
+Both kinds of prompt can carry a key. A confirmation stores `y` or `n`. A choice stores the chosen option's word rather than its number, so that reordering the options later cannot silently turn a stored answer into a different one; a replayed choice names the option and does not redraw the menu. Quitting a choice stores nothing, because quitting leaves the step unfinished rather than settling it. Since the words belong to the prompt and not to the profile, each prompt vets its own stored answer and asks again when it does not recognise it.
+
 An answer with no matching prompt is handled differently depending on where it came from. If a caller supplied it directly, the run treats it as a mistake and stops. If it came from a saved profile, the run drops it with a warning instead, since the repo itself may have renamed or removed that prompt.
 
 ## XDG paths module

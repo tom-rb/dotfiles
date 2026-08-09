@@ -19,6 +19,7 @@ setUp() {
   OTHER_SRC="$DOTFILES/other-skills"
   DEST="${SHUNIT_TMPDIR:?}/home/.claude/skills"
   mkdir -p "$SRC" "$OTHER_SRC" "$DEST"
+  DOTFILES_ANSWERS=''
 }
 
 tearDown() {
@@ -159,7 +160,7 @@ test_duplicate_entry_names_reports_a_shared_name_once() {
 test_ask_install_mode_defaults_to_link() {
   _given_keystrokes '\n'
 
-  quietly_stdout ask_install_mode "skills" mode < "$KEYS"
+  quietly_stdout ask_install_mode claude_skills "skills" mode < "$KEYS"
 
   assertTrue "Enter should be an answer, not an abort" $?
   assertEquals "link" "$mode"
@@ -168,7 +169,37 @@ test_ask_install_mode_defaults_to_link() {
 test_ask_install_mode_returns_copy_on_the_second_option() {
   _given_keystrokes '2'
 
-  quietly_stdout ask_install_mode "skills" mode < "$KEYS"
+  quietly_stdout ask_install_mode claude_skills "skills" mode < "$KEYS"
+
+  assertEquals "copy" "$mode"
+}
+
+test_ask_install_mode_records_the_mode_it_was_given() {
+  _given_keystrokes '2'
+
+  quietly_stdout ask_install_mode claude_skills "skills" mode < "$KEYS"
+
+  assertEquals 'claude_skills=copy' "$DOTFILES_ANSWERS"
+}
+
+# Each module asks this about its own entries. One key between them would let
+# whichever ran first answer for the other, silently.
+test_ask_install_mode_keeps_each_callers_answer_apart() {
+  DOTFILES_ANSWERS='pi_skills=copy'
+  _given_keystrokes '1'
+
+  quietly_stdout ask_install_mode claude_skills "skills and rules" mode < "$KEYS"
+
+  assertEquals "pi's answer should not answer for claude" "link" "$mode"
+  assertEquals 'pi_skills=copy claude_skills=link' "$DOTFILES_ANSWERS"
+}
+
+test_ask_install_mode_replays_a_recorded_mode() {
+  DOTFILES_ANSWERS='claude_skills=copy'
+  # stdin says option 1. The recorded copy has to win.
+  _given_keystrokes '1'
+
+  quietly_stdout ask_install_mode claude_skills "skills" mode < "$KEYS"
 
   assertEquals "copy" "$mode"
 }
@@ -176,23 +207,46 @@ test_ask_install_mode_returns_copy_on_the_second_option() {
 test_ask_install_mode_reports_a_quit() {
   _given_keystrokes 'q'
 
-  quietly_stdout ask_install_mode "skills" mode < "$KEYS"
+  quietly_stdout ask_install_mode claude_skills "skills" mode < "$KEYS"
 
   assertFalse "Quitting is not a mode" $?
 }
 
 # Without diff every copy looks edited, and the default policy would file a
-# fresh backup of the same directory on every deploy. Stopping loudly beats
-# piling up backups nobody asked for.
-test_ask_install_mode_refuses_to_copy_without_diff() {
+# fresh backup of the same directory on every deploy. The option is withheld
+# rather than refused after the fact: a refusal comes too late to stop the
+# answer being recorded, and a recorded answer is replayed instead of asked.
+test_ask_install_mode_does_not_offer_copy_without_diff() {
   command_exists() { [ "$1" != diff ]; }
-  _given_keystrokes '2'
+  _given_keystrokes '1'
 
-  output=$( (ask_install_mode "skills" mode < "$KEYS") 2>&1 )
+  output=$( (ask_install_mode claude_skills "skills" mode < "$KEYS") 2>&1 )
 
-  assertFalse "Should not accept copy mode it cannot honor" $?
   assertContains "Should say what is missing" "$output" "diff"
-  assertContains "Should offer the way out" "$output" "link instead"
+  assertNotContains "Should not offer a mode it cannot honor" \
+    "$output" "2) copy them into place"
+}
+
+test_ask_install_mode_still_links_without_diff() {
+  command_exists() { [ "$1" != diff ]; }
+  _given_keystrokes '\n'
+
+  quietly_stdout ask_install_mode claude_skills "skills" mode < "$KEYS"
+
+  assertTrue "Linking should still be available" $?
+  assertEquals "link" "$mode"
+  assertEquals 'claude_skills=link' "$DOTFILES_ANSWERS"
+}
+
+test_ask_install_mode_asks_again_when_a_recorded_copy_cannot_be_honored() {
+  command_exists() { [ "$1" != diff ]; }
+  DOTFILES_ANSWERS='claude_skills=copy'
+  _given_keystrokes '1'
+
+  quietly_stdout ask_install_mode claude_skills "skills" mode < "$KEYS"
+
+  assertEquals "the stale copy should not be replayed" "link" "$mode"
+  assertEquals 'claude_skills=link' "$DOTFILES_ANSWERS"
 }
 
 #

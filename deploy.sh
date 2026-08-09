@@ -33,6 +33,14 @@ basic_packages="wget tar gzip"
 # here is the counter in its section header.
 deploy_modules="zsh zimfw asdf tmux git pi claude"
 
+# Answer keys a module's own wizard asks under, beyond the one question per
+# module the list above already accounts for. Kept apart from it: these are not
+# modules, and a name added there would be counted into every section header.
+deploy_module_keys="pi_skills claude_skills"
+
+# Every key this run can answer, for the two checks that vet the answer map.
+deploy_answer_keys="$deploy_modules $deploy_module_keys"
+
 # Modules that ran but did not finish — a failed step, or one the user
 # cancelled. Names collect here so the epilogue can name them and the run can
 # exit non-zero. Reset at the top of every deploy_wizard.
@@ -111,10 +119,10 @@ deploy_wizard() {
   # An unset map replays the last deploy's answers; a caller-supplied map
   # (even empty, for a fresh interview) wins instead.
   if [ -n "${DOTFILES_ANSWERS+set}" ]; then
-    validate_answers "$deploy_modules"
+    validate_answers "$deploy_answer_keys"
   else
     load_deploy_profile
-    drop_unknown_answers "$deploy_modules"
+    drop_unknown_answers "$deploy_answer_keys"
     announce_replayed_profile
   fi
 

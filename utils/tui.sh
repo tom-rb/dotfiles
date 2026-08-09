@@ -410,21 +410,37 @@ confirm() {
 # Ask a question and show a numbered list of options, then return the choice.
 # -d N: return choice N when the user just presses enter, and mark it "(default)"
 # -q LABEL: wording of the quit option, so it can speak the caller's voice
+# -a N: this prompt is already answered. It names option N the way an answered
+#       prompt looks and returns N, without listing the options or reading
+#       stdin. An N no option carries is ignored, and the question is asked.
 # $1: the question
 # $2-9: messages to choose from
 # Returns 0 on cancel or >=1 for the choice
 choose() {
-  local opt_i c question quit_label default=
-  quit_label='quit'
+  local opt_i c question quit_label answered default=
+  quit_label='quit' answered=''
   while : ; do
     case "$1" in
       -d) default=${2:?}; shift 2 ;;
       -q) quit_label=${2:?}; shift 2 ;;
+      -a) answered=${2:?}; shift 2 ;;
       *)  break ;;
     esac
   done
   question=${1:?}
   shift
+  # The one place the answered line is built, so a replayed run cannot drift
+  # from a live one. It names the option rather than its number: the number is
+  # a detail of how the menu was drawn, and the menu is not on screen here.
+  if [ -n "$answered" ] && [ "$answered" -ge 1 ] 2>/dev/null && [ "$answered" -le $# ]; then
+    opt_i=0
+    for opt in "$@"; do
+      opt_i=$((opt_i + 1))
+      [ "$opt_i" -eq "$answered" ] && break
+    done
+    printf '  %s?%s %s  %s\n' "$_TUI_BOLD" "$_TUI_RESET" "$question" "$opt"
+    return "$answered"
+  fi
   # While a valid option isn't chosen
   while : ; do
     printf '  %s?%s %s\n' "$_TUI_BOLD" "$_TUI_RESET" "$question"

@@ -267,7 +267,7 @@ test_zdotdir_stub_user_can_cancel() {
   # shellcheck disable=SC2016
   output=$(echo q | install_zimfw_zdotdir_stub .zimrc '$DOTFILES/zimfw/zimrc-base')
 
-  assertContains "Should show cancellation" "$output" "left unchanged"
+  assertContains "Should show cancellation" "$output" "setup interrupted"
   assertEquals "Original content preserved" \
     "# existing zimrc" "$(cat "$target")"
 }

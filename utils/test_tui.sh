@@ -299,6 +299,41 @@ test_choose_with_default_still_cancels_on_q() {
   assertEquals "Should echo the keypress" "q" "${output##*[!q]}"
 }
 
+test_choose_answered_returns_the_answer_without_reading_stdin() {
+  # stdin says 1. The given answer has to win, which it only can if the
+  # keystroke was never read.
+  output=$(echo 1 | choose -a 2 "Which one?" first second)
+  assertEquals 2 $?
+  assertNotContains "Should not read the keystroke" "$output" "1"
+}
+
+test_choose_answered_names_the_option_rather_than_its_number() {
+  output=$(echo '' | choose -a 2 "Which one?" first second)
+  assertEquals "  ? Which one?  second" "$output"
+}
+
+# The menu is not on screen for an answered prompt, so nothing there is a
+# standing offer the user could still take.
+test_choose_answered_does_not_list_the_options() {
+  output=$(echo '' | choose -a 1 -q "leave it alone" "Which one?" first second)
+  assertNotContains "Should not number the options" "$output" "1) first"
+  assertNotContains "Should not offer the quit" "$output" "leave it alone"
+}
+
+# An answer no option carries would otherwise name whatever now sits at that
+# position, or nothing at all.
+test_choose_asks_when_the_given_answer_is_out_of_range() {
+  output=$(echo 1 | choose -a 5 "Which one?" first second)
+  assertEquals 1 $?
+  assertContains "Should fall back to asking" "$output" "1) first"
+}
+
+test_choose_asks_when_the_given_answer_is_not_a_number() {
+  output=$(echo 2 | choose -a link "Which one?" first second)
+  assertEquals 2 $?
+  assertContains "Should fall back to asking" "$output" "2) second"
+}
+
 test_choose_aborts_when_input_is_exhausted() {
   # Without a default this used to busy-loop forever on exhausted input.
   output=$(printf '' | choose "Which one?" first second 2>&1)

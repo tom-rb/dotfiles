@@ -275,7 +275,7 @@ test_with_existing_tmux_dotfiles_user_can_cancel() {
   output=$(echo q | install_tmux_dotfiles) # choose quit
 
   assertContains "Expected cancellation message" \
-    "$output" "tmux.conf left unchanged"
+    "$output" "tmux.conf setup interrupted"
 
   assertEquals "Should include only original contents of conf file" \
     "# Some existing config" "$(cat "$HOME"/.config/tmux/tmux.conf)"
