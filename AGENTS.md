@@ -86,13 +86,9 @@ Related functions are grouped with a `#\n# Section name\n#` divider. Inline comm
 
 ## Agent skills
 
-### Issue tracker
+### Work tracker
 
-Issues live as markdown files under `.scratch/<feature-slug>/` in this repo. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Default vocabulary: `needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`. See `docs/agents/triage-labels.md`.
+Tasks, features, wayfinder efforts and ideas live as markdown files under `docs/<category>/` in this repo. See `docs/agents/work-tracker.md` for all tracking files.
 
 ### Domain docs
 
