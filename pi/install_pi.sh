@@ -4,7 +4,7 @@
 . "${DOTFILES:?}/utils/utils.sh"
 
 # Pinned release. Bump deliberately.
-PI_VERSION="0.78.0"
+PI_VERSION="0.84.2"
 
 # Check if the pi coding agent binary is installed.
 is_pi_installed() {

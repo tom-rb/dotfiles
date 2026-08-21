@@ -198,7 +198,7 @@ test_get_pi_version_reads_the_bare_version_line() {
 
 test_install_pi_program_short_circuits_when_already_installed() {
   createSpy -u -r "$SHUNIT_TRUE" is_pi_installed
-  createSpy -u -o "0.78.0" get_pi_version
+  createSpy -u -o "0.84.2" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u npm
 
@@ -206,14 +206,14 @@ test_install_pi_program_short_circuits_when_already_installed() {
 
   assertTrue "Already-installed should not be an error" $?
   assertContains "Should report already installed" \
-    "$output" "pi 0.78.0 already installed"
+    "$output" "pi 0.84.2 already installed"
   assertNeverCalled ensure_node_installed
   assertNeverCalled npm
 }
 
 test_install_pi_program_installs_pinned_package_globally() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
-  createSpy -u -o "0.78.0" get_pi_version
+  createSpy -u -o "0.84.2" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u npm
   command_exists() { return 1; }   # asdf absent
@@ -224,12 +224,12 @@ test_install_pi_program_installs_pinned_package_globally() {
   assertCalledOnceWith npm install -g --loglevel=error --ignore-scripts \
     "@earendil-works/pi-coding-agent@${PI_VERSION}"
   assertContains "Should report the installed version" \
-    "$output" "pi 0.78.0 installed"
+    "$output" "pi 0.84.2 installed"
 }
 
 test_install_pi_program_hides_npm_output_without_debug() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
-  createSpy -u -o "0.78.0" get_pi_version
+  createSpy -u -o "0.84.2" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u -o 'npm install tree' npm
   command_exists() { return 1; }   # asdf absent
@@ -242,7 +242,7 @@ test_install_pi_program_hides_npm_output_without_debug() {
 
 test_install_pi_program_shows_npm_output_with_debug() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
-  createSpy -u -o "0.78.0" get_pi_version
+  createSpy -u -o "0.84.2" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u -o 'npm install tree' npm
   command_exists() { return 1; }   # asdf absent
@@ -272,7 +272,7 @@ test_install_pi_program_reports_the_version_before_the_reshim() {
 
 test_install_pi_program_reshims_when_node_is_asdf_managed() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
-  createSpy -u -o "0.78.0" get_pi_version
+  createSpy -u -o "0.84.2" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u npm
   command_exists() { [ "$1" = asdf ]; }   # asdf present
@@ -286,7 +286,7 @@ test_install_pi_program_reshims_when_node_is_asdf_managed() {
 
 test_install_pi_program_skips_reshim_when_asdf_absent() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
-  createSpy -u -o "0.78.0" get_pi_version
+  createSpy -u -o "0.84.2" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u npm
   command_exists() { return 1; }   # asdf absent
@@ -299,7 +299,7 @@ test_install_pi_program_skips_reshim_when_asdf_absent() {
 
 test_install_pi_program_fails_when_npm_install_fails() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
-  createSpy -u -o "0.78.0" get_pi_version
+  createSpy -u -o "0.84.2" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u -r "$SHUNIT_FALSE" npm   # npm exits non-zero
   command_exists() { return 1; }   # asdf absent
@@ -624,7 +624,7 @@ test_wizard_skips_skills_when_program_step_fails() {
 
 test_wizard_does_not_install_skills_when_npm_install_fails() {
   createSpy -u -r "$SHUNIT_FALSE" is_pi_installed
-  createSpy -u -o "0.78.0" get_pi_version
+  createSpy -u -o "0.84.2" get_pi_version
   createSpy -u ensure_node_installed
   createSpy -u -r "$SHUNIT_FALSE" npm
   command_exists() { return 1; }   # asdf absent
