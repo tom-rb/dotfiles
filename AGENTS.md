@@ -88,7 +88,7 @@ Related functions are grouped with a `#\n# Section name\n#` divider. Inline comm
 
 ### Work tracker
 
-Tasks, features, wayfinder efforts and ideas live as markdown files under `docs/<category>/` in this repo. See `docs/agents/work-tracker.md` for all tracking files.
+All planned work — features, wayfinder maps, ideas, and the tasks under them — is registered as work items under `docs/work/`. See `docs/agents/work-tracker.md` for the layout, the types, the states, and how to read and write items.
 
 ### Domain docs
 
